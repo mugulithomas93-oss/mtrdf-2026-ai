@@ -17,7 +17,7 @@ class MTRDFApp extends StatelessWidget {
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
-  final List<Map<String, dynamic>> subjects = const [
+  final List<Map<String, dynamic>> subjects = [
     {"name": "Mathematics", "icon": Icons.calculate, "color": Colors.blue},
     {"name": "Biology", "icon": Icons.biotech, "color": Colors.green},
     {"name": "Chemistry", "icon": Icons.science, "color": Colors.orange},

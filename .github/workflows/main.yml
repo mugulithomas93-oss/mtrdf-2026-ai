@@ -1,5 +1,5 @@
 name: Build APK
-on: 
+on:
   push:
     branches: [ main ]
   workflow_dispatch:
@@ -17,69 +17,29 @@ jobs:
           channel: 'stable'
       - name: Build APK
         run: |
-          echo "=== FILES ==="
+          echo "=== Before Fix ==="
           ls -la
+          # Fix file named main.dart2
+          if [ -f main.dart2 ]; then mv main.dart2 main.dart; fi
+          if [ -f "main.dart2 2" ]; then mv "main.dart2 2" main.dart; fi
           mkdir -p lib
-          if [ -f main.dart ]; then
-            echo "Moving main.dart to lib/"
-            mv main.dart lib/main.dart
-          fi
-          echo "=== lib/main.dart ==="
+          if [ -f main.dart ]; then cp main.dart lib/main.dart; fi
+          if [ -f lib/main.dart2 ]; then mv lib/main.dart2 lib/main.dart; fi
+          echo "=== After Fix ==="
+          ls -la
+          ls -la lib/
           cat lib/main.dart
-          echo "=== pubspec.yaml ==="
-          cat pubspec.yaml || echo "No pubspec, will create"
-          if [ ! -f pubspec.yaml ]; then
-            flutter create . --project-name mtrdf_2026_ai --platforms=android --overwrite
-            # restore our file after create
-            cat > lib/main.dart << 'DART'
-          import 'package:flutter/material.dart';
-          void main() => runApp(const MTRDFApp());
-          class MTRDFApp extends StatelessWidget {
-            const MTRDFApp({super.key});
-            @override
-            Widget build(BuildContext context) {
-              return MaterialApp(
-                debugShowCheckedModeBanner: false,
-                title: 'MTRDF 2026 AI',
-                home: const HomePage(),
-              );
-            }
-          }
-          class HomePage extends StatelessWidget {
-            const HomePage({super.key});
-            @override
-            Widget build(BuildContext context) {
-              return Scaffold(
-                appBar: AppBar(title: const Text('MTRDF 2026 AI'), backgroundColor: Colors.green),
-                body: GridView.count(
-                  crossAxisCount: 2,
-                  padding: const EdgeInsets.all(12),
-                  children: const [
-                    Card(child: Center(child: Text('Mathematics'))),
-                    Card(child: Center(child: Text('Biology'))),
-                    Card(child: Center(child: Text('Chemistry'))),
-                    Card(child: Center(child: Text('Physics'))),
-                    Card(child: Center(child: Text('History'))),
-                    Card(child: Center(child: Text('Geography'))),
-                    Card(child: Center(child: Text('English'))),
-                    Card(child: Center(child: Text('Agriculture'))),
-                    Card(child: Center(child: Text('Commerce'))),
-                    Card(child: Center(child: Text('ICT'))),
-                    Card(child: Center(child: Text('RE'))),
-                  ],
-                ),
-              );
-            }
-          }
-          DART
-          fi
+          cat pubspec.yaml
+          # Create android folder if missing
           if [ ! -d android ]; then
+            # backup our good main.dart
+            cp lib/main.dart /tmp/good_main.dart
             flutter create . --platforms=android --project-name mtrdf_2026_ai
+            cp /tmp/good_main.dart lib/main.dart
           fi
           flutter pub get
-          flutter build apk --release --verbose
+          flutter build apk --release
       - uses: actions/upload-artifact@v4
         with:
           name: MTRDF-2026-AI-APK
           path: build/app/outputs/flutter-apk/app-release.apk
-          if-no-files-found: error

@@ -40,60 +40,22 @@ jobs:
             const MTRDFApp({super.key});
             @override
             Widget build(BuildContext context) {
-              return MaterialApp(
-                debugShowCheckedModeBanner: false,
-                title: 'MTRDF 2026 AI',
-                theme: ThemeData(primarySwatch: Colors.green, useMaterial3: true),
-                home: const HomePage(),
-              );
+              return MaterialApp(debugShowCheckedModeBanner: false, title: 'MTRDF 2026 AI', home: const HomePage());
             }
           }
           class HomePage extends StatelessWidget {
             const HomePage({super.key});
-            final subjects = const [
-              {"name": "Mathematics", "icon": Icons.calculate, "color": Colors.blue},
-              {"name": "Biology", "icon": Icons.biotech, "color": Colors.green},
-              {"name": "Chemistry", "icon": Icons.science, "color": Colors.orange},
-              {"name": "Physics", "icon": Icons.bolt, "color": Colors.purple},
-              {"name": "History", "icon": Icons.history_edu, "color": Colors.brown},
-              {"name": "Geography", "icon": Icons.public, "color": Colors.teal},
-              {"name": "English", "icon": Icons.menu_book, "color": Colors.red},
-              {"name": "Agriculture", "icon": Icons.grass, "color": Colors.lightGreen},
-            ];
+            final subjects = const ["Mathematics","Biology","Chemistry","Physics","History","Geography","English","Agriculture"];
             @override
             Widget build(BuildContext context) {
               return Scaffold(
-                appBar: AppBar(title: const Text('MTRDF 2026 AI'), backgroundColor: Colors.green, foregroundColor: Colors.white, centerTitle: true),
-                body: GridView.builder(
+                appBar: AppBar(title: const Text('MTRDF 2026 AI'), backgroundColor: Colors.green, foregroundColor: Colors.white),
+                body: ListView.builder(
                   padding: const EdgeInsets.all(12),
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 2, crossAxisSpacing: 12, mainAxisSpacing: 12),
                   itemCount: subjects.length,
                   itemBuilder: (context, i) {
-                    final s = subjects[i];
-                    return InkWell(
-                      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => SubjectPage(subject: s))),
-                      child: Card(elevation: 2, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)), child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(s["icon"] as IconData, size: 45, color: s["color"] as Color), const SizedBox(height: 8), Text(s["name"] as String, style: const TextStyle(fontWeight: FontWeight.bold)), const Text('Tap + AI', style: TextStyle(fontSize: 11))])),
-                    );
+                    return Card(child: ListTile(title: Text(subjects[i], style: const TextStyle(fontWeight: FontWeight.bold)), trailing: const Icon(Icons.smart_toy, color: Colors.green), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => AITutorPage(subjectName: subjects[i])))));
                   },
-                ),
-              );
-            }
-          }
-          class SubjectPage extends StatelessWidget {
-            final Map<String, dynamic> subject;
-            const SubjectPage({super.key, required this.subject});
-            @override
-            Widget build(BuildContext context) {
-              return Scaffold(
-                appBar: AppBar(title: Text(subject["name"]), backgroundColor: subject["color"] as Color, foregroundColor: Colors.white),
-                body: Center(
-                  child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-                    Icon(subject["icon"] as IconData, size: 80, color: subject["color"] as Color),
-                    const SizedBox(height: 16),
-                    Text('${subject["name"]} S1-S4', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 20),
-                    ElevatedButton.icon(icon: const Icon(Icons.smart_toy), label: const Text('ASK AI TUTOR'), style: ElevatedButton.styleFrom(backgroundColor: Colors.green, foregroundColor: Colors.white, minimumSize: const Size(250, 55)), onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => AITutorPage(subjectName: subject["name"] as String)))),
-                  ]),
                 ),
               );
             }
@@ -106,33 +68,29 @@ jobs:
           }
           class _AITutorPageState extends State<AITutorPage> {
             final _c = TextEditingController();
-            final _msgs = <Map<String,String>>[{"role":"ai","text":"Hello! I am your MTRDF AI tutor. Ask me anything about this subject!"}];
+            final _msgs = <Map<String,String>>[{"role":"ai","text":"Hello! I am your MTRDF AI tutor. Ask me anything!"}];
             String _ans(String q){
               q=q.toLowerCase();
-              if(q.contains("photo")) return "Photosynthesis: 6CO2+6H2O+sunlight->C6H12O6+6O2. In chloroplast. Makes food and oxygen.";
-              if(q.contains("quadratic")) return "Quadratic formula: x=[-b±√(b²-4ac)]/2a. Example: x²-3x+2=0 => x=1 or 2";
-              if(q.contains("rift")) return "Rift Valley formed by faulting. Features: scarps, Rwenzori, lakes Albert/Edward/Tanganyika.";
-              if(q.contains("mau") || q.contains("colonial")) return "Mau Mau 1952-60: Causes land loss, forced labour, kipande. Led to Kenya independence 1963.";
-              return "Good question! For ${widget.subjectName}, ask specific topic and I explain step by step for UNEB.";
+              if(q.contains("photo")) return "Photosynthesis: 6CO2+6H2O+sunlight->C6H12O6+6O2. Makes food and oxygen.";
+              if(q.contains("quadratic")) return "Quadratic formula: x=[-b±√(b²-4ac)]/2a";
+              if(q.contains("rift")) return "Rift Valley formed by faulting. Features: scarps, Rwenzori, lakes.";
+              return "Good question! For ${widget.subjectName}, ask specific topic and I explain for UNEB.";
             }
             void _send(){
               if(_c.text.trim().isEmpty) return;
-              setState((){
-                _msgs.add({"role":"user","text":_c.text});
-                _msgs.add({"role":"ai","text":_ans(_c.text)});
-              });
+              setState((){ _msgs.add({"role":"user","text":_c.text}); _msgs.add({"role":"ai","text":_ans(_c.text)}); });
               _c.clear();
             }
             @override
             Widget build(BuildContext context){
               return Scaffold(
-                appBar: AppBar(title: Text('AI - ${widget.subjectName}'), backgroundColor: Colors.green, foregroundColor: Colors.white),
+                appBar: AppBar(title: Text('AI - ${widget.subjectName}')),
                 body: Column(children: [
                   Expanded(child: ListView.builder(padding: const EdgeInsets.all(12), itemCount: _msgs.length, itemBuilder: (_,i){
                     final m=_msgs[i]; bool u=m["role"]=="user";
                     return Align(alignment: u? Alignment.centerRight: Alignment.centerLeft, child: Container(margin: const EdgeInsets.symmetric(vertical:4), padding: const EdgeInsets.all(12), decoration: BoxDecoration(color: u? Colors.green: Colors.grey[200], borderRadius: BorderRadius.circular(12)), child: Text(m["text"]!)));
                   })),
-                  Padding(padding: const EdgeInsets.all(8), child: Row(children: [Expanded(child: TextField(controller: _c, decoration: InputDecoration(hintText: 'Ask about ${widget.subjectName}...', border: OutlineInputBorder(borderRadius: BorderRadius.circular(25))), onSubmitted: (_)=>_send())), IconButton(icon: const Icon(Icons.send, color: Colors.green), onPressed: _send)]))
+                  Padding(padding: const EdgeInsets.all(8), child: Row(children: [Expanded(child: TextField(controller: _c, decoration: const InputDecoration(hintText: 'Ask...', border: OutlineInputBorder()), onSubmitted: (_)=>_send())), IconButton(icon: const Icon(Icons.send), onPressed: _send)]))
                 ]),
               );
             }

@@ -15,28 +15,113 @@ jobs:
       - uses: subosito/flutter-action@v2
         with:
           channel: 'stable'
-      - name: Build APK
+      - name: Create App Files
         run: |
-          echo "=== Before Fix ==="
-          ls -la
-          # Fix file named main.dart2
-          if [ -f main.dart2 ]; then mv main.dart2 main.dart; fi
-          if [ -f "main.dart2 2" ]; then mv "main.dart2 2" main.dart; fi
           mkdir -p lib
-          if [ -f main.dart ]; then cp main.dart lib/main.dart; fi
-          if [ -f lib/main.dart2 ]; then mv lib/main.dart2 lib/main.dart; fi
-          echo "=== After Fix ==="
-          ls -la
-          ls -la lib/
-          cat lib/main.dart
-          cat pubspec.yaml
-          # Create android folder if missing
-          if [ ! -d android ]; then
-            # backup our good main.dart
-            cp lib/main.dart /tmp/good_main.dart
-            flutter create . --platforms=android --project-name mtrdf_2026_ai
-            cp /tmp/good_main.dart lib/main.dart
-          fi
+          cat > lib/main.dart << 'DART'
+          import 'package:flutter/material.dart';
+          void main() => runApp(const MTRDFApp());
+          class MTRDFApp extends StatelessWidget {
+            const MTRDFApp({super.key});
+            @override
+            Widget build(BuildContext context) {
+              return MaterialApp(
+                debugShowCheckedModeBanner: false,
+                title: 'MTRDF 2026 AI',
+                theme: ThemeData(primarySwatch: Colors.green, useMaterial3: true),
+                home: const HomePage(),
+              );
+            }
+          }
+          class HomePage extends StatelessWidget {
+            const HomePage({super.key});
+            @override
+            Widget build(BuildContext context) {
+              return Scaffold(
+                appBar: AppBar(title: const Text('MTRDF 2026 AI'), backgroundColor: Colors.green, foregroundColor: Colors.white, centerTitle: true),
+                body: GridView.count(
+                  crossAxisCount: 2,
+                  padding: const EdgeInsets.all(12),
+                  crossAxisSpacing: 12,
+                  mainAxisSpacing: 12,
+                  children: [
+                    Card(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(Icons.calculate, size: 40, color: Colors.blue), Text('Mathematics', style: TextStyle(fontWeight: FontWeight.bold))])),
+                    Card(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(Icons.biotech, size: 40, color: Colors.green), Text('Biology', style: TextStyle(fontWeight: FontWeight.bold))])),
+                    Card(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(Icons.science, size: 40, color: Colors.orange), Text('Chemistry', style: TextStyle(fontWeight: FontWeight.bold))])),
+                    Card(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(Icons.bolt, size: 40, color: Colors.purple), Text('Physics', style: TextStyle(fontWeight: FontWeight.bold))])),
+                    Card(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(Icons.history_edu, size: 40, color: Colors.brown), Text('History', style: TextStyle(fontWeight: FontWeight.bold))])),
+                    Card(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(Icons.public, size: 40, color: Colors.teal), Text('Geography', style: TextStyle(fontWeight: FontWeight.bold))])),
+                    Card(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(Icons.menu_book, size: 40, color: Colors.red), Text('English', style: TextStyle(fontWeight: FontWeight.bold))])),
+                    Card(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(Icons.grass, size: 40, color: Colors.lightGreen), Text('Agriculture', style: TextStyle(fontWeight: FontWeight.bold))])),
+                    Card(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(Icons.business, size: 40, color: Colors.indigo), Text('Commerce', style: TextStyle(fontWeight: FontWeight.bold))])),
+                    Card(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(Icons.computer, size: 40, color: Colors.cyan), Text('ICT', style: TextStyle(fontWeight: FontWeight.bold))])),
+                    Card(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(Icons.auto_stories, size: 40, color: Colors.amber), Text('RE', style: TextStyle(fontWeight: FontWeight.bold))])),
+                  ],
+                ),
+              );
+            }
+          }
+          DART
+          cat > pubspec.yaml << 'YAML'
+          name: mtrdf_2026_ai
+          description: MTRDF 2026 AI Education App
+          publish_to: 'none'
+          version: 1.0.0+1
+          environment:
+            sdk: '>=3.0.0 <4.0.0'
+          dependencies:
+            flutter:
+              sdk: flutter
+            cupertino_icons: ^1.0.2
+          flutter:
+            uses-material-design: true
+          YAML
+          flutter create . --platforms=android --project-name mtrdf_2026_ai --overwrite
+          # restore our good file (create overwrites it)
+          cat > lib/main.dart << 'DART'
+          import 'package:flutter/material.dart';
+          void main() => runApp(const MTRDFApp());
+          class MTRDFApp extends StatelessWidget {
+            const MTRDFApp({super.key});
+            @override
+            Widget build(BuildContext context) {
+              return MaterialApp(
+                debugShowCheckedModeBanner: false,
+                title: 'MTRDF 2026 AI',
+                theme: ThemeData(primarySwatch: Colors.green, useMaterial3: true),
+                home: const HomePage(),
+              );
+            }
+          }
+          class HomePage extends StatelessWidget {
+            const HomePage({super.key});
+            @override
+            Widget build(BuildContext context) {
+              return Scaffold(
+                appBar: AppBar(title: const Text('MTRDF 2026 AI'), backgroundColor: Colors.green, foregroundColor: Colors.white, centerTitle: true),
+                body: GridView.count(
+                  crossAxisCount: 2,
+                  padding: const EdgeInsets.all(12),
+                  crossAxisSpacing: 12,
+                  mainAxisSpacing: 12,
+                  children: [
+                    Card(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(Icons.calculate, size: 40, color: Colors.blue), Text('Mathematics')])),
+                    Card(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(Icons.biotech, size: 40, color: Colors.green), Text('Biology')])),
+                    Card(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(Icons.science, size: 40, color: Colors.orange), Text('Chemistry')])),
+                    Card(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(Icons.bolt, size: 40, color: Colors.purple), Text('Physics')])),
+                    Card(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(Icons.history_edu, size: 40, color: Colors.brown), Text('History')])),
+                    Card(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(Icons.public, size: 40, color: Colors.teal), Text('Geography')])),
+                    Card(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(Icons.menu_book, size: 40, color: Colors.red), Text('English')])),
+                    Card(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(Icons.grass, size: 40, color: Colors.lightGreen), Text('Agriculture')])),
+                    Card(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(Icons.business, size: 40, color: Colors.indigo), Text('Commerce')])),
+                    Card(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(Icons.computer, size: 40, color: Colors.cyan), Text('ICT')])),
+                    Card(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(Icons.auto_stories, size: 40, color: Colors.amber), Text('RE')])),
+                  ],
+                ),
+              );
+            }
+          }
+          DART
           flutter pub get
           flutter build apk --release
       - uses: actions/upload-artifact@v4

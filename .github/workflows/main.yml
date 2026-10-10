@@ -15,7 +15,7 @@ jobs:
       - uses: subosito/flutter-action@v2
         with:
           channel: 'stable'
-      - name: Create App Files
+      - name: Build MTRDF AI App
         run: |
           mkdir -p lib
           cat > lib/main.dart << 'DART'
@@ -35,27 +35,100 @@ jobs:
           }
           class HomePage extends StatelessWidget {
             const HomePage({super.key});
+            final subjects = const [
+              {"name": "Mathematics", "icon": Icons.calculate, "color": Colors.blue},
+              {"name": "Biology", "icon": Icons.biotech, "color": Colors.green},
+              {"name": "Chemistry", "icon": Icons.science, "color": Colors.orange},
+              {"name": "Physics", "icon": Icons.bolt, "color": Colors.purple},
+              {"name": "History", "icon": Icons.history_edu, "color": Colors.brown},
+              {"name": "Geography", "icon": Icons.public, "color": Colors.teal},
+              {"name": "English", "icon": Icons.menu_book, "color": Colors.red},
+              {"name": "Agriculture", "icon": Icons.grass, "color": Colors.lightGreen},
+              {"name": "Commerce", "icon": Icons.business, "color": Colors.indigo},
+              {"name": "ICT", "icon": Icons.computer, "color": Colors.cyan},
+              {"name": "RE", "icon": Icons.auto_stories, "color": Colors.amber},
+            ];
             @override
             Widget build(BuildContext context) {
               return Scaffold(
-                appBar: AppBar(title: const Text('MTRDF 2026 AI'), backgroundColor: Colors.green, foregroundColor: Colors.white, centerTitle: true),
-                body: GridView.count(
-                  crossAxisCount: 2,
+                appBar: AppBar(title: const Text('MTRDF 2026 AI - Learn with AI'), backgroundColor: Colors.green, foregroundColor: Colors.white, centerTitle: true),
+                body: GridView.builder(
                   padding: const EdgeInsets.all(12),
-                  crossAxisSpacing: 12,
-                  mainAxisSpacing: 12,
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 2, crossAxisSpacing: 12, mainAxisSpacing: 12),
+                  itemCount: subjects.length,
+                  itemBuilder: (context, i) {
+                    final s = subjects[i];
+                    return InkWell(
+                      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => SubjectPage(subject: s))),
+                      child: Card(elevation: 2, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)), child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(s["icon"] as IconData, size: 45, color: s["color"] as Color), const SizedBox(height: 8), Text(s["name"] as String, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)), const Text('Tap + AI', style: TextStyle(fontSize: 11, color: Colors.grey))])),
+                    );
+                  },
+                ),
+              );
+            }
+          }
+          class SubjectPage extends StatelessWidget {
+            final Map<String, dynamic> subject;
+            const SubjectPage({super.key, required this.subject});
+            @override
+            Widget build(BuildContext context) {
+              return Scaffold(
+                appBar: AppBar(title: Text(subject["name"]), backgroundColor: subject["color"], foregroundColor: Colors.white),
+                body: ListView(
+                  padding: const EdgeInsets.all(16),
                   children: [
-                    Card(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(Icons.calculate, size: 40, color: Colors.blue), Text('Mathematics', style: TextStyle(fontWeight: FontWeight.bold))])),
-                    Card(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(Icons.biotech, size: 40, color: Colors.green), Text('Biology', style: TextStyle(fontWeight: FontWeight.bold))])),
-                    Card(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(Icons.science, size: 40, color: Colors.orange), Text('Chemistry', style: TextStyle(fontWeight: FontWeight.bold))])),
-                    Card(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(Icons.bolt, size: 40, color: Colors.purple), Text('Physics', style: TextStyle(fontWeight: FontWeight.bold))])),
-                    Card(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(Icons.history_edu, size: 40, color: Colors.brown), Text('History', style: TextStyle(fontWeight: FontWeight.bold))])),
-                    Card(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(Icons.public, size: 40, color: Colors.teal), Text('Geography', style: TextStyle(fontWeight: FontWeight.bold))])),
-                    Card(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(Icons.menu_book, size: 40, color: Colors.red), Text('English', style: TextStyle(fontWeight: FontWeight.bold))])),
-                    Card(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(Icons.grass, size: 40, color: Colors.lightGreen), Text('Agriculture', style: TextStyle(fontWeight: FontWeight.bold))])),
-                    Card(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(Icons.business, size: 40, color: Colors.indigo), Text('Commerce', style: TextStyle(fontWeight: FontWeight.bold))])),
-                    Card(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(Icons.computer, size: 40, color: Colors.cyan), Text('ICT', style: TextStyle(fontWeight: FontWeight.bold))])),
-                    Card(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(Icons.auto_stories, size: 40, color: Colors.amber), Text('RE', style: TextStyle(fontWeight: FontWeight.bold))])),
+                    Card(color: (subject["color"] as Color).withOpacity(0.1), child: Padding(padding: const EdgeInsets.all(24), child: Column(children: [Icon(subject["icon"] as IconData, size: 60, color: subject["color"] as Color), const SizedBox(height: 8), Text('${subject["name"]} S1-S4', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold))] ))),
+                    const SizedBox(height: 16),
+                    ElevatedButton.icon(icon: const Icon(Icons.smart_toy), label: const Text('ASK AI TUTOR'), style: ElevatedButton.styleFrom(backgroundColor: Colors.green, foregroundColor: Colors.white, minimumSize: const Size(double.infinity, 55)), onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => AITutorPage(subjectName: subject["name"] as String)))),
+                    const SizedBox(height: 12),
+                    ElevatedButton.icon(icon: const Icon(Icons.menu_book), label: const Text('View Notes'), onPressed: () {}, style: ElevatedButton.styleFrom(minimumSize: const Size(double.infinity, 50))),
+                  ],
+                ),
+              );
+            }
+          }
+          class AITutorPage extends StatefulWidget {
+            final String subjectName;
+            const AITutorPage({super.key, required this.subjectName});
+            @override
+            State<AITutorPage> createState() => _AITutorPageState();
+          }
+          class _AITutorPageState extends State<AITutorPage> {
+            final _controller = TextEditingController();
+            final List<Map<String,String>> _messages = [];
+            @override
+            void initState(){
+              super.initState();
+              _messages.add({"role":"ai","text":"Hello! I am your MTRDF AI tutor for ${widget.subjectName}. Ask me anything. Example: Explain photosynthesis, Solve quadratic, What is Rift Valley?"});
+            }
+            String getAIAnswer(String q){
+              q=q.toLowerCase();
+              if(q.contains("photo")) return "Photosynthesis: Plants make food using sunlight, CO2 and water.\nEquation: 6CO2 + 6H2O + sunlight -> C6H12O6 + 6O2\nOccurs in chloroplast. Importance: produces food and oxygen. S2 Biology.";
+              if(q.contains("quadratic")) return "Quadratic: ax²+bx+c=0\nFormula: x=[-b ± √(b²-4ac)]/2a\nExample: x²-3x+2=0 => x=1 or x=2";
+              if(q.contains("newton") || q.contains("force")) return "Newton Laws:\n1. Body at rest stays\n2. F=ma\n3. Action=Reaction opposite.\nS3 Physics!";
+              if(q.contains("rift")) return "Great Rift Valley formed by faulting (tension). Has steep scarps, block mountains Rwenzori, rift lakes Albert/Edward/Tanganyika.";
+              if(q.contains("mau") || q.contains("colonial")) return "Mau Mau 1952-60 Kenya: Causes - land loss, forced labour, kipande. Effects - independence 1963.";
+              return "Great question about '${_controller.text}' in ${widget.subjectName}!\nFor CBC, focus on real-life application. Ask more specific question and I will give steps!";
+            }
+            void _send(){
+              if(_controller.text.trim().isEmpty) return;
+              setState((){
+                _messages.add({"role":"user","text":_controller.text});
+                _messages.add({"role":"ai","text":getAIAnswer(_controller.text)});
+              });
+              _controller.clear();
+            }
+            @override
+            Widget build(BuildContext context){
+              return Scaffold(
+                appBar: AppBar(title: Text('AI Tutor - ${widget.subjectName}'), backgroundColor: Colors.green, foregroundColor: Colors.white),
+                body: Column(
+                  children: [
+                    Expanded(child: ListView.builder(padding: const EdgeInsets.all(12), itemCount: _messages.length, itemBuilder: (c,i){
+                      final m=_messages[i]; bool isUser=m["role"]=="user";
+                      return Align(alignment: isUser? Alignment.centerRight: Alignment.centerLeft, child: Container(margin: const EdgeInsets.symmetric(vertical:4), padding: const EdgeInsets.all(12), decoration: BoxDecoration(color: isUser? Colors.green: Colors.grey[200], borderRadius: BorderRadius.circular(12)), child: Text(m["text"]!, style: TextStyle(color: isUser? Colors.white: Colors.black))));
+                    })),
+                    Padding(padding: const EdgeInsets.all(8), child: Row(children: [Expanded(child: TextField(controller: _controller, decoration: InputDecoration(hintText: 'Ask about ${widget.subjectName}...', border: OutlineInputBorder(borderRadius: BorderRadius.circular(25))), onSubmitted: (_)=>_send())), IconButton(icon: const Icon(Icons.send, color: Colors.green), onPressed: _send)]))
                   ],
                 ),
               );
@@ -64,7 +137,7 @@ jobs:
           DART
           cat > pubspec.yaml << 'YAML'
           name: mtrdf_2026_ai
-          description: MTRDF 2026 AI Education App
+          description: MTRDF 2026 AI
           publish_to: 'none'
           version: 1.0.0+1
           environment:
@@ -76,9 +149,8 @@ jobs:
           flutter:
             uses-material-design: true
           YAML
-          flutter create . --platforms=android --project-name mtrdf_2026_ai --overwrite
-          # restore our good file (create overwrites it)
-          cat > lib/main.dart << 'DART'
+          flutter create. --platforms=android --project-name mtrdf_2026_ai --overwrite
+          cat > lib/main.dart << 'DART2'
           import 'package:flutter/material.dart';
           void main() => runApp(const MTRDFApp());
           class MTRDFApp extends StatelessWidget {
@@ -95,36 +167,103 @@ jobs:
           }
           class HomePage extends StatelessWidget {
             const HomePage({super.key});
+            final subjects = const [
+              {"name": "Mathematics", "icon": Icons.calculate, "color": Colors.blue},
+              {"name": "Biology", "icon": Icons.biotech, "color": Colors.green},
+              {"name": "Chemistry", "icon": Icons.science, "color": Colors.orange},
+              {"name": "Physics", "icon": Icons.bolt, "color": Colors.purple},
+              {"name": "History", "icon": Icons.history_edu, "color": Colors.brown},
+              {"name": "Geography", "icon": Icons.public, "color": Colors.teal},
+              {"name": "English", "icon": Icons.menu_book, "color": Colors.red},
+              {"name": "Agriculture", "icon": Icons.grass, "color": Colors.lightGreen},
+              {"name": "Commerce", "icon": Icons.business, "color": Colors.indigo},
+              {"name": "ICT", "icon": Icons.computer, "color": Colors.cyan},
+              {"name": "RE", "icon": Icons.auto_stories, "color": Colors.amber},
+            ];
             @override
             Widget build(BuildContext context) {
               return Scaffold(
-                appBar: AppBar(title: const Text('MTRDF 2026 AI'), backgroundColor: Colors.green, foregroundColor: Colors.white, centerTitle: true),
-                body: GridView.count(
-                  crossAxisCount: 2,
+                appBar: AppBar(title: const Text('MTRDF 2026 AI - Learn with AI'), backgroundColor: Colors.green, foregroundColor: Colors.white, centerTitle: true),
+                body: GridView.builder(
                   padding: const EdgeInsets.all(12),
-                  crossAxisSpacing: 12,
-                  mainAxisSpacing: 12,
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 2, crossAxisSpacing: 12, mainAxisSpacing: 12),
+                  itemCount: subjects.length,
+                  itemBuilder: (context, i) {
+                    final s = subjects[i];
+                    return InkWell(
+                      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => SubjectPage(subject: s))),
+                      child: Card(elevation: 2, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)), child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(s["icon"] as IconData, size: 45, color: s["color"] as Color), const SizedBox(height: 8), Text(s["name"] as String, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)), const Text('Tap + AI', style: TextStyle(fontSize: 11, color: Colors.grey))])),
+                    );
+                  },
+                ),
+              );
+            }
+          }
+          class SubjectPage extends StatelessWidget {
+            final Map<String, dynamic> subject;
+            const SubjectPage({super.key, required this.subject});
+            @override
+            Widget build(BuildContext context) {
+              return Scaffold(
+                appBar: AppBar(title: Text(subject["name"]), backgroundColor: subject["color"], foregroundColor: Colors.white),
+                body: ListView(
+                  padding: const EdgeInsets.all(16),
                   children: [
-                    Card(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(Icons.calculate, size: 40, color: Colors.blue), Text('Mathematics')])),
-                    Card(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(Icons.biotech, size: 40, color: Colors.green), Text('Biology')])),
-                    Card(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(Icons.science, size: 40, color: Colors.orange), Text('Chemistry')])),
-                    Card(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(Icons.bolt, size: 40, color: Colors.purple), Text('Physics')])),
-                    Card(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(Icons.history_edu, size: 40, color: Colors.brown), Text('History')])),
-                    Card(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(Icons.public, size: 40, color: Colors.teal), Text('Geography')])),
-                    Card(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(Icons.menu_book, size: 40, color: Colors.red), Text('English')])),
-                    Card(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(Icons.grass, size: 40, color: Colors.lightGreen), Text('Agriculture')])),
-                    Card(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(Icons.business, size: 40, color: Colors.indigo), Text('Commerce')])),
-                    Card(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(Icons.computer, size: 40, color: Colors.cyan), Text('ICT')])),
-                    Card(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(Icons.auto_stories, size: 40, color: Colors.amber), Text('RE')])),
+                    Card(color: (subject["color"] as Color).withOpacity(0.1), child: Padding(padding: const EdgeInsets.all(24), child: Column(children: [Icon(subject["icon"] as IconData, size: 60, color: subject["color"] as Color), const SizedBox(height: 8), Text('${subject["name"]} S1-S4', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold))] ))),
+                    const SizedBox(height: 16),
+                    ElevatedButton.icon(icon: const Icon(Icons.smart_toy), label: const Text('ASK AI TUTOR'), style: ElevatedButton.styleFrom(backgroundColor: Colors.green, foregroundColor: Colors.white, minimumSize: const Size(double.infinity, 55)), onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => AITutorPage(subjectName: subject["name"] as String)))),
                   ],
                 ),
               );
             }
           }
-          DART
+          class AITutorPage extends StatefulWidget {
+            final String subjectName;
+            const AITutorPage({super.key, required this.subjectName});
+            @override
+            State<AITutorPage> createState() => _AITutorPageState();
+          }
+          class _AITutorPageState extends State<AITutorPage> {
+            final _controller = TextEditingController();
+            final List<Map<String,String>> _messages = [];
+            @override
+            void initState(){
+              super.initState();
+              _messages.add({"role":"ai","text":"Hello! I am your MTRDF AI tutor for ${widget.subjectName}. Ask me anything."});
+            }
+            String getAIAnswer(String q){
+              q=q.toLowerCase();
+              if(q.contains("photo")) return "Photosynthesis: Plants make food using sunlight, CO2 and water. Equation: 6CO2+6H2O+sunlight->C6H12O6+6O2";
+              if(q.contains("quadratic")) return "Quadratic: x=[-b ± √(b²-4ac)]/2a. Example x²-3x+2=0 => x=1 or 2";
+              if(q.contains("rift")) return "Rift Valley formed by faulting. Has scarps, Rwenzori block mountain, lakes Albert/Edward.";
+              return "Great question! For ${widget.subjectName}, focus on CBC real-life. Ask specific topic!";
+            }
+            void _send(){
+              if(_controller.text.trim().isEmpty) return;
+              setState((){
+                _messages.add({"role":"user","text":_controller.text});
+                _messages.add({"role":"ai","text":getAIAnswer(_controller.text)});
+              });
+              _controller.clear();
+            }
+            @override
+            Widget build(BuildContext context){
+              return Scaffold(
+                appBar: AppBar(title: Text('AI Tutor - ${widget.subjectName}')),
+                body: Column(children: [
+                  Expanded(child: ListView.builder(padding: const EdgeInsets.all(12), itemCount: _messages.length, itemBuilder: (c,i){
+                    final m=_messages[i]; bool isUser=m["role"]=="user";
+                    return Align(alignment: isUser? Alignment.centerRight: Alignment.centerLeft, child: Container(margin: const EdgeInsets.symmetric(vertical:4), padding: const EdgeInsets.all(12), decoration: BoxDecoration(color: isUser? Colors.green: Colors.grey[200], borderRadius: BorderRadius.circular(12)), child: Text(m["text"]!)));
+                  })),
+                  Padding(padding: const EdgeInsets.all(8), child: Row(children: [Expanded(child: TextField(controller: _controller, decoration: const InputDecoration(hintText: 'Ask...', border: OutlineInputBorder()), onSubmitted: (_)=>_send())), IconButton(icon: const Icon(Icons.send), onPressed: _send)]))
+                ]),
+              );
+            }
+          }
+          DART2
           flutter pub get
           flutter build apk --release
       - uses: actions/upload-artifact@v4
         with:
-          name: MTRDF-2026-AI-APK
+          name: MTRDF-AI-APK
           path: build/app/outputs/flutter-apk/app-release.apk

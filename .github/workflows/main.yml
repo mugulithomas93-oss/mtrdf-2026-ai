@@ -15,134 +15,81 @@ jobs:
       - uses: subosito/flutter-action@v2
         with:
           channel: 'stable'
-      - name: Build MTRDF AI App
+      - name: Build MTRDF REAL AI
         run: |
           cat > pubspec.yaml << 'YAML'
           name: mtrdf_2026_ai
-          description: MTRDF 2026 AI - UNEB Tutor
+          description: MTRDF 2026 Real UNEB AI
           publish_to: 'none'
-          version: 1.0.0+1
+          version: 3.0.0+17
           environment:
             sdk: '>=3.0.0 <4.0.0'
           dependencies:
             flutter:
               sdk: flutter
-            cupertino_icons: ^1.0.2
           flutter:
             uses-material-design: true
           YAML
-          flutter create . --platforms=android --project-name mtrdf_2026_ai --overwrite
-          mkdir -p lib
+          rm -rf lib && mkdir -p lib
           cat > lib/main.dart << 'DART'
           import 'package:flutter/material.dart';
-          void main() => runApp(const MTRDFApp());
-          class MTRDFApp extends StatelessWidget {
-            const MTRDFApp({super.key});
-            @override
-            Widget build(BuildContext context) {
-              return MaterialApp(debugShowCheckedModeBanner: false, title: 'MTRDF 2026 AI', theme: ThemeData(primarySwatch: Colors.green), home: const HomePage());
-            }
-          }
-          class HomePage extends StatelessWidget {
+          void main(){ runApp(const MTRDFApp()); }
+          class MTRDFApp extends StatelessWidget{ const MTRDFApp({super.key}); @override Widget build(BuildContext c){ return MaterialApp(debugShowCheckedModeBanner:false, title:'MTRDF 2026', theme:ThemeData(primarySwatch:Colors.green), home: const HomePage()); } }
+          class HomePage extends StatelessWidget{
             const HomePage({super.key});
-            final subjects = const ["Mathematics","Biology","Chemistry","Physics","History","Geography","English","Agriculture"];
-            @override
-            Widget build(BuildContext context) {
+            @override Widget build(BuildContext c){
+              final subjects=["Mathematics","Biology","Chemistry","Physics","History","Geography","English","Agriculture"];
               return Scaffold(
                 appBar: AppBar(title: const Text('MTRDF 2026 AI - S.4'), backgroundColor: Colors.green, foregroundColor: Colors.white, centerTitle: true),
-                body: ListView.builder(
-                  padding: const EdgeInsets.all(12),
-                  itemCount: subjects.length,
-                  itemBuilder: (context, i) {
-                    return Card(
-                      elevation: 3,
-                      child: ListTile(
-                        leading: const Icon(Icons.menu_book, color: Colors.green),
-                        title: Text(subjects[i], style: const TextStyle(fontWeight: FontWeight.bold)),
-                        subtitle: const Text("Tap to open AI Tutor + UNEB Notes"),
-                        trailing: const Icon(Icons.smart_toy, color: Colors.green),
-                        onTap: () {
-                          Navigator.push(context, MaterialPageRoute(builder: (_) => AITutorPage(subjectName: subjects[i])));
-                        },
-                      ),
-                    );
-                  }
-                ),
+                body: ListView.builder(padding: const EdgeInsets.all(12), itemCount: subjects.length, itemBuilder: (context,i){
+                  return Card(elevation:3, child: ListTile(leading: const Icon(Icons.menu_book, color:Colors.green), title: Text(subjects[i], style: const TextStyle(fontWeight:FontWeight.bold)), subtitle: const Text("Tap to open AI Tutor + UNEB Notes"), trailing: const Icon(Icons.smart_toy, color:Colors.green), onTap:(){ Navigator.push(context, MaterialPageRoute(builder: (_)=> AITutorPage(subjectName: subjects[i]))); }));
+                }),
               );
             }
           }
-          class AITutorPage extends StatefulWidget {
-            final String subjectName;
-            const AITutorPage({super.key, required this.subjectName});
-            @override
-            State<AITutorPage> createState() => _AITutorPageState();
-          }
-          class _AITutorPageState extends State<AITutorPage> {
-            final _c = TextEditingController();
-            final List<Map<String,String>> _msgs = [{"role":"ai","text":"Hello! I am your MTRDF 2026 AI tutor for UNEB!\n\nI can help with:\n- Notes\n- Past papers\n- Definitions\n- Calculations\n\nAsk me any question!"}];
-
-            String _getAnswer(String q){
-              q = q.toLowerCase();
-              if(widget.subjectName=="Mathematics"){
-                if(q.contains("pythagoras")) return "Pythagoras: a² + b² = c² where c is hypotenuse. Example: a=3, b=4 => c=5.";
-                if(q.contains("quadratic")) return "Quadratic formula: x = [-b ± √(b²-4ac)] / 2a. For ax²+bx+c=0";
-                return "MATHS UNEB TIP for ${widget.subjectName}: For '$q', break into steps. 1) Write formula 2) Substitute 3) Calculate. UNEB loves showing working! What topic exactly? (Algebra, Geometry, Trigonometry?)";
+          class AITutorPage extends StatefulWidget{ final String subjectName; const AITutorPage({super.key, required this.subjectName}); @override State<AITutorPage> createState()=>_AITutorPageState(); }
+          class _AITutorPageState extends State<AITutorPage>{
+            final _c=TextEditingController();
+            final List<Map<String,String>> _msgs=[{"role":"ai","text":"Hello! I am MTRDF 2026 AI - UNEB Expert!\n\nI have REAL UNEB notes for S.4.\nAsk any question and I give UNEB marking guide answer."}];
+            String _real(String q, String sub){
+              q=q.toLowerCase().trim();
+              if(sub=="History"){
+                if(q.contains("define history")||q=="history") return "HISTORY - UNEB Definition (2 marks):\n\nHistory is the study of past human activities / events in chronological order to understand present and predict future.\n\nImportance:\n1. Learn from past mistakes\n2. Promote unity\n3. Understand heritage\n4. Source of income (tourism)\n\nUNEB Tip: Always mention 'past events, chronological order'.";
+                if(q.contains("colonial")||q.contains("colonisation")) return "COLONIALISM in East Africa:\n\nDefinition: System where powerful nations (Britain, Germany) took control of weak states for economic gain.\n\nReasons:\n- Raw materials\n- Market for goods\n- Strategic areas (Suez)\n- Prestige\n\nEffects: Loss of independence, new cash crops, infrastructure but exploitation.";
+                if(q.contains("maji")) return "MAJI MAJI REBELLION (1905-1907):\n\nLed by Kinjekitile Ngwale. Used maji (water) medicine believed to turn bullets to water.\nCauses: German harsh rule, forced cotton growing, hut tax.\nFailed because: Germans had superior guns, Africans disunited.\nResult: Many deaths, but showed early nationalism.";
+                if(q.contains("buganda agreement")||q.contains("1900")) return "BUGANDA AGREEMENT 1900:\n\nSigned between Buganda and British. Sir Harry Johnston for British, Apollo Kagwa for Buganda.\n\nTerms:\n- Buganda recognized as province of Uganda Protectorate\n- Land divided: Crown land, Mailo land (1000 sq miles to chiefs)\n- Lukiiko recognized\n- Buganda to pay taxes\n\nEffects: Chiefs became landlords, start of landlord-tenant problems.";
               }
-              if(widget.subjectName=="Biology"){
-                if(q.contains("photosynthesis")) return "Photosynthesis: 6CO2 + 6H2O --(light/chlorophyll)--> C6H12O6 + 6O2. Occurs in chloroplast. Factors: light, CO2, temp.";
-                return "BIOLOGY UNEB: For '$q' in ${widget.subjectName}, use: Definition -> Process -> Importance -> Diagram. Always label diagrams! Ask specific topic.";
+              if(sub=="Biology"){
+                if(q.contains("photosynthesis")) return "PHOTOSYNTHESIS:\n\nEquation: 6CO2 + 6H2O --(Light/Chlorophyll)--> C6H12O6 + 6O2\n\nSite: Chloroplast (palissade mesophyll)\nStages:\n1) Light stage: in grana, light splits water (photolysis) -> O2 + ATP\n2) Dark stage: in stroma, CO2 fixed to make glucose (Calvin cycle)\n\nFactors: Light intensity, CO2 conc, Temperature, Water.\nUNEB diagram: Must draw chloroplast structure.";
+                if(q.contains("mitosis")) return "MITOSIS: Cell division producing 2 identical daughter cells (2n).\n\nStages: Interphase -> Prophase -> Metaphase -> Anaphase -> Telophase -> Cytokinesis\n\nImportance:\n- Growth\n- Repair of worn out tissues\n- Asexual reproduction\n- Maintains chromosome number.\n\nDifference from Meiosis: Meiosis gives 4 haploid cells for sexual reproduction.";
               }
-              return "Good question about ${widget.subjectName}: '$q'\n\nAs your MTRDF AI tutor, here is UNEB-style answer:\n\nFor UNEB 2024-2026, focus on definition, explanation, examples and application.\n\nTell me more: Which sub-topic? I will explain step-by-step with UNEB marking guide.";
+              if(sub=="Mathematics"){
+                if(q.contains("pythagoras")) return "PYTHAGORAS THEOREM:\n\nFor right-angled triangle: c² = a² + b² where c=hypotenuse.\n\nExample: Find hypotenuse when a=6, b=8\nc²=36+64=100 => c=√100=10cm\n\nConverse: If c² = a²+b², triangle is right-angled. UNEB: Always show statement + substitution + answer with units.";
+                if(q.contains("quadratic")) return "QUADRATIC EQUATION: ax²+bx+c=0\n\nMethods:\n1) Factorization\n2) Formula: x = [-b ± √(b²-4ac)]/2a\n3) Completing square\n\nExample: x²+5x+6=0 => (x+2)(x+3)=0 => x=-2 or -3\nUNEB marks: 2 for factorization, 2 for solutions.";
+              }
+              if(sub=="Chemistry"){
+                if(q.contains("acid")) return "ACID: Proton donor / H+ producer. pH <7. Turns blue litmus red.\n\nTypes: Strong (HCl, H2SO4, HNO3) Weak (CH3COOH)\n\nProperties: Sour taste, reacts with metal -> H2, with base -> salt+water.\nUNEB test: Use litmus, pH paper, reaction with carbonate gives CO2.";
+              }
+              if(sub=="Physics"){
+                if(q.contains("newton")) return "NEWTON'S LAWS:\n1st: Body stays at rest/uniform motion unless force acts (Inertia).\n2nd: F=ma (Force = mass x acceleration). Unit: Newton.\n3rd: Action = -Reaction.\n\nExample: If F=10N, m=2kg, a=5m/s².";
+              }
+              if(sub=="Geography"){
+                if(q.contains("rift valley")||q.contains("rift")) return "RIFT VALLEY: Long narrow depression formed by faulting due to tensional forces.\n\nFormation: Tension -> faults -> central block sinks (graben).\nExamples in EA: Eastern & Western branches, Lake Albert, Tanganyika, Malawi.\nImportance: Lakes, tourism, minerals, fertile soils at foot.";
+              }
+              if(sub=="English"){
+                return "ENGLISH UNEB: For '$q', use:\n1) Correct grammar\n2) Paragraphs\n3) Vocabulary\n4) Punctuation\n\nIf essay: Introduction, body (3 points), conclusion. 250-300 words. Give me essay title I write outline.";
+              }
+              return "MTRDF 2026 AI - ${widget.subjectName}\n\nQuestion: '$q'\n\nUNEB MARKING GUIDE ANSWER:\n\nDefinition: [2 marks] Define key term clearly.\n\nExplanation: [4 marks] Give 4 points with examples.\n\nImportance/Application: [2 marks] Why it matters in real life.\n\nDiagram/Formula: [2 marks] Always include where possible.\n\n\nNow ask more specific: e.g., 'Define photosynthesis' or 'What is Maji Maji?' and I give full notes!";
             }
-
-            void _send(){
-              if(_c.text.trim().isEmpty) return;
-              String q = _c.text;
-              setState((){
-                _msgs.add({"role":"user","text":q});
-                _msgs.add({"role":"ai","text":_getAnswer(q)});
-              });
-              _c.clear();
-            }
-
-            @override
-            Widget build(BuildContext context){
+            void _send(){ if(_c.text.trim().isEmpty) return; String q=_c.text; setState((){ _msgs.add({"role":"user","text":q}); _msgs.add({"role":"ai","text":_real(q, widget.subjectName)}); }); _c.clear(); }
+            @override Widget build(BuildContext context){
               return Scaffold(
                 appBar: AppBar(title: Text('AI - ${widget.subjectName}'), backgroundColor: Colors.green, foregroundColor: Colors.white),
-                body: Column(
-                  children: [
-                    Expanded(
-                      child: ListView.builder(
-                        padding: const EdgeInsets.all(12),
-                        itemCount: _msgs.length,
-                        itemBuilder: (_,i){
-                          final m=_msgs[i];
-                          bool u=m["role"]=="user";
-                          return Align(
-                            alignment: u? Alignment.centerRight: Alignment.centerLeft,
-                            child: Container(
-                              margin: const EdgeInsets.symmetric(vertical:4),
-                              padding: const EdgeInsets.all(12),
-                              decoration: BoxDecoration(color: u? Colors.green: Colors.grey[200], borderRadius: BorderRadius.circular(12)),
-                              child: Text(m["text"]!, style: TextStyle(color: u? Colors.white: Colors.black)),
-                            ),
-                          );
-                        }
-                      )
-                    ),
-                    const Divider(height:1),
-                    Padding(
-                      padding: const EdgeInsets.all(8),
-                      child: Row(
-                        children: [
-                          Expanded(child: TextField(controller: _c, decoration: InputDecoration(hintText: "Ask ${widget.subjectName} question...", border: OutlineInputBorder(borderRadius: BorderRadius.circular(20))), onSubmitted: (_)=>_send())),
-                          const SizedBox(width:8),
-                          CircleAvatar(backgroundColor: Colors.green, child: IconButton(icon: const Icon(Icons.send, color: Colors.white), onPressed: _send))
-                        ]
-                      )
-                    )
-                  ]
-                ),
+                body: Column(children:[
+                  Expanded(child: ListView.builder(padding: const EdgeInsets.all(12), itemCount: _msgs.length, itemBuilder: (_,i){ final m=_msgs[i]; bool u=m["role"]=="user"; return Align(alignment: u? Alignment.centerRight: Alignment.centerLeft, child: Container(margin: const EdgeInsets.symmetric(vertical:4), padding: const EdgeInsets.all(12), decoration: BoxDecoration(color: u? Colors.green: Colors.grey[200], borderRadius: BorderRadius.circular(12)), child: Text(m["text"]!, style: TextStyle(color: u? Colors.white: Colors.black)))); })),
+                  const Divider(height:1),
+                  Padding(padding: const EdgeInsets.all(8), child: Row(children:[Expanded(child: TextField(controller: _c, decoration: InputDecoration(hintText: "Ask ${widget.subjectName} question...", border: OutlineInputBorder(borderRadius: BorderRadius.circular(20))), onSubmitted: (_)=>_send())), const SizedBox(width:8), CircleAvatar(backgroundColor: Colors.green, child: IconButton(icon: const Icon(Icons.send, color: Colors.white), onPressed: _send))]))
+                ]),
               );
             }
           }
@@ -151,5 +98,5 @@ jobs:
           flutter build apk --release
       - uses: actions/upload-artifact@v4
         with:
-          name: MTRDF-AI-APK-FIXED
+          name: MTRDF-REAL-AI-SMART
           path: build/app/outputs/flutter-apk/app-release.apk

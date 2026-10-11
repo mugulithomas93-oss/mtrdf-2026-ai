@@ -15,14 +15,14 @@ jobs:
       - uses: subosito/flutter-action@v2
         with:
           channel: 'stable'
-      - name: Build MTRDF V8 DOCX+IMAGE
+      - name: Build MTRDF V8
         run: |
           flutter create . --platforms=android --project-name mtrdf_2026_ai --overwrite
           cat > pubspec.yaml << 'YAML'
           name: mtrdf_2026_ai
-          description: MTRDF V8 Docx and Image Upload
+          description: MTRDF V8 Docx Image
           publish_to: 'none'
-          version: 8.0.0+28
+          version: 8.0.2+29
           environment:
             sdk: '>=3.0.0 <4.0.0'
           dependencies:
@@ -45,22 +45,72 @@ jobs:
           import 'dart:convert';
           import 'dart:io';
           void main(){ runApp(const MTRDFApp()); }
-          class MTRDFApp extends StatelessWidget{ const MTRDFApp({super.key}); @override Widget build(BuildContext c){ return MaterialApp(debugShowCheckedModeBanner:false, theme: ThemeData(primarySwatch: Colors.green), home: const MainTabs()); } }
+          class MTRDFApp extends StatelessWidget{ const MTRDFApp({super.key}); @override Widget build(BuildContext c){ return MaterialApp(debugShowCheckedModeBanner:false, home: const MainTabs()); } }
           class MainTabs extends StatefulWidget{ const MainTabs({super.key}); @override State<MainTabs> createState()=>_MainTabsState(); }
           class _MainTabsState extends State<MainTabs>{
             int _idx=0;
             final _pages=[const HomePage(), const DocsPage()];
-            @override Widget build(BuildContext c){ return Scaffold(body: _pages[_idx], bottomNavigationBar: BottomNavigationBar(currentIndex: _idx, onTap: (i)=>setState(()=>_idx=i), selectedItemColor: Colors.green, items: const [BottomNavigationBarItem(icon: Icon(Icons.school), label: "Subjects"), BottomNavigationBarItem(icon: Icon(Icons.folder), label: "My Documents")])); }
+            @override Widget build(BuildContext c){ return Scaffold(body: _pages[_idx], bottomNavigationBar: BottomNavigationBar(currentIndex: _idx, onTap: (i)=>setState(()=>_idx=i), selectedItemColor: Colors.green, items: const [BottomNavigationBarItem(icon: Icon(Icons.school), label: "Subjects"), BottomNavigationBarItem(icon: Icon(Icons.folder), label: "Docs")])); }
           }
           class HomePage extends StatelessWidget{
             const HomePage({super.key});
             @override Widget build(BuildContext c){
               final subjects=["Mathematics","Biology","Chemistry","Physics","History","Geography","English","Agriculture"];
-              return Scaffold(appBar: AppBar(title: const Text('MTRDF 2026 AI - S.4 V8'), backgroundColor: Colors.green, foregroundColor: Colors.white, centerTitle:true), body: ListView.builder(padding: const EdgeInsets.all(12), itemCount: subjects.length, itemBuilder: (context,i){ return Card(elevation:3, child: ListTile(leading: const Icon(Icons.menu_book, color:Colors.green), title: Text(subjects[i], style: const TextStyle(fontWeight:FontWeight.bold)), subtitle: Text("AI answers from your docs + images"), trailing: const Icon(Icons.smart_toy, color:Colors.green), onTap:(){ Navigator.push(context, MaterialPageRoute(builder: (_)=> AITutorPage(subjectName: subjects[i]))); })); }));
+              return Scaffold(appBar: AppBar(title: const Text('MTRDF V8'), backgroundColor: Colors.green, foregroundColor: Colors.white), body: ListView.builder(padding: const EdgeInsets.all(12), itemCount: subjects.length, itemBuilder: (context,i){ return Card(child: ListTile(leading: const Icon(Icons.book, color:Colors.green), title: Text(subjects[i]), onTap:(){ Navigator.push(context, MaterialPageRoute(builder: (_)=> AITutorPage(subjectName: subjects[i]))); })); }));
             }
           }
           class DocsPage extends StatefulWidget{ const DocsPage({super.key}); @override State<DocsPage> createState()=>_DocsPageState(); }
           class _DocsPageState extends State<DocsPage>{
-            List<Map<String,String>> _docs=[];
+            List<Map<String,String>> _docs=[]; bool _loading=false;
             final _nameC=TextEditingController(); final _contentC=TextEditingController();
-            bool _loading
+            @override void initState(){ super.initState(); _load(); }
+            Future<void> _load() async{ final p=await SharedPreferences.getInstance(); String? s=p.getString("mtrdf_docs_v8"); if(s!=null){ setState(()=>_docs=List<Map<String,String>>.from(jsonDecode(s).map((e)=>Map<String,String>.from(e)))); } }
+            Future<void> _save() async{ final p=await SharedPreferences.getInstance(); p.setString("mtrdf_docs_v8", jsonEncode(_docs)); }
+            Future<void> _pickDocx() async{
+              setState(()=>_loading=true);
+              try{
+                FilePickerResult? result = await FilePicker.platform.pickFiles(type: FileType.custom, allowedExtensions: ['docx'], withData: true);
+                if(result!=null && result.files.first.bytes!=null){
+                  String name=result.files.first.name;
+                  String text=docxToText(result.files.first.bytes!);
+                  setState(()=>_docs.add({"name":name, "content":text, "date":DateTime.now().toString().substring(0,10), "type":"docx"}));
+                  await _save();
+                }
+              }catch(e){}
+              setState(()=>_loading=false);
+            }
+            Future<void> _pickImage() async{
+              setState(()=>_loading=true);
+              try{
+                FilePickerResult? result = await FilePicker.platform.pickFiles(type: FileType.custom, allowedExtensions: ['jpg','jpeg','png'], withData: true);
+                if(result!=null){
+                  String name=result.files.first.name;
+                  final dir=await getApplicationDocumentsDirectory();
+                  final file=File('${dir.path}/$name');
+                  if(result.files.first.bytes!=null){ await file.writeAsBytes(result.files.first.bytes!); }
+                  setState(()=>_docs.add({"name":name, "content":"IMAGE_FILE:${file.path}", "date":DateTime.now().toString().substring(0,10), "type":"image"}));
+                  await _save();
+                }
+              }catch(e){}
+              setState(()=>_loading=false);
+            }
+            void _addTextDoc(){ String name=_nameC.text.trim().isEmpty? "Doc ${_docs.length+1}": _nameC.text.trim(); if(_contentC.text.trim().isEmpty) return; setState(()=>_docs.add({"name":name, "content":_contentC.text.trim(), "date":DateTime.now().toString().substring(0,10), "type":"text"})); _save(); _nameC.clear(); _contentC.clear(); Navigator.pop(context); }
+            void _showAddOptions(){ showModalBottomSheet(context: context, builder: (_)=> SafeArea(child: Wrap(children:[ ListTile(leading: const Icon(Icons.text_fields), title: const Text("Paste Text"), onTap: (){ Navigator.pop(context); showDialog(context: context, builder: (_)=>AlertDialog(title: const Text("Add Text"), content: Column(mainAxisSize: MainAxisSize.min, children:[ TextField(controller: _nameC, decoration: const InputDecoration(labelText: "Name")), TextField(controller: _contentC, maxLines: 8, decoration: const InputDecoration(labelText: "Paste"))]), actions: [ElevatedButton(onPressed: _addTextDoc, child: const Text("Save"))])); }), ListTile(leading: const Icon(Icons.description), title: const Text("Upload WORD.docx"), onTap: (){ Navigator.pop(context); _pickDocx(); }), ListTile(leading: const Icon(Icons.image), title: const Text("Upload Image JPG/PNG"), onTap: (){ Navigator.pop(context); _pickImage(); }), ]))); }
+            @override Widget build(BuildContext c){ return Scaffold(appBar: AppBar(title: Text('Docs - ${_docs.length}'), backgroundColor: Colors.green, foregroundColor: Colors.white), body: _loading? const Center(child: CircularProgressIndicator()): ListView.builder(padding: const EdgeInsets.all(12), itemCount: _docs.length, itemBuilder: (_,i){ var d=_docs[i]; return Card(child: ListTile(title: Text(d["name"]!), subtitle: Text(d["type"]!), trailing: IconButton(icon: const Icon(Icons.delete), onPressed: (){ setState(()=>_docs.removeAt(i)); _save(); }))); }), floatingActionButton: FloatingActionButton(onPressed: _showAddOptions, backgroundColor: Colors.green, child: const Icon(Icons.add, color: Colors.white))); }
+          }
+          class AITutorPage extends StatefulWidget{ final String subjectName; const AITutorPage({super.key, required this.subjectName}); @override State<AITutorPage> createState()=>_AITutorPageState(); }
+          class _AITutorPageState extends State<AITutorPage>{
+            final _c=TextEditingController(); final List<Map<String,String>> _msgs=[{"role":"ai","text":"V8 Ready - DOCX + Image upload enabled"}]; List<Map<String,String>> _myDocs=[];
+            @override void initState(){ super.initState(); _loadDocs(); }
+            Future<void> _loadDocs() async{ final p=await SharedPreferences.getInstance(); String? s=p.getString("mtrdf_docs_v8"); if(s!=null){ setState(()=>_myDocs=List<Map<String,String>>.from(jsonDecode(s).map((e)=>Map<String,String>.from(e)))); } }
+            String _smartSearch(String q){ String lowerQ=q.toLowerCase(); String out=""; for(var doc in _myDocs){ String content=doc["content"]!; if(content.startsWith("IMAGE_FILE:")) continue; if(content.toLowerCase().contains(lowerQ.split(" ").firstWhere((w)=>w.length>3, orElse: ()=>lowerQ))){ int pos=content.toLowerCase().indexOf(lowerQ.split(" ").firstWhere((w)=>w.length>3, orElse: ()=>lowerQ)); int start=pos-150; if(start<0) start=0; int end=pos+350; if(end>content.length) end=content.length; out+="FROM '${doc["name"]}':\n...${content.substring(start,end)}...\n\n"; } } return out.isEmpty? "No match in ${_myDocs.length} docs": "ANSWER FROM YOUR DOCS:\n\n$out"; }
+            void _send(){ if(_c.text.trim().isEmpty) return; String q=_c.text; setState((){ _msgs.add({"role":"user","text":q}); _msgs.add({"role":"ai","text":_smartSearch(q)}); }); _c.clear(); }
+            @override Widget build(BuildContext context){ return Scaffold(appBar: AppBar(title: Text('${widget.subjectName}'), backgroundColor: Colors.green, foregroundColor: Colors.white), body: Column(children:[Expanded(child: ListView.builder(padding: const EdgeInsets.all(12), itemCount: _msgs.length, itemBuilder: (_,i){ final m=_msgs[i]; bool u=m["role"]=="user"; return Align(alignment: u? Alignment.centerRight: Alignment.centerLeft, child: Container(margin: const EdgeInsets.symmetric(vertical:4), padding: const EdgeInsets.all(12), decoration: BoxDecoration(color: u? Colors.green: Colors.grey[200], borderRadius: BorderRadius.circular(12)), child: Text(m["text"]!))); })), Padding(padding: const EdgeInsets.all(8), child: Row(children:[Expanded(child: TextField(controller: _c, decoration: InputDecoration(hintText: "Ask...", border: OutlineInputBorder(borderRadius: BorderRadius.circular(20))), onSubmitted: (_)=>_send())), IconButton(icon: const Icon(Icons.send, color: Colors.green), onPressed: _send)])) ])); }
+          }
+          DART
+          flutter pub get
+          flutter build apk --release
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MTRDF-V8-DOCX-IMAGE
+          path: build/app/outputs/flutter-apk/app-release.apk

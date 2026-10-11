@@ -15,37 +15,25 @@ jobs:
       - uses: subosito/flutter-action@v2
         with:
           channel: 'stable'
-      - name: Build MTRDF V8.3 FIX v1
+      - name: Build MTRDF V8.4 FIX archive
         run: |
           flutter create . --platforms=android --project-name mtrdf_2026_ai --overwrite
-          # --- FORCE compileSdk 36 for file_picker 8.x ---
           python3 - << 'PY'
           import pathlib, re
           for p in pathlib.Path("android").rglob("build.gradle*"):
             txt = p.read_text()
             txt = re.sub(r'compileSdk\s*=.*', 'compileSdk = 36', txt)
             txt = re.sub(r'compileSdkVersion.*', 'compileSdkVersion 36', txt)
-            txt = re.sub(r'compileSdk\s+flutter\.compileSdkVersion', 'compileSdk 36', txt)
-            txt = re.sub(r'targetSdk\s*=.*', 'targetSdk = 36', txt)
-            txt = re.sub(r'targetSdkVersion.*', 'targetSdkVersion 36', txt)
-            txt = re.sub(r'flutter\.targetSdkVersion', '36', txt)
             txt = re.sub(r'flutter\.compileSdkVersion', '36', txt)
+            txt = re.sub(r'targetSdk\s*=.*', 'targetSdk = 36', txt)
+            txt = re.sub(r'flutter\.targetSdkVersion', '36', txt)
             p.write_text(txt)
-            print(f"Patched {p}")
-          # also patch local.properties
-          lp = pathlib.Path("android/local.properties")
-          if lp.exists():
-            t=lp.read_text()
-            if "flutter.compileSdkVersion" not in t:
-              lp.write_text(t+"\nflutter.compileSdkVersion=36\nflutter.targetSdkVersion=36\nflutter.minSdkVersion=21\n")
           PY
-          cat android/app/build.gradle 2>/dev/null | head -20
-          cat android/app/build.gradle.kts 2>/dev/null | head -20
           cat > pubspec.yaml << 'YAML'
           name: mtrdf_2026_ai
-          description: MTRDF V8.3 archive parser
+          description: MTRDF V8.4 archive 3.6.1 fix
           publish_to: 'none'
-          version: 8.3.0+32
+          version: 8.4.0+33
           environment:
             sdk: '>=3.0.0 <4.0.0'
           dependencies:
@@ -53,7 +41,7 @@ jobs:
               sdk: flutter
             shared_preferences: ^2.2.2
             file_picker: ^8.3.2
-            archive: ^6.1.0
+            archive: ^3.6.1
             path_provider: ^2.1.2
           flutter:
             uses-material-design: true
@@ -70,13 +58,14 @@ jobs:
           String extractDocxText(List<int> bytes){
             try{
               final archive = ZipDecoder().decodeBytes(bytes);
-              final file = archive.files.firstWhere((f) => f.name == 'word/document.xml', orElse: ()=> throw Exception("no doc"));
-              final xml = utf8.decode(file.content as List<int>);
-              final reg = RegExp(r'<w:t[^>]*>([^<]+)</w:t>');
-              final matches = reg.allMatches(xml);
-              String text = matches.map((m)=>m.group(1)??'').join(' ');
-              if(text.trim().isEmpty) return xml.substring(0, xml.length>2000?2000:xml.length);
-              return text;
+              for(final file in archive){
+                if(file.name=='word/document.xml'){
+                  final xml = utf8.decode(file.content as List<int>);
+                  final reg = RegExp(r'<w:t[^>]*>([^<]+)</w:t>');
+                  return reg.allMatches(xml).map((m)=>m.group(1)??'').join(' ');
+                }
+              }
+              return "No document.xml found";
             }catch(e){ return "Error reading docx: $e"; }
           }
           void main(){ runApp(const MTRDFApp()); }
@@ -91,7 +80,7 @@ jobs:
             const HomePage({super.key});
             @override Widget build(BuildContext c){
               final subjects=["Mathematics","Biology","Chemistry","Physics","History","Geography","English","Agriculture"];
-              return Scaffold(appBar: AppBar(title: const Text('MTRDF V8.3 DOCX+IMAGE'), backgroundColor: Colors.green, foregroundColor: Colors.white), body: ListView.builder(padding: const EdgeInsets.all(12), itemCount: subjects.length, itemBuilder: (context,i){ return Card(child: ListTile(leading: const Icon(Icons.book, color:Colors.green), title: Text(subjects[i]), onTap:(){ Navigator.push(context, MaterialPageRoute(builder: (_)=> AITutorPage(subjectName: subjects[i]))); })); }));
+              return Scaffold(appBar: AppBar(title: const Text('MTRDF V8.4 DOCX+IMAGE'), backgroundColor: Colors.green, foregroundColor: Colors.white), body: ListView.builder(padding: const EdgeInsets.all(12), itemCount: subjects.length, itemBuilder: (context,i){ return Card(child: ListTile(leading: const Icon(Icons.book, color:Colors.green), title: Text(subjects[i]), onTap:(){ Navigator.push(context, MaterialPageRoute(builder: (_)=> AITutorPage(subjectName: subjects[i]))); })); }));
             }
           }
           class DocsPage extends StatefulWidget{ const DocsPage({super.key}); @override State<DocsPage> createState()=>_DocsPageState(); }
@@ -99,19 +88,17 @@ jobs:
             List<Map<String,String>> _docs=[]; bool _loading=false;
             final _nameC=TextEditingController(); final _contentC=TextEditingController();
             @override void initState(){ super.initState(); _load(); }
-            Future<void> _load() async{ final p=await SharedPreferences.getInstance(); String? s=p.getString("mtrdf_docs_v83"); if(s!=null){ setState(()=>_docs=List<Map<String,String>>.from(jsonDecode(s).map((e)=>Map<String,String>.from(e)))); } }
-            Future<void> _save() async{ final p=await SharedPreferences.getInstance(); p.setString("mtrdf_docs_v83", jsonEncode(_docs)); }
+            Future<void> _load() async{ final p=await SharedPreferences.getInstance(); String? s=p.getString("mtrdf_docs_v84"); if(s!=null){ setState(()=>_docs=List<Map<String,String>>.from(jsonDecode(s).map((e)=>Map<String,String>.from(e)))); } }
+            Future<void> _save() async{ final p=await SharedPreferences.getInstance(); p.setString("mtrdf_docs_v84", jsonEncode(_docs)); }
             Future<void> _pickDocx() async{
               setState(()=>_loading=true);
               try{
                 FilePickerResult? result = await FilePicker.platform.pickFiles(type: FileType.custom, allowedExtensions: ['docx'], withData: true);
                 if(result!=null && result.files.first.bytes!=null){
-                  String name=result.files.first.name;
-                  String text=extractDocxText(result.files.first.bytes!.toList());
-                  setState(()=>_docs.add({"name":name.replaceAll('.docx',''), "content":text, "date":DateTime.now().toString().substring(0,10), "type":"docx"})); await _save();
-                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("DOCX $name imported: ${text.length} chars")));
+                  String name=result.files.first.name; String text=extractDocxText(result.files.first.bytes!.toList());
+                  setState(()=>_docs.add({"name":name, "content":text, "date":DateTime.now().toString().substring(0,10), "type":"docx"})); await _save();
                 }
-              }catch(e){ ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error $e"))); }
+              }catch(e){}
               setState(()=>_loading=false);
             }
             Future<void> _pickImage() async{
@@ -123,30 +110,29 @@ jobs:
                   final dir=await getApplicationDocumentsDirectory();
                   final file=File('${dir.path}/$name');
                   if(result.files.first.bytes!=null){ await file.writeAsBytes(result.files.first.bytes!); }
-                  else if(result.files.first.path!=null){ await File(result.files.first.path!).copy(file.path); }
                   setState(()=>_docs.add({"name":name, "content":"IMAGE_FILE:${file.path}", "date":DateTime.now().toString().substring(0,10), "type":"image"})); await _save();
                 }
               }catch(e){}
               setState(()=>_loading=false);
             }
             void _addTextDoc(){ String name=_nameC.text.trim().isEmpty? "Doc ${_docs.length+1}": _nameC.text.trim(); if(_contentC.text.trim().isEmpty) return; setState(()=>_docs.add({"name":name, "content":_contentC.text.trim(), "date":DateTime.now().toString().substring(0,10), "type":"text"})); _save(); _nameC.clear(); _contentC.clear(); Navigator.pop(context); }
-            void _showAddOptions(){ showModalBottomSheet(context: context, builder: (_)=> SafeArea(child: Wrap(children:[ ListTile(leading: const Icon(Icons.text_fields), title: const Text("Paste Text"), onTap: (){ Navigator.pop(context); showDialog(context: context, builder: (_)=>AlertDialog(title: const Text("Add Text"), content: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, children:[ TextField(controller: _nameC, decoration: const InputDecoration(labelText: "Name")), const SizedBox(height:8), TextField(controller: _contentC, maxLines: 8, decoration: const InputDecoration(labelText: "Paste", border: OutlineInputBorder())) ])), actions: [ElevatedButton(onPressed: _addTextDoc, child: const Text("Save"))])); }), ListTile(leading: const Icon(Icons.description, color: Colors.blue), title: const Text("Upload WORD.docx"), subtitle: const Text("Pure Dart parser - no v1 error"), onTap: (){ Navigator.pop(context); _pickDocx(); }), ListTile(leading: const Icon(Icons.image, color: Colors.orange), title: const Text("Upload Image JPG/PNG"), onTap: (){ Navigator.pop(context); _pickImage(); }), ]))); }
-            @override Widget build(BuildContext c){ return Scaffold(appBar: AppBar(title: Text('Docs - ${_docs.length}'), backgroundColor: Colors.green, foregroundColor: Colors.white), body: _loading? const Center(child: CircularProgressIndicator(color: Colors.green)): _docs.isEmpty? const Center(child: Text("Tap + to add DOCX / Image / Text")): ListView.builder(padding: const EdgeInsets.all(12), itemCount: _docs.length, itemBuilder: (_,i){ var d=_docs[i]; return Card(child: ListTile(title: Text(d["name"]!), subtitle: Text(d["type"]!), trailing: IconButton(icon: const Icon(Icons.delete), onPressed: (){ setState(()=>_docs.removeAt(i)); _save(); }))); }), floatingActionButton: FloatingActionButton.extended(onPressed: _showAddOptions, backgroundColor: Colors.green, icon: const Icon(Icons.add, color: Colors.white), label: const Text("Add Document", style: TextStyle(color: Colors.white)))); }
+            void _showAddOptions(){ showModalBottomSheet(context: context, builder: (_)=> SafeArea(child: Wrap(children:[ ListTile(leading: const Icon(Icons.text_fields), title: const Text("Paste Text"), onTap: (){ Navigator.pop(context); showDialog(context: context, builder: (_)=>AlertDialog(title: const Text("Add Text"), content: Column(mainAxisSize: MainAxisSize.min, children:[ TextField(controller: _nameC, decoration: const InputDecoration(labelText: "Name")), TextField(controller: _contentC, maxLines: 8, decoration: const InputDecoration(labelText: "Paste"))]), actions: [ElevatedButton(onPressed: _addTextDoc, child: const Text("Save"))])); }), ListTile(leading: const Icon(Icons.description), title: const Text("Upload WORD.docx"), onTap: (){ Navigator.pop(context); _pickDocx(); }), ListTile(leading: const Icon(Icons.image), title: const Text("Upload Image"), onTap: (){ Navigator.pop(context); _pickImage(); }), ]))); }
+            @override Widget build(BuildContext c){ return Scaffold(appBar: AppBar(title: Text('Docs - ${_docs.length}'), backgroundColor: Colors.green, foregroundColor: Colors.white), body: _loading? const Center(child: CircularProgressIndicator()): ListView.builder(padding: const EdgeInsets.all(12), itemCount: _docs.length, itemBuilder: (_,i){ var d=_docs[i]; return Card(child: ListTile(title: Text(d["name"]!), subtitle: Text(d["type"]!), trailing: IconButton(icon: const Icon(Icons.delete), onPressed: (){ setState(()=>_docs.removeAt(i)); _save(); }))); }), floatingActionButton: FloatingActionButton(onPressed: _showAddOptions, backgroundColor: Colors.green, child: const Icon(Icons.add, color: Colors.white))); }
           }
           class AITutorPage extends StatefulWidget{ final String subjectName; const AITutorPage({super.key, required this.subjectName}); @override State<AITutorPage> createState()=>_AITutorPageState(); }
           class _AITutorPageState extends State<AITutorPage>{
-            final _c=TextEditingController(); final List<Map<String,String>> _msgs=[{"role":"ai","text":"MTRDF V8.3 Ready! DOCX via pure Dart archive parser + Image upload - no v1 error."}]; List<Map<String,String>> _myDocs=[];
+            final _c=TextEditingController(); final List<Map<String,String>> _msgs=[{"role":"ai","text":"V8.4 Ready - DOCX + Image"}]; List<Map<String,String>> _myDocs=[];
             @override void initState(){ super.initState(); _loadDocs(); }
-            Future<void> _loadDocs() async{ final p=await SharedPreferences.getInstance(); String? s=p.getString("mtrdf_docs_v83"); if(s!=null){ setState(()=>_myDocs=List<Map<String,String>>.from(jsonDecode(s).map((e)=>Map<String,String>.from(e)))); } }
-            String _smartSearch(String q){ if(_myDocs.isEmpty) return "No docs"; String lowerQ=q.toLowerCase(); String out=""; for(var doc in _myDocs){ String content=doc["content"]!; if(content.startsWith("IMAGE_FILE:")) continue; if(content.toLowerCase().contains(lowerQ.split(" ").firstWhere((w)=>w.length>3, orElse: ()=>lowerQ))){ int pos=content.toLowerCase().indexOf(lowerQ.split(" ").firstWhere((w)=>w.length>3, orElse: ()=>lowerQ)); int start=pos-150; if(start<0) start=0; int end=pos+350; if(end>content.length) end=content.length; out+="FROM '${doc["name"]}':\n...${content.substring(start,end)}...\n\n"; } } return out.isEmpty? "No match in ${_myDocs.length} docs": "ANSWER FROM YOUR DOCS:\n\n$out"; }
+            Future<void> _loadDocs() async{ final p=await SharedPreferences.getInstance(); String? s=p.getString("mtrdf_docs_v84"); if(s!=null){ setState(()=>_myDocs=List<Map<String,String>>.from(jsonDecode(s).map((e)=>Map<String,String>.from(e)))); } }
+            String _smartSearch(String q){ String out=""; for(var doc in _myDocs){ String content=doc["content"]!; if(content.startsWith("IMAGE_FILE:")) continue; if(content.toLowerCase().contains(q.toLowerCase().split(" ").firstWhere((w)=>w.length>3, orElse: ()=>q).toLowerCase())){ out+="FROM '${doc["name"]}':...${content.substring(0, content.length>300?300:content.length)}...\n\n"; } } return out.isEmpty? "No match": "FROM YOUR DOCS:\n\n$out"; }
             void _send(){ if(_c.text.trim().isEmpty) return; String q=_c.text; setState((){ _msgs.add({"role":"user","text":q}); _msgs.add({"role":"ai","text":_smartSearch(q)}); }); _c.clear(); }
-            @override Widget build(BuildContext context){ return Scaffold(appBar: AppBar(title: Text('${widget.subjectName} - ${_myDocs.length} docs'), backgroundColor: Colors.green, foregroundColor: Colors.white), body: Column(children:[Expanded(child: ListView.builder(padding: const EdgeInsets.all(12), itemCount: _msgs.length, itemBuilder: (_,i){ final m=_msgs[i]; bool u=m["role"]=="user"; return Align(alignment: u? Alignment.centerRight: Alignment.centerLeft, child: Container(margin: const EdgeInsets.symmetric(vertical:4), padding: const EdgeInsets.all(12), decoration: BoxDecoration(color: u? Colors.green: Colors.grey[200], borderRadius: BorderRadius.circular(12)), child: Text(m["text"]!))); })), Padding(padding: const EdgeInsets.all(8), child: Row(children:[Expanded(child: TextField(controller: _c, decoration: InputDecoration(hintText: "Ask from docs...", border: OutlineInputBorder(borderRadius: BorderRadius.circular(20))), onSubmitted: (_)=>_send())), IconButton(icon: const Icon(Icons.send, color: Colors.green), onPressed: _send)])) ])); }
+            @override Widget build(BuildContext context){ return Scaffold(appBar: AppBar(title: Text('${widget.subjectName}'), backgroundColor: Colors.green, foregroundColor: Colors.white), body: Column(children:[Expanded(child: ListView.builder(padding: const EdgeInsets.all(12), itemCount: _msgs.length, itemBuilder: (_,i){ final m=_msgs[i]; bool u=m["role"]=="user"; return Align(alignment: u? Alignment.centerRight: Alignment.centerLeft, child: Container(margin: const EdgeInsets.symmetric(vertical:4), padding: const EdgeInsets.all(12), decoration: BoxDecoration(color: u? Colors.green: Colors.grey[200], borderRadius: BorderRadius.circular(12)), child: Text(m["text"]!))); })), Padding(padding: const EdgeInsets.all(8), child: Row(children:[Expanded(child: TextField(controller: _c, decoration: InputDecoration(hintText: "Ask...", border: OutlineInputBorder(borderRadius: BorderRadius.circular(20))), onSubmitted: (_)=>_send())), IconButton(icon: const Icon(Icons.send, color: Colors.green), onPressed: _send)])) ])); }
           }
           DART
           flutter pub get
           flutter build apk --release
       - uses: actions/upload-artifact@v4
         with:
-          name: MTRDF-V8.3-DOCX-IMAGE
+          name: MTRDF-V8.4-DOCX-IMAGE
           path: build/app/outputs/flutter-apk/app-release.apk
           if-no-files-found: error

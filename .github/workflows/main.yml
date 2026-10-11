@@ -15,20 +15,18 @@ jobs:
       - uses: subosito/flutter-action@v2
         with:
           channel: 'stable'
-      - name: Build MTRDF RAG Docs
+      - name: Build MTRDF RAG FIXED
         run: |
           cat > pubspec.yaml << 'YAML'
           name: mtrdf_2026_ai
-          description: MTRDF 2026 AI with Document RAG
+          description: MTRDF RAG Fixed
           publish_to: 'none'
-          version: 6.0.0+21
+          version: 6.1.0+22
           environment:
             sdk: '>=3.0.0 <4.0.0'
           dependencies:
             flutter:
               sdk: flutter
-            file_picker: ^8.0.0
-            path_provider: ^2.1.2
             shared_preferences: ^2.2.2
           flutter:
             uses-material-design: true
@@ -37,7 +35,6 @@ jobs:
           mkdir -p lib
           cat > lib/main.dart << 'DART'
           import 'package:flutter/material.dart';
-          import 'package:file_picker/file_picker.dart';
           import 'package:shared_preferences/shared_preferences.dart';
           import 'dart:convert';
           import 'dart:math';
@@ -60,29 +57,28 @@ jobs:
             }
           }
 
-          // DOCS PAGE - RAG SYSTEM
           class DocsPage extends StatefulWidget{ const DocsPage({super.key}); @override State<DocsPage> createState()=>_DocsPageState(); }
           class _DocsPageState extends State<DocsPage>{
             List<Map<String,String>> _docs=[];
+            final _nameC=TextEditingController();
+            final _contentC=TextEditingController();
             @override void initState(){ super.initState(); _load(); }
             Future<void> _load() async{ final p=await SharedPreferences.getInstance(); String? s=p.getString("mtrdf_docs"); if(s!=null){ setState(()=>_docs=List<Map<String,String>>.from(jsonDecode(s).map((e)=>Map<String,String>.from(e)))); } }
             Future<void> _save() async{ final p=await SharedPreferences.getInstance(); p.setString("mtrdf_docs", jsonEncode(_docs)); }
-            Future<void> _pick() async{
-              FilePickerResult? r=await FilePicker.platform.pickFiles(type: FileType.custom, allowedExtensions: ['txt','pdf','docx'], withData: true);
-              if(r!=null){
-                String name=r.files.first.name;
-                String content="";
-                if(name.endsWith(".txt")){ content=String.fromCharCodes(r.files.first.bytes!); }
-                else{ content="Document $name uploaded. Content preview not available for PDF in offline mode, but AI will reference its name. For full PDF text, next version will add pdf_text plugin. For now upload TXT notes for best results."; }
-                setState(()=>_docs.add({"name":name, "content":content, "date":DateTime.now().toString().substring(0,10)}));
-                _save();
-                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("$name uploaded!")));
-              }
+            void _addDoc(){
+              if(_nameC.text.isEmpty||_contentC.text.isEmpty) return;
+              setState(()=>_docs.add({"name":_nameC.text, "content":_contentC.text, "date":DateTime.now().toString().substring(0,10)}));
+              _save(); _nameC.clear(); _contentC.clear();
+              Navigator.pop(context);
+              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Document saved! AI will use it.")));
+            }
+            void _showAdd(){
+              showDialog(context: context, builder: (_)=>AlertDialog(title: const Text("Add Document"), content: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, children:[ TextField(controller: _nameC, decoration: const InputDecoration(labelText: "Doc Name e.g., History Notes")), const SizedBox(height:10), TextField(controller: _contentC, maxLines: 8, decoration: const InputDecoration(labelText: "Paste content here", border: OutlineInputBorder(), hintText: "Paste your UNEB notes...")) ])), actions: [TextButton(onPressed: ()=>Navigator.pop(context), child: const Text("Cancel")), ElevatedButton(onPressed: _addDoc, style: ElevatedButton.styleFrom(backgroundColor: Colors.green), child: const Text("Save", style: TextStyle(color: Colors.white)))]));
             }
             @override Widget build(BuildContext c){
-              return Scaffold(appBar: AppBar(title: const Text('My Documents - RAG'), backgroundColor: Colors.green, foregroundColor: Colors.white, actions: [IconButton(onPressed: () async{ setState(()=>_docs=[]); _save(); }, icon: const Icon(Icons.delete_sweep))]),
-                floatingActionButton: FloatingActionButton.extended(onPressed: _pick, backgroundColor: Colors.green, icon: const Icon(Icons.upload_file, color: Colors.white), label: const Text("Upload Doc", style: TextStyle(color: Colors.white))),
-                body: _docs.isEmpty? const Center(child: Text("No documents yet.\n\nTap Upload to add UNEB notes, past papers.\n\nSupported: TXT (best), PDF, DOCX\n\nAI will answer FROM your docs.", textAlign: TextAlign.center)): ListView.builder(padding: const EdgeInsets.all(12), itemCount: _docs.length, itemBuilder: (_,i){ return Card(child: ListTile(leading: const Icon(Icons.description, color: Colors.green), title: Text(_docs[i]["name"]!), subtitle: Text("${_docs[i]["date"]} - ${(_docs[i]["content"]!.length>50? _docs[i]["content"]!.substring(0,50): _docs[i]["content"]!)}..."), trailing: IconButton(icon: const Icon(Icons.delete), onPressed: (){ setState(()=>_docs.removeAt(i)); _save(); }))); }),
+              return Scaffold(appBar: AppBar(title: const Text('My Documents - RAG'), backgroundColor: Colors.green, foregroundColor: Colors.white, actions: [IconButton(onPressed: (){ setState(()=>_docs=[]); _save(); }, icon: const Icon(Icons.delete_sweep))]),
+                floatingActionButton: FloatingActionButton.extended(onPressed: _showAdd, backgroundColor: Colors.green, icon: const Icon(Icons.add, color: Colors.white), label: const Text("Add Document", style: TextStyle(color: Colors.white))),
+                body: _docs.isEmpty? const Center(child: Padding(padding: EdgeInsets.all(20), child: Text("No documents yet.\n\nTap + Add Document to paste UNEB notes.\n\nExample:\nName: History - Buganda\nContent: Buganda Agreement 1900 signed by Apollo Kagwa...\n\nThen AI will answer FROM your notes!", textAlign: TextAlign.center))): ListView.builder(padding: const EdgeInsets.all(12), itemCount: _docs.length, itemBuilder: (_,i){ return Card(child: ListTile(leading: const Icon(Icons.description, color: Colors.green), title: Text(_docs[i]["name"]!), subtitle: Text("${_docs[i]["date"]} - ${(_docs[i]["content"]!.length>60? _docs[i]["content"]!.substring(0,60): _docs[i]["content"]!)}..."), trailing: IconButton(icon: const Icon(Icons.delete), onPressed: (){ setState(()=>_docs.removeAt(i)); _save(); }))); }),
               );
             }
           }
@@ -90,10 +86,10 @@ jobs:
           class AITutorPage extends StatefulWidget{ final String subjectName; const AITutorPage({super.key, required this.subjectName}); @override State<AITutorPage> createState()=>_AITutorPageState(); }
           class _AITutorPageState extends State<AITutorPage>{
             final _c=TextEditingController();
-            final List<Map<String,String>> _msgs=[{"role":"ai","text":"Hello! I am MTRDF RAG AI!\n\nI will answer from YOUR uploaded documents first!\n\n1. Go to My Documents tab\n2. Upload TXT notes (e.g., History notes)\n3. Ask me question - I will quote your doc!\n\nIf no doc, I use UNEB built-in notes."}];
+            final List<Map<String,String>> _msgs=[{"role":"ai","text":"MTRDF RAG AI Ready!\n\n1. Go to My Documents\n2. Tap + Add Document\n3. Paste notes\n4. Ask question - I quote your doc!"}];
             List<Map<String,String>> _myDocs=[];
             @override void initState(){ super.initState(); _loadDocs(); }
-            Future<void> _loadDocs() async{ final p=await SharedPreferences.getInstance(); String? s=p.getString("mtrdf_docs"); if(s!=null){ _myDocs=List<Map<String,String>>.from(jsonDecode(s).map((e)=>Map<String,String>.from(e))); } }
+            Future<void> _loadDocs() async{ final p=await SharedPreferences.getInstance(); String? s=p.getString("mtrdf_docs"); if(s!=null){ setState(()=>_myDocs=List<Map<String,String>>.from(jsonDecode(s).map((e)=>Map<String,String>.from(e)))); } }
 
             String _searchDocs(String q){
               if(_myDocs.isEmpty) return "";
@@ -101,14 +97,14 @@ jobs:
               List<String> hits=[];
               for(var d in _myDocs){
                 String content=d["content"]!.toLowerCase();
-                if(content.contains(q.split(" ").first) || q.split(" ").any((w)=> w.length>3 && content.contains(w))){
-                  String snippet=d["content"]!.length>300? d["content"]!.substring(0,300): d["content"]!;
-                  hits.add("FROM YOUR DOC '${d["name"]}':\n$snippet\n");
+                if(q.split(" ").where((w)=>w.length>2).any((w)=>content.contains(w))){
+                  String snippet=d["content"]!.length>400? d["content"]!.substring(0,400): d["content"]!;
+                  hits.add("📄 FROM YOUR DOC '${d["name"]}':\n$snippet\n");
                   if(hits.length>=2) break;
                 }
               }
               if(hits.isEmpty) return "";
-              return "📄 ANSWER FROM YOUR UPLOADED DOCUMENTS:\n\n${hits.join("\n---\n")}\n\n";
+              return "✅ ANSWER FROM YOUR DOCUMENTS:\n\n${hits.join("\n---\n")}\n\n";
             }
 
             String _solveQuad(String input){
@@ -121,15 +117,15 @@ jobs:
                 String bS=m.group(2)!; int b=bS=="+"?1:bS=="-"?-1:int.parse(bS);
                 int c=int.parse(m.group(3)!);
                 double D=(b*b-4*a*c).toDouble();
-                if(D<0) return "Solving ${a}x²+${b}x+$c=0, D=$D <0 => No real roots.";
+                if(D<0) return "Equation ${a}x²+${b}x+$c=0, D=$D <0 => No real roots.";
                 double x1=(-b+sqrt(D))/(2*a); double x2=(-b-sqrt(D))/(2*a);
-                return "SOLVING ${a}x²+${b}x+$c=0 => x=$x1 OR x=$x2";
+                return "SOLVING ${a}x²+${b}x+$c=0 => x=$x1 OR x=$x2 (D=$D)";
               }catch(e){return "";}
             }
 
             String _real(String q, String sub){
               String fromDocs=_searchDocs(q);
-              if(fromDocs!="") return fromDocs+"(Above is from YOUR notes. Below is extra UNEB tip)\n"+_unebAns(q,sub);
+              if(fromDocs!="") return fromDocs+"---\nExtra UNEB tip:\n"+_unebAns(q,sub);
               String calc=_solveQuad(q.replaceAll("solve",""));
               if(calc!="") return calc;
               return _unebAns(q,sub);
@@ -137,19 +133,18 @@ jobs:
 
             String _unebAns(String q, String sub){
               q=q.toLowerCase();
-              if(q.contains("hk")||q.contains("importance")&&sub=="History"){
-                return "IMPORTANCE OF HISTORY - HK HT HA:\n1. LEARN FROM PAST\nHK: Records slave trade, colonialism\nHT: Analyze causes\nHA: Avoid today\n\n2. UNITY\nHK: Heroes Kabalega, Mwanga\nHT: Courage\nHA: Emulate\n\n3. HERITAGE\nHK: Kingdoms Buganda etc\nHT: How evolved\nHA: Preserve\n\n4. INCOME\nHK: Kasubi tombs tourism\nHT: Tourism value\nHA: Conservation, jobs";
+              if((q.contains("hk")||q.contains("importance"))&&sub=="History"){
+                return "IMPORTANCE OF HISTORY - HK HT HA:\n\n1. LEARN FROM PAST\nHK: Slave trade, colonialism\nHT: Why happened\nHA: Avoid today\n\n2. UNITY\nHK: Heroes Kabalega\nHT: Courage\nHA: Love Uganda\n\n3. HERITAGE\nHK: Kingdoms Buganda\nHT: Evolved\nHA: Preserve\n\n4. INCOME\nHK: Kasubi tombs\nHT: Tourism\nHA: Jobs";
               }
               if(q.contains("define")&&q.contains("history")) return "HISTORY: Study of past activities in chronological order to understand present and predict future.";
-              if(q.contains("maji")) return "MAJI MAJI 1905-07: Kinjekitile, water magic, vs Germans, failed due to guns.";
+              if(q.contains("maji")) return "MAJI MAJI 1905-07: Kinjekitile, water medicine vs Germans, failed due to guns.";
               if(q.contains("photo")) return "PHOTOSYNTHESIS: 6CO2+6H2O->C6H12O6+6O2 in chloroplast.";
-              if(q.contains("pythag")) return "PYTHAGORAS: c²=a²+b²";
-              return "MTRDF AI - $sub: For '$q'\n\nTip: Upload your notes in My Documents tab as TXT for best RAG. Then I answer FROM your notes.\nCurrent docs: ${_myDocs.length}";
+              return "MTRDF AI - $sub: Q '$q' - I have ${_myDocs.length} docs. Upload in My Documents tab.";
             }
 
             void _send(){ if(_c.text.trim().isEmpty) return; String q=_c.text; setState((){ _msgs.add({"role":"user","text":q}); _msgs.add({"role":"ai","text":_real(q, widget.subjectName)}); }); _c.clear(); }
             @override Widget build(BuildContext context){
-              return Scaffold(appBar: AppBar(title: Text('AI - ${widget.subjectName}'), backgroundColor: Colors.green, foregroundColor: Colors.white), body: Column(children:[Expanded(child: ListView.builder(padding: const EdgeInsets.all(12), itemCount: _msgs.length, itemBuilder: (_,i){ final m=_msgs[i]; bool u=m["role"]=="user"; return Align(alignment: u? Alignment.centerRight: Alignment.centerLeft, child: Container(margin: const EdgeInsets.symmetric(vertical:4), padding: const EdgeInsets.all(12), decoration: BoxDecoration(color: u? Colors.green: Colors.grey[200], borderRadius: BorderRadius.circular(12)), child: Text(m["text"]!, style: TextStyle(color: u? Colors.white: Colors.black)))); })), const Divider(height:1), Padding(padding: const EdgeInsets.all(8), child: Row(children:[Expanded(child: TextField(controller: _c, decoration: InputDecoration(hintText: "Ask ${widget.subjectName} (uses your docs)...", border: OutlineInputBorder(borderRadius: BorderRadius.circular(20))), onSubmitted: (_)=>_send())), const SizedBox(width:8), CircleAvatar(backgroundColor: Colors.green, child: IconButton(icon: const Icon(Icons.send, color: Colors.white), onPressed: _send))]))]));
+              return Scaffold(appBar: AppBar(title: Text('AI - ${widget.subjectName} - ${_myDocs.length} docs'), backgroundColor: Colors.green, foregroundColor: Colors.white), body: Column(children:[Expanded(child: ListView.builder(padding: const EdgeInsets.all(12), itemCount: _msgs.length, itemBuilder: (_,i){ final m=_msgs[i]; bool u=m["role"]=="user"; return Align(alignment: u? Alignment.centerRight: Alignment.centerLeft, child: Container(margin: const EdgeInsets.symmetric(vertical:4), padding: const EdgeInsets.all(12), decoration: BoxDecoration(color: u? Colors.green: Colors.grey[200], borderRadius: BorderRadius.circular(12)), child: Text(m["text"]!, style: TextStyle(color: u? Colors.white: Colors.black)))); })), const Divider(height:1), Padding(padding: const EdgeInsets.all(8), child: Row(children:[Expanded(child: TextField(controller: _c, decoration: InputDecoration(hintText: "Ask ${widget.subjectName} (uses your docs)...", border: OutlineInputBorder(borderRadius: BorderRadius.circular(20))), onSubmitted: (_)=>_send())), const SizedBox(width:8), CircleAvatar(backgroundColor: Colors.green, child: IconButton(icon: const Icon(Icons.send, color: Colors.white), onPressed: _send))]))]));
             }
           }
           DART
@@ -157,5 +152,5 @@ jobs:
           flutter build apk --release
       - uses: actions/upload-artifact@v4
         with:
-          name: MTRDF-RAG-DOCS
+          name: MTRDF-RAG-FIXED
           path: build/app/outputs/flutter-apk/app-release.apk

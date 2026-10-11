@@ -31,7 +31,10 @@ jobs:
           flutter:
             uses-material-design: true
           YAML
-          flutter create . --platforms=android --project-name mtrdf_2026_ai --overwrite
+                - name: Build MTRDF RAG FIXED
+        run: |
+         flutter create . --platforms=android --project-name mtrdf_2026_ai --overwrite
+          cat > pubspec.yaml << 'YAML'
           mkdir -p lib
           cat > lib/main.dart << 'DART'
           import 'package:flutter/material.dart';

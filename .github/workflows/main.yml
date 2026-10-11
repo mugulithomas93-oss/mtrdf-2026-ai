@@ -15,25 +15,46 @@ jobs:
       - uses: subosito/flutter-action@v2
         with:
           channel: 'stable'
-      - name: Build MTRDF V8.4 FIX archive
+      - name: Build MTRDF V8.5 FORCE 36
         run: |
           flutter create . --platforms=android --project-name mtrdf_2026_ai --overwrite
+          echo "=== BEFORE ===" && cat android/local.properties
           python3 - << 'PY'
           import pathlib, re
+          lp = pathlib.Path("android/local.properties")
+          txt = lp.read_text() if lp.exists() else ""
+          # FORCE replace or add 36
+          txt = re.sub(r'flutter\.compileSdkVersion=.*', 'flutter.compileSdkVersion=36', txt)
+          txt = re.sub(r'flutter\.targetSdkVersion=.*', 'flutter.targetSdkVersion=36', txt)
+          txt = re.sub(r'flutter\.minSdkVersion=.*', 'flutter.minSdkVersion=21', txt)
+          if 'flutter.compileSdkVersion' not in txt:
+              txt += "\nflutter.compileSdkVersion=36\n"
+          if 'flutter.targetSdkVersion' not in txt:
+              txt += "flutter.targetSdkVersion=36\n"
+          if 'flutter.minSdkVersion' not in txt:
+              txt += "flutter.minSdkVersion=21\n"
+          lp.write_text(txt)
+          print("=== AFTER ===")
+          print(txt)
+          # Patch all build.gradle files
           for p in pathlib.Path("android").rglob("build.gradle*"):
-            txt = p.read_text()
-            txt = re.sub(r'compileSdk\s*=.*', 'compileSdk = 36', txt)
-            txt = re.sub(r'compileSdkVersion.*', 'compileSdkVersion 36', txt)
-            txt = re.sub(r'flutter\.compileSdkVersion', '36', txt)
-            txt = re.sub(r'targetSdk\s*=.*', 'targetSdk = 36', txt)
-            txt = re.sub(r'flutter\.targetSdkVersion', '36', txt)
-            p.write_text(txt)
+              content = p.read_text()
+              orig = content
+              content = content.replace('flutter.compileSdkVersion', '36')
+              content = content.replace('flutter.targetSdkVersion', '36')
+              content = re.sub(r'compileSdk\s+36', 'compileSdk 36', content)
+              content = re.sub(r'compileSdk\s*=\s*36', 'compileSdk = 36', content)
+              content = re.sub(r'compileSdkVersion\s+36', 'compileSdkVersion 36', content)
+              content = re.sub(r'targetSdk\s+36', 'targetSdk 36', content)
+              if content!= orig:
+                  p.write_text(content)
+                  print(f"Patched {p}")
           PY
           cat > pubspec.yaml << 'YAML'
           name: mtrdf_2026_ai
-          description: MTRDF V8.4 archive 3.6.1 fix
+          description: MTRDF V8.5 force 36 fix
           publish_to: 'none'
-          version: 8.4.0+33
+          version: 8.5.0+34
           environment:
             sdk: '>=3.0.0 <4.0.0'
           dependencies:
@@ -65,8 +86,8 @@ jobs:
                   return reg.allMatches(xml).map((m)=>m.group(1)??'').join(' ');
                 }
               }
-              return "No document.xml found";
-            }catch(e){ return "Error reading docx: $e"; }
+              return "No document.xml";
+            }catch(e){ return "Error: $e"; }
           }
           void main(){ runApp(const MTRDFApp()); }
           class MTRDFApp extends StatelessWidget{ const MTRDFApp({super.key}); @override Widget build(BuildContext c){ return MaterialApp(debugShowCheckedModeBanner:false, home: const MainTabs()); } }
@@ -80,7 +101,7 @@ jobs:
             const HomePage({super.key});
             @override Widget build(BuildContext c){
               final subjects=["Mathematics","Biology","Chemistry","Physics","History","Geography","English","Agriculture"];
-              return Scaffold(appBar: AppBar(title: const Text('MTRDF V8.4 DOCX+IMAGE'), backgroundColor: Colors.green, foregroundColor: Colors.white), body: ListView.builder(padding: const EdgeInsets.all(12), itemCount: subjects.length, itemBuilder: (context,i){ return Card(child: ListTile(leading: const Icon(Icons.book, color:Colors.green), title: Text(subjects[i]), onTap:(){ Navigator.push(context, MaterialPageRoute(builder: (_)=> AITutorPage(subjectName: subjects[i]))); })); }));
+              return Scaffold(appBar: AppBar(title: const Text('MTRDF V8.5 GREEN'), backgroundColor: Colors.green, foregroundColor: Colors.white), body: ListView.builder(padding: const EdgeInsets.all(12), itemCount: subjects.length, itemBuilder: (context,i){ return Card(child: ListTile(leading: const Icon(Icons.book, color:Colors.green), title: Text(subjects[i]), onTap:(){ Navigator.push(context, MaterialPageRoute(builder: (_)=> AITutorPage(subjectName: subjects[i]))); })); }));
             }
           }
           class DocsPage extends StatefulWidget{ const DocsPage({super.key}); @override State<DocsPage> createState()=>_DocsPageState(); }
@@ -88,51 +109,29 @@ jobs:
             List<Map<String,String>> _docs=[]; bool _loading=false;
             final _nameC=TextEditingController(); final _contentC=TextEditingController();
             @override void initState(){ super.initState(); _load(); }
-            Future<void> _load() async{ final p=await SharedPreferences.getInstance(); String? s=p.getString("mtrdf_docs_v84"); if(s!=null){ setState(()=>_docs=List<Map<String,String>>.from(jsonDecode(s).map((e)=>Map<String,String>.from(e)))); } }
-            Future<void> _save() async{ final p=await SharedPreferences.getInstance(); p.setString("mtrdf_docs_v84", jsonEncode(_docs)); }
-            Future<void> _pickDocx() async{
-              setState(()=>_loading=true);
-              try{
-                FilePickerResult? result = await FilePicker.platform.pickFiles(type: FileType.custom, allowedExtensions: ['docx'], withData: true);
-                if(result!=null && result.files.first.bytes!=null){
-                  String name=result.files.first.name; String text=extractDocxText(result.files.first.bytes!.toList());
-                  setState(()=>_docs.add({"name":name, "content":text, "date":DateTime.now().toString().substring(0,10), "type":"docx"})); await _save();
-                }
-              }catch(e){}
-              setState(()=>_loading=false);
-            }
-            Future<void> _pickImage() async{
-              setState(()=>_loading=true);
-              try{
-                FilePickerResult? result = await FilePicker.platform.pickFiles(type: FileType.custom, allowedExtensions: ['jpg','jpeg','png'], withData: true);
-                if(result!=null){
-                  String name=result.files.first.name;
-                  final dir=await getApplicationDocumentsDirectory();
-                  final file=File('${dir.path}/$name');
-                  if(result.files.first.bytes!=null){ await file.writeAsBytes(result.files.first.bytes!); }
-                  setState(()=>_docs.add({"name":name, "content":"IMAGE_FILE:${file.path}", "date":DateTime.now().toString().substring(0,10), "type":"image"})); await _save();
-                }
-              }catch(e){}
-              setState(()=>_loading=false);
-            }
-            void _addTextDoc(){ String name=_nameC.text.trim().isEmpty? "Doc ${_docs.length+1}": _nameC.text.trim(); if(_contentC.text.trim().isEmpty) return; setState(()=>_docs.add({"name":name, "content":_contentC.text.trim(), "date":DateTime.now().toString().substring(0,10), "type":"text"})); _save(); _nameC.clear(); _contentC.clear(); Navigator.pop(context); }
+            Future<void> _load() async{ final p=await SharedPreferences.getInstance(); String? s=p.getString("mtrdf_docs_v85"); if(s!=null){ setState(()=>_docs=List<Map<String,String>>.from(jsonDecode(s).map((e)=>Map<String,String>.from(e)))); } }
+            Future<void> _save() async{ final p=await SharedPreferences.getInstance(); p.setString("mtrdf_docs_v85", jsonEncode(_docs)); }
+            Future<void> _pickDocx() async{ setState(()=>_loading=true); try{ FilePickerResult? r=await FilePicker.platform.pickFiles(type: FileType.custom, allowedExtensions: ['docx'], withData: true); if(r!=null&&r.files.first.bytes!=null){ String n=r.files.first.name; String t=extractDocxText(r.files.first.bytes!.toList()); setState(()=>_docs.add({"name":n,"content":t,"date":DateTime.now().toString().substring(0,10),"type":"docx"})); await _save(); } }catch(e){} setState(()=>_loading=false); }
+            Future<void> _pickImage() async{ setState(()=>_loading=true); try{ FilePickerResult? r=await FilePicker.platform.pickFiles(type: FileType.custom, allowedExtensions: ['jpg','jpeg','png'], withData: true); if(r!=null){ String n=r.files.first.name; final d=await getApplicationDocumentsDirectory(); final f=File('${d.path}/$n'); if(r.files.first.bytes!=null){ await f.writeAsBytes(r.files.first.bytes!); } setState(()=>_docs.add({"name":n,"content":"IMAGE_FILE:${f.path}","date":DateTime.now().toString().substring(0,10),"type":"image"})); await _save(); } }catch(e){} setState(()=>_loading=false); }
+            void _addTextDoc(){ String name=_nameC.text.trim().isEmpty? "Doc ${_docs.length+1}": _nameC.text.trim(); if(_contentC.text.trim().isEmpty) return; setState(()=>_docs.add({"name":name,"content":_contentC.text.trim(),"date":DateTime.now().toString().substring(0,10),"type":"text"})); _save(); _nameC.clear(); _contentC.clear(); Navigator.pop(context); }
             void _showAddOptions(){ showModalBottomSheet(context: context, builder: (_)=> SafeArea(child: Wrap(children:[ ListTile(leading: const Icon(Icons.text_fields), title: const Text("Paste Text"), onTap: (){ Navigator.pop(context); showDialog(context: context, builder: (_)=>AlertDialog(title: const Text("Add Text"), content: Column(mainAxisSize: MainAxisSize.min, children:[ TextField(controller: _nameC, decoration: const InputDecoration(labelText: "Name")), TextField(controller: _contentC, maxLines: 8, decoration: const InputDecoration(labelText: "Paste"))]), actions: [ElevatedButton(onPressed: _addTextDoc, child: const Text("Save"))])); }), ListTile(leading: const Icon(Icons.description), title: const Text("Upload WORD.docx"), onTap: (){ Navigator.pop(context); _pickDocx(); }), ListTile(leading: const Icon(Icons.image), title: const Text("Upload Image"), onTap: (){ Navigator.pop(context); _pickImage(); }), ]))); }
             @override Widget build(BuildContext c){ return Scaffold(appBar: AppBar(title: Text('Docs - ${_docs.length}'), backgroundColor: Colors.green, foregroundColor: Colors.white), body: _loading? const Center(child: CircularProgressIndicator()): ListView.builder(padding: const EdgeInsets.all(12), itemCount: _docs.length, itemBuilder: (_,i){ var d=_docs[i]; return Card(child: ListTile(title: Text(d["name"]!), subtitle: Text(d["type"]!), trailing: IconButton(icon: const Icon(Icons.delete), onPressed: (){ setState(()=>_docs.removeAt(i)); _save(); }))); }), floatingActionButton: FloatingActionButton(onPressed: _showAddOptions, backgroundColor: Colors.green, child: const Icon(Icons.add, color: Colors.white))); }
           }
           class AITutorPage extends StatefulWidget{ final String subjectName; const AITutorPage({super.key, required this.subjectName}); @override State<AITutorPage> createState()=>_AITutorPageState(); }
           class _AITutorPageState extends State<AITutorPage>{
-            final _c=TextEditingController(); final List<Map<String,String>> _msgs=[{"role":"ai","text":"V8.4 Ready - DOCX + Image"}]; List<Map<String,String>> _myDocs=[];
+            final _c=TextEditingController(); final List<Map<String,String>> _msgs=[{"role":"ai","text":"V8.5 Ready - DOCX + Image"}]; List<Map<String,String>> _myDocs=[];
             @override void initState(){ super.initState(); _loadDocs(); }
-            Future<void> _loadDocs() async{ final p=await SharedPreferences.getInstance(); String? s=p.getString("mtrdf_docs_v84"); if(s!=null){ setState(()=>_myDocs=List<Map<String,String>>.from(jsonDecode(s).map((e)=>Map<String,String>.from(e)))); } }
-            String _smartSearch(String q){ String out=""; for(var doc in _myDocs){ String content=doc["content"]!; if(content.startsWith("IMAGE_FILE:")) continue; if(content.toLowerCase().contains(q.toLowerCase().split(" ").firstWhere((w)=>w.length>3, orElse: ()=>q).toLowerCase())){ out+="FROM '${doc["name"]}':...${content.substring(0, content.length>300?300:content.length)}...\n\n"; } } return out.isEmpty? "No match": "FROM YOUR DOCS:\n\n$out"; }
+            Future<void> _loadDocs() async{ final p=await SharedPreferences.getInstance(); String? s=p.getString("mtrdf_docs_v85"); if(s!=null){ setState(()=>_myDocs=List<Map<String,String>>.from(jsonDecode(s).map((e)=>Map<String,String>.from(e)))); } }
+            String _smartSearch(String q){ String out=""; for(var doc in _myDocs){ String content=doc["content"]!; if(content.startsWith("IMAGE_FILE:")) continue; if(content.toLowerCase().contains(q.toLowerCase())){ out+="FROM '${doc["name"]}':...${content.substring(0,300)}...\n\n"; } } return out.isEmpty? "No match": "FROM DOCS:\n\n$out"; }
             void _send(){ if(_c.text.trim().isEmpty) return; String q=_c.text; setState((){ _msgs.add({"role":"user","text":q}); _msgs.add({"role":"ai","text":_smartSearch(q)}); }); _c.clear(); }
             @override Widget build(BuildContext context){ return Scaffold(appBar: AppBar(title: Text('${widget.subjectName}'), backgroundColor: Colors.green, foregroundColor: Colors.white), body: Column(children:[Expanded(child: ListView.builder(padding: const EdgeInsets.all(12), itemCount: _msgs.length, itemBuilder: (_,i){ final m=_msgs[i]; bool u=m["role"]=="user"; return Align(alignment: u? Alignment.centerRight: Alignment.centerLeft, child: Container(margin: const EdgeInsets.symmetric(vertical:4), padding: const EdgeInsets.all(12), decoration: BoxDecoration(color: u? Colors.green: Colors.grey[200], borderRadius: BorderRadius.circular(12)), child: Text(m["text"]!))); })), Padding(padding: const EdgeInsets.all(8), child: Row(children:[Expanded(child: TextField(controller: _c, decoration: InputDecoration(hintText: "Ask...", border: OutlineInputBorder(borderRadius: BorderRadius.circular(20))), onSubmitted: (_)=>_send())), IconButton(icon: const Icon(Icons.send, color: Colors.green), onPressed: _send)])) ])); }
           }
           DART
           flutter pub get
           flutter build apk --release
+          ls -lh build/app/outputs/flutter-apk/
       - uses: actions/upload-artifact@v4
         with:
-          name: MTRDF-V8.4-DOCX-IMAGE
+          name: MTRDF-V8.5-DOCX-IMAGE
           path: build/app/outputs/flutter-apk/app-release.apk
           if-no-files-found: error

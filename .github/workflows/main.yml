@@ -17,11 +17,12 @@ jobs:
           channel: 'stable'
       - name: Build MTRDF RAG FIXED
         run: |
+          flutter create . --platforms=android --project-name mtrdf_2026_ai --overwrite
           cat > pubspec.yaml << 'YAML'
           name: mtrdf_2026_ai
           description: MTRDF RAG Fixed
           publish_to: 'none'
-          version: 6.1.0+22
+          version: 6.1.0+23
           environment:
             sdk: '>=3.0.0 <4.0.0'
           dependencies:
@@ -31,27 +32,20 @@ jobs:
           flutter:
             uses-material-design: true
           YAML
-                - name: Build MTRDF RAG FIXED
-        run: |
-         flutter create . --platforms=android --project-name mtrdf_2026_ai --overwrite
-          cat > pubspec.yaml << 'YAML'
           mkdir -p lib
           cat > lib/main.dart << 'DART'
           import 'package:flutter/material.dart';
           import 'package:shared_preferences/shared_preferences.dart';
           import 'dart:convert';
           import 'dart:math';
-
           void main(){ runApp(const MTRDFApp()); }
           class MTRDFApp extends StatelessWidget{ const MTRDFApp({super.key}); @override Widget build(BuildContext c){ return MaterialApp(debugShowCheckedModeBanner:false, home: const MainTabs()); } }
-
           class MainTabs extends StatefulWidget{ const MainTabs({super.key}); @override State<MainTabs> createState()=>_MainTabsState(); }
           class _MainTabsState extends State<MainTabs>{
             int _idx=0;
             final _pages=[const HomePage(), const DocsPage()];
             @override Widget build(BuildContext c){ return Scaffold(body: _pages[_idx], bottomNavigationBar: BottomNavigationBar(currentIndex: _idx, onTap: (i)=>setState(()=>_idx=i), selectedItemColor: Colors.green, items: const [BottomNavigationBarItem(icon: Icon(Icons.school), label: "Subjects"), BottomNavigationBarItem(icon: Icon(Icons.folder), label: "My Documents")])); }
           }
-
           class HomePage extends StatelessWidget{
             const HomePage({super.key});
             @override Widget build(BuildContext c){
@@ -59,7 +53,6 @@ jobs:
               return Scaffold(appBar: AppBar(title: const Text('MTRDF 2026 AI - S.4'), backgroundColor: Colors.green, foregroundColor: Colors.white, centerTitle:true), body: ListView.builder(padding: const EdgeInsets.all(12), itemCount: subjects.length, itemBuilder: (context,i){ return Card(elevation:3, child: ListTile(leading: const Icon(Icons.menu_book, color:Colors.green), title: Text(subjects[i], style: const TextStyle(fontWeight:FontWeight.bold)), subtitle: const Text("Tap for AI Tutor + Uses Your Docs"), trailing: const Icon(Icons.smart_toy, color:Colors.green), onTap:(){ Navigator.push(context, MaterialPageRoute(builder: (_)=> AITutorPage(subjectName: subjects[i]))); })); }));
             }
           }
-
           class DocsPage extends StatefulWidget{ const DocsPage({super.key}); @override State<DocsPage> createState()=>_DocsPageState(); }
           class _DocsPageState extends State<DocsPage>{
             List<Map<String,String>> _docs=[];
@@ -76,78 +69,40 @@ jobs:
               ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Document saved! AI will use it.")));
             }
             void _showAdd(){
-              showDialog(context: context, builder: (_)=>AlertDialog(title: const Text("Add Document"), content: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, children:[ TextField(controller: _nameC, decoration: const InputDecoration(labelText: "Doc Name e.g., History Notes")), const SizedBox(height:10), TextField(controller: _contentC, maxLines: 8, decoration: const InputDecoration(labelText: "Paste content here", border: OutlineInputBorder(), hintText: "Paste your UNEB notes...")) ])), actions: [TextButton(onPressed: ()=>Navigator.pop(context), child: const Text("Cancel")), ElevatedButton(onPressed: _addDoc, style: ElevatedButton.styleFrom(backgroundColor: Colors.green), child: const Text("Save", style: TextStyle(color: Colors.white)))]));
+              showDialog(context: context, builder: (_)=>AlertDialog(title: const Text("Add Document"), content: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, children:[ TextField(controller: _nameC, decoration: const InputDecoration(labelText: "Doc Name e.g., History Notes")), const SizedBox(height:10), TextField(controller: _contentC, maxLines: 8, decoration: const InputDecoration(labelText: "Paste content here", border: OutlineInputBorder())) ])), actions: [TextButton(onPressed: ()=>Navigator.pop(context), child: const Text("Cancel")), ElevatedButton(onPressed: _addDoc, style: ElevatedButton.styleFrom(backgroundColor: Colors.green), child: const Text("Save", style: TextStyle(color: Colors.white)))]));
             }
             @override Widget build(BuildContext c){
-              return Scaffold(appBar: AppBar(title: const Text('My Documents - RAG'), backgroundColor: Colors.green, foregroundColor: Colors.white, actions: [IconButton(onPressed: (){ setState(()=>_docs=[]); _save(); }, icon: const Icon(Icons.delete_sweep))]),
-                floatingActionButton: FloatingActionButton.extended(onPressed: _showAdd, backgroundColor: Colors.green, icon: const Icon(Icons.add, color: Colors.white), label: const Text("Add Document", style: TextStyle(color: Colors.white))),
-                body: _docs.isEmpty? const Center(child: Padding(padding: EdgeInsets.all(20), child: Text("No documents yet.\n\nTap + Add Document to paste UNEB notes.\n\nExample:\nName: History - Buganda\nContent: Buganda Agreement 1900 signed by Apollo Kagwa...\n\nThen AI will answer FROM your notes!", textAlign: TextAlign.center))): ListView.builder(padding: const EdgeInsets.all(12), itemCount: _docs.length, itemBuilder: (_,i){ return Card(child: ListTile(leading: const Icon(Icons.description, color: Colors.green), title: Text(_docs[i]["name"]!), subtitle: Text("${_docs[i]["date"]} - ${(_docs[i]["content"]!.length>60? _docs[i]["content"]!.substring(0,60): _docs[i]["content"]!)}..."), trailing: IconButton(icon: const Icon(Icons.delete), onPressed: (){ setState(()=>_docs.removeAt(i)); _save(); }))); }),
-              );
+              return Scaffold(appBar: AppBar(title: const Text('My Documents - RAG'), backgroundColor: Colors.green, foregroundColor: Colors.white), body: _docs.isEmpty? const Center(child: Padding(padding: EdgeInsets.all(20), child: Text("No documents yet.\nTap + Add Document", textAlign: TextAlign.center))): ListView.builder(padding: const EdgeInsets.all(12), itemCount: _docs.length, itemBuilder: (_,i){ return Card(child: ListTile(title: Text(_docs[i]["name"]!), subtitle: Text(_docs[i]["content"]!.substring(0, _docs[i]["content"]!.length>50?50:_docs[i]["content"]!.length)), trailing: IconButton(icon: const Icon(Icons.delete), onPressed: (){ setState(()=>_docs.removeAt(i)); _save(); }))); }), floatingActionButton: FloatingActionButton.extended(onPressed: _showAdd, backgroundColor: Colors.green, icon: const Icon(Icons.add, color: Colors.white), label: const Text("Add", style: TextStyle(color: Colors.white))));
             }
           }
-
           class AITutorPage extends StatefulWidget{ final String subjectName; const AITutorPage({super.key, required this.subjectName}); @override State<AITutorPage> createState()=>_AITutorPageState(); }
           class _AITutorPageState extends State<AITutorPage>{
             final _c=TextEditingController();
-            final List<Map<String,String>> _msgs=[{"role":"ai","text":"MTRDF RAG AI Ready!\n\n1. Go to My Documents\n2. Tap + Add Document\n3. Paste notes\n4. Ask question - I quote your doc!"}];
+            final List<Map<String,String>> _msgs=[{"role":"ai","text":"MTRDF RAG Ready! Upload docs in My Documents tab."}];
             List<Map<String,String>> _myDocs=[];
             @override void initState(){ super.initState(); _loadDocs(); }
             Future<void> _loadDocs() async{ final p=await SharedPreferences.getInstance(); String? s=p.getString("mtrdf_docs"); if(s!=null){ setState(()=>_myDocs=List<Map<String,String>>.from(jsonDecode(s).map((e)=>Map<String,String>.from(e)))); } }
-
             String _searchDocs(String q){
               if(_myDocs.isEmpty) return "";
               q=q.toLowerCase();
               List<String> hits=[];
               for(var d in _myDocs){
-                String content=d["content"]!.toLowerCase();
-                if(q.split(" ").where((w)=>w.length>2).any((w)=>content.contains(w))){
-                  String snippet=d["content"]!.length>400? d["content"]!.substring(0,400): d["content"]!;
-                  hits.add("📄 FROM YOUR DOC '${d["name"]}':\n$snippet\n");
-                  if(hits.length>=2) break;
+                if(q.split(" ").where((w)=>w.length>2).any((w)=>d["content"]!.toLowerCase().contains(w))){
+                  hits.add("FROM '${d["name"]}':\n${d["content"]!.substring(0, d["content"]!.length>300?300:d["content"]!.length)}\n");
                 }
               }
               if(hits.isEmpty) return "";
-              return "✅ ANSWER FROM YOUR DOCUMENTS:\n\n${hits.join("\n---\n")}\n\n";
+              return "ANSWER FROM YOUR DOCS:\n${hits.join("\n---\n")}\n\n";
             }
-
-            String _solveQuad(String input){
-              try{
-                input=input.toLowerCase().replaceAll("²","2").replaceAll(" ","");
-                RegExp reg=RegExp(r'([+-]?\d*)x2([+-]\d*)x([+-]\d+)=0');
-                var m=reg.firstMatch(input);
-                if(m==null) return "";
-                String aS=m.group(1)!; int a=aS==""||aS=="+"?1:aS=="-"?-1:int.parse(aS);
-                String bS=m.group(2)!; int b=bS=="+"?1:bS=="-"?-1:int.parse(bS);
-                int c=int.parse(m.group(3)!);
-                double D=(b*b-4*a*c).toDouble();
-                if(D<0) return "Equation ${a}x²+${b}x+$c=0, D=$D <0 => No real roots.";
-                double x1=(-b+sqrt(D))/(2*a); double x2=(-b-sqrt(D))/(2*a);
-                return "SOLVING ${a}x²+${b}x+$c=0 => x=$x1 OR x=$x2 (D=$D)";
-              }catch(e){return "";}
-            }
-
             String _real(String q, String sub){
-              String fromDocs=_searchDocs(q);
-              if(fromDocs!="") return fromDocs+"---\nExtra UNEB tip:\n"+_unebAns(q,sub);
-              String calc=_solveQuad(q.replaceAll("solve",""));
-              if(calc!="") return calc;
-              return _unebAns(q,sub);
+              String d=_searchDocs(q);
+              if(d!="") return d;
+              if(q.toLowerCase().contains("photo")) return "PHOTOSYNTHESIS: 6CO2+6H2O->C6H12O6+6O2";
+              return "MTRDF AI - $sub: $q - I have ${_myDocs.length} docs.";
             }
-
-            String _unebAns(String q, String sub){
-              q=q.toLowerCase();
-              if((q.contains("hk")||q.contains("importance"))&&sub=="History"){
-                return "IMPORTANCE OF HISTORY - HK HT HA:\n\n1. LEARN FROM PAST\nHK: Slave trade, colonialism\nHT: Why happened\nHA: Avoid today\n\n2. UNITY\nHK: Heroes Kabalega\nHT: Courage\nHA: Love Uganda\n\n3. HERITAGE\nHK: Kingdoms Buganda\nHT: Evolved\nHA: Preserve\n\n4. INCOME\nHK: Kasubi tombs\nHT: Tourism\nHA: Jobs";
-              }
-              if(q.contains("define")&&q.contains("history")) return "HISTORY: Study of past activities in chronological order to understand present and predict future.";
-              if(q.contains("maji")) return "MAJI MAJI 1905-07: Kinjekitile, water medicine vs Germans, failed due to guns.";
-              if(q.contains("photo")) return "PHOTOSYNTHESIS: 6CO2+6H2O->C6H12O6+6O2 in chloroplast.";
-              return "MTRDF AI - $sub: Q '$q' - I have ${_myDocs.length} docs. Upload in My Documents tab.";
-            }
-
             void _send(){ if(_c.text.trim().isEmpty) return; String q=_c.text; setState((){ _msgs.add({"role":"user","text":q}); _msgs.add({"role":"ai","text":_real(q, widget.subjectName)}); }); _c.clear(); }
             @override Widget build(BuildContext context){
-              return Scaffold(appBar: AppBar(title: Text('AI - ${widget.subjectName} - ${_myDocs.length} docs'), backgroundColor: Colors.green, foregroundColor: Colors.white), body: Column(children:[Expanded(child: ListView.builder(padding: const EdgeInsets.all(12), itemCount: _msgs.length, itemBuilder: (_,i){ final m=_msgs[i]; bool u=m["role"]=="user"; return Align(alignment: u? Alignment.centerRight: Alignment.centerLeft, child: Container(margin: const EdgeInsets.symmetric(vertical:4), padding: const EdgeInsets.all(12), decoration: BoxDecoration(color: u? Colors.green: Colors.grey[200], borderRadius: BorderRadius.circular(12)), child: Text(m["text"]!, style: TextStyle(color: u? Colors.white: Colors.black)))); })), const Divider(height:1), Padding(padding: const EdgeInsets.all(8), child: Row(children:[Expanded(child: TextField(controller: _c, decoration: InputDecoration(hintText: "Ask ${widget.subjectName} (uses your docs)...", border: OutlineInputBorder(borderRadius: BorderRadius.circular(20))), onSubmitted: (_)=>_send())), const SizedBox(width:8), CircleAvatar(backgroundColor: Colors.green, child: IconButton(icon: const Icon(Icons.send, color: Colors.white), onPressed: _send))]))]));
+              return Scaffold(appBar: AppBar(title: Text('${widget.subjectName} - ${_myDocs.length} docs'), backgroundColor: Colors.green, foregroundColor: Colors.white), body: Column(children:[Expanded(child: ListView.builder(padding: const EdgeInsets.all(12), itemCount: _msgs.length, itemBuilder: (_,i){ final m=_msgs[i]; bool u=m["role"]=="user"; return Align(alignment: u? Alignment.centerRight: Alignment.centerLeft, child: Container(margin: const EdgeInsets.symmetric(vertical:4), padding: const EdgeInsets.all(12), decoration: BoxDecoration(color: u? Colors.green: Colors.grey[200], borderRadius: BorderRadius.circular(12)), child: Text(m["text"]!))); })), Padding(padding: const EdgeInsets.all(8), child: Row(children:[Expanded(child: TextField(controller: _c, decoration: InputDecoration(hintText: "Ask ${widget.subjectName}...", border: OutlineInputBorder(borderRadius: BorderRadius.circular(20))), onSubmitted: (_)=>_send())), const SizedBox(width:8), CircleAvatar(backgroundColor: Colors.green, child: IconButton(icon: const Icon(Icons.send, color: Colors.white), onPressed: _send))]))]));
             }
           }
           DART

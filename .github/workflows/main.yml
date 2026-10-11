@@ -19,7 +19,7 @@ jobs:
         run: |
           cat > pubspec.yaml << 'YAML'
           name: mtrdf_2026_ai
-          description: MTRDF 2026 AI
+          description: MTRDF 2026 AI - UNEB Tutor
           publish_to: 'none'
           version: 1.0.0+1
           environment:
@@ -31,7 +31,7 @@ jobs:
           flutter:
             uses-material-design: true
           YAML
-          flutter create . --platforms=android --project-name mtrdf_2026_ai --overwrite
+          flutter create. --platforms=android --project-name mtrdf_2026_ai --overwrite
           mkdir -p lib
           cat > lib/main.dart << 'DART'
           import 'package:flutter/material.dart';
@@ -40,7 +40,7 @@ jobs:
             const MTRDFApp({super.key});
             @override
             Widget build(BuildContext context) {
-              return MaterialApp(debugShowCheckedModeBanner: false, title: 'MTRDF 2026 AI', home: const HomePage());
+              return MaterialApp(debugShowCheckedModeBanner: false, title: 'MTRDF 2026 AI', theme: ThemeData(primarySwatch: Colors.green), home: const HomePage());
             }
           }
           class HomePage extends StatelessWidget {
@@ -48,7 +48,27 @@ jobs:
             final subjects = const ["Mathematics","Biology","Chemistry","Physics","History","Geography","English","Agriculture"];
             @override
             Widget build(BuildContext context) {
-              return Scaffold(appBar: AppBar(title: const Text('MTRDF 2026 AI'), backgroundColor: Colors.green, foregroundColor: Colors.white), body: ListView.builder(padding: const EdgeInsets.all(12), itemCount: subjects.length, itemBuilder: (context, i) { return Card(child: ListTile(title: Text(subjects[i]), trailing: const Icon(Icons.smart_toy, color: Colors.green), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => AITutorPage(subjectName: subjects[i]))))); }));
+              return Scaffold(
+                appBar: AppBar(title: const Text('MTRDF 2026 AI - S.4'), backgroundColor: Colors.green, foregroundColor: Colors.white, centerTitle: true),
+                body: ListView.builder(
+                  padding: const EdgeInsets.all(12),
+                  itemCount: subjects.length,
+                  itemBuilder: (context, i) {
+                    return Card(
+                      elevation: 3,
+                      child: ListTile(
+                        leading: const Icon(Icons.menu_book, color: Colors.green),
+                        title: Text(subjects[i], style: const TextStyle(fontWeight: FontWeight.bold)),
+                        subtitle: const Text("Tap to open AI Tutor + UNEB Notes"),
+                        trailing: const Icon(Icons.smart_toy, color: Colors.green),
+                        onTap: () {
+                          Navigator.push(context, MaterialPageRoute(builder: (_) => AITutorPage(subjectName: subjects[i])));
+                        },
+                      ),
+                    );
+                  }
+                ),
+              );
             }
           }
           class AITutorPage extends StatefulWidget {
@@ -59,16 +79,77 @@ jobs:
           }
           class _AITutorPageState extends State<AITutorPage> {
             final _c = TextEditingController();
-            final _msgs = <Map<String,String>>[{"role":"ai","text":"Hello! I am your MTRDF AI tutor!"}];
-            String _ans(String q){ return "Good question about ${widget.subjectName}! Ask specific topic and I explain for UNEB."; }
-            void _send(){ if(_c.text.trim().isEmpty) return; setState((){ _msgs.add({"role":"user","text":_c.text}); _msgs.add({"role":"ai","text":_ans(_c.text)}); }); _c.clear(); }
+            final List<Map<String,String>> _msgs = [{"role":"ai","text":"Hello! I am your MTRDF 2026 AI tutor for UNEB!\n\nI can help with:\n- Notes\n- Past papers\n- Definitions\n- Calculations\n\nAsk me any question!"}];
+
+            String _getAnswer(String q){
+              q = q.toLowerCase();
+              if(widget.subjectName=="Mathematics"){
+                if(q.contains("pythagoras")) return "Pythagoras: a² + b² = c² where c is hypotenuse. Example: a=3, b=4 => c=5.";
+                if(q.contains("quadratic")) return "Quadratic formula: x = [-b ± √(b²-4ac)] / 2a. For ax²+bx+c=0";
+                return "MATHS UNEB TIP for ${widget.subjectName}: For '$q', break into steps. 1) Write formula 2) Substitute 3) Calculate. UNEB loves showing working! What topic exactly? (Algebra, Geometry, Trigonometry?)";
+              }
+              if(widget.subjectName=="Biology"){
+                if(q.contains("photosynthesis")) return "Photosynthesis: 6CO2 + 6H2O --(light/chlorophyll)--> C6H12O6 + 6O2. Occurs in chloroplast. Factors: light, CO2, temp.";
+                return "BIOLOGY UNEB: For '$q' in ${widget.subjectName}, use: Definition -> Process -> Importance -> Diagram. Always label diagrams! Ask specific topic.";
+              }
+              return "Good question about ${widget.subjectName}: '$q'\n\nAs your MTRDF AI tutor, here is UNEB-style answer:\n\nFor UNEB 2024-2026, focus on definition, explanation, examples and application.\n\nTell me more: Which sub-topic? I will explain step-by-step with UNEB marking guide.";
+            }
+
+            void _send(){
+              if(_c.text.trim().isEmpty) return;
+              String q = _c.text;
+              setState((){
+                _msgs.add({"role":"user","text":q});
+                _msgs.add({"role":"ai","text":_getAnswer(q)});
+              });
+              _c.clear();
+            }
+
             @override
-            Widget build(BuildContext context){ return Scaffold(appBar: AppBar(title: Text('AI - ${widget.subjectName}')), body: Column(children: [Expanded(child: ListView.builder(padding: const EdgeInsets.all(12), itemCount: _msgs.length, itemBuilder: (_,i){ final m=_msgs[i]; bool u=m["role"]=="user"; return Align(alignment: u? Alignment.centerRight: Alignment.centerLeft, child: Container(margin: const EdgeInsets.symmetric(vertical:4), padding: const EdgeInsets.all(12), decoration: BoxDecoration(color: u? Colors.green: Colors.grey[200], borderRadius: BorderRadius.circular(12)), child: Text(m["text"]!))); })), Padding(padding: const EdgeInsets.all(8), child: Row(children: [Expanded(child: TextField(controller: _c, onSubmitted: (_)=>_send())), IconButton(icon: const Icon(Icons.send), onPressed: _send)])) ]), ); }
+            Widget build(BuildContext context){
+              return Scaffold(
+                appBar: AppBar(title: Text('AI - ${widget.subjectName}'), backgroundColor: Colors.green, foregroundColor: Colors.white),
+                body: Column(
+                  children: [
+                    Expanded(
+                      child: ListView.builder(
+                        padding: const EdgeInsets.all(12),
+                        itemCount: _msgs.length,
+                        itemBuilder: (_,i){
+                          final m=_msgs[i];
+                          bool u=m["role"]=="user";
+                          return Align(
+                            alignment: u? Alignment.centerRight: Alignment.centerLeft,
+                            child: Container(
+                              margin: const EdgeInsets.symmetric(vertical:4),
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(color: u? Colors.green: Colors.grey[200], borderRadius: BorderRadius.circular(12)),
+                              child: Text(m["text"]!, style: TextStyle(color: u? Colors.white: Colors.black)),
+                            ),
+                          );
+                        }
+                      )
+                    ),
+                    const Divider(height:1),
+                    Padding(
+                      padding: const EdgeInsets.all(8),
+                      child: Row(
+                        children: [
+                          Expanded(child: TextField(controller: _c, decoration: InputDecoration(hintText: "Ask ${widget.subjectName} question...", border: OutlineInputBorder(borderRadius: BorderRadius.circular(20))), onSubmitted: (_)=>_send())),
+                          const SizedBox(width:8),
+                          CircleAvatar(backgroundColor: Colors.green, child: IconButton(icon: const Icon(Icons.send, color: Colors.white), onPressed: _send))
+                        ]
+                      )
+                    )
+                  ]
+                ),
+              );
+            }
           }
           DART
           flutter pub get
           flutter build apk --release
       - uses: actions/upload-artifact@v4
         with:
-          name: MTRDF-AI-APK
+          name: MTRDF-AI-APK-FIXED
           path: build/app/outputs/flutter-apk/app-release.apk

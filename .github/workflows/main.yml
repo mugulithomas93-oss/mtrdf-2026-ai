@@ -20,11 +20,11 @@ jobs:
           flutter create . --platforms=android --project-name mtrdf_2026_ai --overwrite
           sed -i 's/flutter.compileSdkVersion/36/g' android/app/build.gradle.kts
           sed -i 's/flutter.targetSdkVersion/36/g' android/app/build.gradle.kts
-      - name: Write pubspec V14.9
+      - name: Write pubspec V14.10
         run: |
           cat > pubspec.yaml << 'YAML'
           name: mtrdf_2026_ai
-          version: 14.9.0+56
+          version: 14.10.0+57
           environment:
             sdk: '>=3.0.0 <4.0.0'
           dependencies:
@@ -39,10 +39,11 @@ jobs:
           flutter:
             uses-material-design: true
           YAML
-      - name: Write multi-line main.dart from GREEN #52
+      - name: Write main.dart FIXED QUOTES
         run: |
           python3 << 'PY'
-          code = '''
+          code = open('lib/main.dart','w',encoding='utf-8')
+          code.write('''
           import 'package:flutter/material.dart';
           import 'package:shared_preferences/shared_preferences.dart';
           import 'package:file_picker/file_picker.dart';
@@ -61,7 +62,7 @@ jobs:
                 }
               }
               return "No xml";
-            } catch (e) { return "Error \\$e"; }
+            } catch (e) { return "Error $e"; }
           }
 
           String extractPdf(List<int> bytes) {
@@ -70,7 +71,7 @@ jobs:
               final t = PdfTextExtractor(doc).extractText();
               doc.dispose();
               return t.isEmpty? "Scanned PDF" : t;
-            } catch (e) { return "PDF \\$e"; }
+            } catch (e) { return "PDF $e"; }
           }
 
           String snippet(String c, String q) {
@@ -163,7 +164,7 @@ jobs:
             @override Widget build(BuildContext c) {
               final subs = ["Mathematics","Biology","Chemistry","Physics","History","Geography","English","Agriculture"];
               return Scaffold(
-                appBar: AppBar(title: Text("MTRDF V14.9 GOLD"), backgroundColor: Colors.green, foregroundColor: Colors.white),
+                appBar: AppBar(title: Text("MTRDF V14.10 GOLD"), backgroundColor: Colors.green, foregroundColor: Colors.white),
                 body: ListView.builder(padding: EdgeInsets.all(12), itemCount: subs.length, itemBuilder: (_, j) {
                   return Card(child: ListTile(leading: Icon(Icons.book, color: Colors.green), title: Text(subs[j]), onTap: () => Navigator.push(c, MaterialPageRoute(builder: (_) => Chat(subject: subs[j])))));
                 }),
@@ -203,10 +204,10 @@ jobs:
             }
             @override Widget build(BuildContext c) {
               return Scaffold(
-                appBar: AppBar(title: Text("My Docs \\${docs.length} V14.9"), backgroundColor: Colors.green, foregroundColor: Colors.white),
+                appBar: AppBar(title: Text("My Docs ${docs.length} V14.10"), backgroundColor: Colors.green, foregroundColor: Colors.white),
                 body: loading? Center(child: CircularProgressIndicator()) : docs.isEmpty? Center(child: Text("No docs")) : ListView.builder(padding: EdgeInsets.all(12), itemCount: docs.length, itemBuilder: (_, j) {
                   var d = docs[j];
-                  return Card(child: ListTile(title: Text(d["name"]?? ""), subtitle: Text("\\${d["type"]} \\${(d["content"]?? "").length}"), trailing: IconButton(icon: Icon(Icons.delete), onPressed: () { setState(() => docs.removeAt(j)); _save(); })));
+                  return Card(child: ListTile(title: Text(d["name"]?? ""), subtitle: Text("${d["type"]} ${(d["content"]?? "").length}"), trailing: IconButton(icon: Icon(Icons.delete), onPressed: () { setState(() => docs.removeAt(j)); _save(); })));
                 }),
                 floatingActionButton: FloatingActionButton.extended(onPressed: _pick, backgroundColor: Colors.green, icon: Icon(Icons.add, color: Colors.white), label: Text("Add DOCX/PDF", style: TextStyle(color: Colors.white))),
               );
@@ -222,7 +223,7 @@ jobs:
                 {"name":"Lake Edward","q":"Rift Valley","x":0.15,"y":0.65},
               ];
               return Scaffold(
-                appBar: AppBar(title: Text("GeographyLab OFFLINE V14.9"), backgroundColor: Colors.green, foregroundColor: Colors.white),
+                appBar: AppBar(title: Text("GeographyLab OFFLINE V14.10"), backgroundColor: Colors.green, foregroundColor: Colors.white),
                 body: Column(children: [
                   Expanded(flex: 3, child: Stack(children: [
                     Container(width: double.infinity, height: double.infinity, color: Color(0xFFE8F5E9), child: CustomPaint(painter: UgandaPainter())),
@@ -230,7 +231,7 @@ jobs:
                     Positioned(top: 8, left: 8, child: Container(padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4), decoration: BoxDecoration(color: Colors.green, borderRadius: BorderRadius.circular(12)), child: Text("OFFLINE CANVAS - 0 B/S", style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)))),
                   ])),
                   Expanded(flex: 2, child: ListView(padding: EdgeInsets.all(8), children: [
-                    Card(color: Colors.green[50], child: ListTile(leading: Icon(Icons.check_circle, color: Colors.green), title: Text("V14.9 OFFLINE - No internet"), subtitle: Text("Tap pins -> Research"))),
+                    Card(color: Colors.green[50], child: ListTile(leading: Icon(Icons.check_circle, color: Colors.green), title: Text("V14.10 OFFLINE - No internet"), subtitle: Text("Tap pins -> Research"))),
                     for (var l in lakes) Card(child: ListTile(title: Text(l["name"] as String), subtitle: Text(l["q"] as String), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => Research(initialQuery: l["q"] as String))))),
                   ])),
                 ]),
@@ -265,14 +266,14 @@ jobs:
               if (s!=null) ds=List<Map<String,String>>.from(jsonDecode(s).map((e)=>Map<String,String>.from(e)));
               final box=Hive.box('mtrdf_v14'); String? h=box.get('docs');
               if (h!=null) { try { ds=List<Map<String,String>>.from(jsonDecode(h).map((e)=>Map<String,String>.from(e))); } catch(e){} }
-              List<Map<String,String>> r=[]; for(var d in ds){ if(matches(d["content"]??"", q, "research")) r.add({"title":"FROM YOUR DOC: \\${d["name"]}","snip":snippet(d["content"]??"", q)}); }
+              List<Map<String,String>> r=[]; for(var d in ds){ if(matches(d["content"]??"", q, "research")) r.add({"title":"FROM YOUR DOC: ${d["name"]}","snip":snippet(d["content"]??"", q)}); }
               setState(()=>results=r);
             }
             @override Widget build(BuildContext c) {
-              return Scaffold(appBar: AppBar(title: Text("Research V14.9"), backgroundColor: Colors.green, foregroundColor: Colors.white),
+              return Scaffold(appBar: AppBar(title: Text("Research V14.10"), backgroundColor: Colors.green, foregroundColor: Colors.white),
                 body: Column(children: [
                   Padding(padding: EdgeInsets.all(12), child: Row(children: [Expanded(child: TextField(controller: ctrl, decoration: InputDecoration(hintText:"Search...",border:OutlineInputBorder(borderRadius:BorderRadius.circular(20))), onSubmitted: search)), IconButton(icon: Icon(Icons.search, color: Colors.green), onPressed: ()=>search(ctrl.text))])),
-                  Expanded(child: results.isEmpty? Center(child: Text(lastQ.isEmpty?"Tap map pin":"No match for \\$lastQ")) : ListView.builder(padding: EdgeInsets.all(12), itemCount: results.length, itemBuilder: (_,i){ var r=results[i]; return Card(color: Colors.green[50], child: ListTile(title: Text(r["title"]??"",style:TextStyle(fontWeight:FontWeight.bold,fontSize:13)), subtitle: highlight(r["snip"]??"", lastQ))); })),
+                  Expanded(child: results.isEmpty? Center(child: Text(lastQ.isEmpty?"Tap map pin":"No match for $lastQ")) : ListView.builder(padding: EdgeInsets.all(12), itemCount: results.length, itemBuilder: (_,i){ var r=results[i]; return Card(color: Colors.green[50], child: ListTile(title: Text(r["title"]??"",style:TextStyle(fontWeight:FontWeight.bold,fontSize:13)), subtitle: highlight(r["snip"]??"", lastQ))); })),
                 ]),
               );
             }
@@ -280,16 +281,26 @@ jobs:
 
           class Chat extends StatefulWidget { final String subject; const Chat({super.key, required this.subject}); @override State<Chat> createState()=>_ChatS(); }
           class _ChatS extends State<Chat> {
-            final ctrl=TextEditingController(); List<Map<String,String>> msgs=[{"role":"ai","text":"V14.9 GOLD - Biology fix + offline canvas"}]; List<Map<String,String>> myDocs=[];
+            final ctrl=TextEditingController(); List<Map<String,String>> msgs=[{"role":"ai","text":"V14.10 GOLD - Biology fix + offline canvas"}]; List<Map<String,String>> myDocs=[];
             @override void initState(){ super.initState(); _load(); }
             Future<void> _load() async { final p=await SharedPreferences.getInstance(); String? s=p.getString("mtrdf_docs_v10"); if(s!=null) setState(()=>myDocs=List<Map<String,String>>.from(jsonDecode(s).map((e)=>Map<String,String>.from(e)))); final b=Hive.box('mtrdf_v14'); String? h=b.get('docs'); if(h!=null){ try{ myDocs=List<Map<String,String>>.from(jsonDecode(h).map((e)=>Map<String,String>.from(e))); setState((){});}catch(e){} } }
-            String searchDocs(String q){ if(myDocs.isEmpty) return "No docs. Add DOCX in My Docs."; String out=""; int f=0; for(var d in myDocs){ if(matches(d["content"]??"", q, widget.subject)){ f++; out+="FROM '\\${d["name"]}':\\n\\${snippet(d["content"]??"", q)}\\n\\n---\\n\\n"; } } if(f==0) return "No match '\\$q' in \\${widget.subject}. Have \\${myDocs.length} docs. (V14.9 Biology filter)"; return "FOUND \\$f for \\${widget.subject}:\\n\\n\\$out"; }
+            String searchDocs(String q){
+              if(myDocs.isEmpty) return "No docs. Add DOCX in My Docs.";
+              String out=""; int f=0;
+              for(var d in myDocs){
+                if(matches(d["content"]??"", q, widget.subject)){
+                  f++;
+                  out += "FROM '" + (d["name"]?? "") + "':\\n" + snippet(d["content"]??"", q) + "\\n\\n---\\n\\n";
+                }
+              }
+              if(f==0) return "No match for '" + q + "' in " + widget.subject + ". Have " + myDocs.length.toString() + " docs. (V14.10 Biology filter)";
+              return "FOUND " + f.toString() + " for " + widget.subject + ":\\n\\n" + out;
+            }
             void send(){ if(ctrl.text.isEmpty) return; String q=ctrl.text; setState((){ msgs.add({"role":"user","text":q}); msgs.add({"role":"ai","text":searchDocs(q)}); }); ctrl.clear(); }
-            @override Widget build(BuildContext c){ return Scaffold(appBar: AppBar(title: Text("\\${widget.subject} - \\${myDocs.length} V14.9"), backgroundColor: Colors.green, foregroundColor: Colors.white), body: Column(children: [Expanded(child: ListView.builder(padding: EdgeInsets.all(12), itemCount: msgs.length, itemBuilder: (_,i){ final m=msgs[i]; bool u=m["role"]=="user"; return Align(alignment: u?Alignment.centerRight:Alignment.centerLeft, child: Container(margin: EdgeInsets.symmetric(vertical:4),padding: EdgeInsets.all(12),decoration: BoxDecoration(color: u?Colors.green:Colors.grey[200],borderRadius:BorderRadius.circular(12)),child: Text(m["text"]??""))); })), Padding(padding: EdgeInsets.all(8), child: Row(children: [Expanded(child: TextField(controller: ctrl, decoration: InputDecoration(hintText:"Ask \\${widget.subject}...",border:OutlineInputBorder(borderRadius:BorderRadius.circular(20))), onSubmitted: (_)=>send())), IconButton(icon: Icon(Icons.send, color: Colors.green), onPressed: send)])) ])); }
+            @override Widget build(BuildContext c){ return Scaffold(appBar: AppBar(title: Text(widget.subject + " - " + myDocs.length.toString() + " V14.10"), backgroundColor: Colors.green, foregroundColor: Colors.white), body: Column(children: [Expanded(child: ListView.builder(padding: EdgeInsets.all(12), itemCount: msgs.length, itemBuilder: (_,i){ final m=msgs[i]; bool u=m["role"]=="user"; return Align(alignment: u?Alignment.centerRight:Alignment.centerLeft, child: Container(margin: EdgeInsets.symmetric(vertical:4),padding: EdgeInsets.all(12),decoration: BoxDecoration(color: u?Colors.green:Colors.grey[200],borderRadius:BorderRadius.circular(12)),child: Text(m["text"]??""))); })), Padding(padding: EdgeInsets.all(8), child: Row(children: [Expanded(child: TextField(controller: ctrl, decoration: InputDecoration(hintText:"Ask " + widget.subject + "...",border:OutlineInputBorder(borderRadius:BorderRadius.circular(20))), onSubmitted: (_)=>send())), IconButton(icon: Icon(Icons.send, color: Colors.green), onPressed: send)])) ])); }
           }
-          '''
-          open('lib/main.dart','w',encoding='utf-8').write(code)
-          print("Wrote multi-line main.dart")
+          ''')
+          print("Wrote fixed V14.10")
           PY
       - name: Build APK
         run: |
@@ -299,6 +310,6 @@ jobs:
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: MTRDF-V14-9-GOLD-FINAL
+          name: MTRDF-V14-10-GOLD-FINAL
           path: build/app/outputs/flutter-apk/app-release.apk
           if-no-files-found: error

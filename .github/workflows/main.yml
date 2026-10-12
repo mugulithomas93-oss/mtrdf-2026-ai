@@ -15,7 +15,7 @@ jobs:
       - uses: subosito/flutter-action@v2
         with:
           channel: 'stable'
-      - name: Build MTRDF V12.5 KEYWORD RAG
+      - name: Build MTRDF V13 PDF HIGHLIGHT
         run: |
           flutter create . --platforms=android --project-name mtrdf_2026_ai --overwrite
           sed -i 's/flutter.compileSdkVersion/36/g' android/app/build.gradle.kts
@@ -23,7 +23,7 @@ jobs:
           echo "flutter.compileSdkVersion=36" >> android/local.properties
           cat > pubspec.yaml << 'YAML'
           name: mtrdf_2026_ai
-          version: 12.5.0+46
+          version: 13.0.0+47
           environment:
             sdk: '>=3.0.0 <4.0.0'
           dependencies:
@@ -33,6 +33,7 @@ jobs:
             file_picker: ^10.1.9
             archive: ^3.6.1
             path_provider: ^2.1.2
+            syncfusion_flutter_pdf: ^28.2.7
           flutter:
             uses-material-design: true
           YAML
@@ -42,6 +43,7 @@ jobs:
           import 'package:shared_preferences/shared_preferences.dart';
           import 'package:file_picker/file_picker.dart';
           import 'package:archive/archive.dart';
+          import 'package:syncfusion_flutter_pdf/pdf.dart';
           import 'dart:convert';
 
           String extractDocx(List<int> bytes) {
@@ -57,27 +59,26 @@ jobs:
             } catch (e) { return "Error $e"; }
           }
 
-          // V12.5 KEYWORD SMART RAG - FIXES "define geography" bug
+          String extractPdf(List<int> bytes) {
+            try {
+              final doc = PdfDocument(inputBytes: bytes);
+              String text = PdfTextExtractor(doc).extractText();
+              doc.dispose();
+              return text.isEmpty? "PDF empty - scanned?" : text;
+            } catch (e) { return "PDF Error $e"; }
+          }
+
           String snippet(String content, String query) {
             final lower = content.toLowerCase();
             final keywords = query.toLowerCase().split(RegExp(r'\s+')).where((w) => w.length>2).toList();
-            // Find first keyword match
             int pos = -1;
-            String matchedWord = "";
-            for (var kw in keywords) {
-              int p = lower.indexOf(kw);
-              if (p!=-1) { pos = p; matchedWord = kw; break; }
-            }
-            // If no keyword, try whole query
-            if (pos==-1) {
-              pos = lower.indexOf(query.toLowerCase());
-              if (pos==-1) return content.length>500? content.substring(0,500)+"..." : content;
-            }
-            int start = pos-200; if (start<0) start=0;
-            int end = pos+500; if (end>content.length) end=content.length;
+            for (var kw in keywords) { int p = lower.indexOf(kw); if (p!=-1) { pos=p; break; } }
+            if (pos==-1) pos = lower.indexOf(query.toLowerCase());
+            if (pos==-1) return content.length>600? content.substring(0,600)+"..." : content;
+            int start = pos-250; if (start<0) start=0;
+            int end = pos+600; if (end>content.length) end=content.length;
             String t = content.substring(start,end);
-            if (start>0) t="..."+t;
-            if (end<content.length) t=t+"...";
+            if (start>0) t="..."+t; if (end<content.length) t=t+"...";
             return t;
           }
 
@@ -85,28 +86,67 @@ jobs:
             final lower = content.toLowerCase();
             final q = query.toLowerCase().trim();
             if (q.isEmpty) return false;
-            // Exact
             if (lower.contains(q)) return true;
-            // Keywords
             final keywords = q.split(RegExp(r'\s+')).where((w)=>w.length>2).toList();
-            if (keywords.isEmpty) return false;
-            // Match if ANY keyword found (for define geography -> geography)
             for (var kw in keywords) { if (lower.contains(kw)) return true; }
             return false;
+          }
+
+          // HIGHLIGHT WIDGET - yellow glow
+          Widget highlightText(String text, String query) {
+            final lower = text.toLowerCase();
+            final qLower = query.toLowerCase().trim();
+            final keywords = qLower.split(RegExp(r'\s+')).where((w)=>w.length>2).toList();
+            if (keywords.isEmpty) return Text(text);
+            List<TextSpan> spans = [];
+            int last = 0;
+            String lowerSlice = lower;
+            // simple highlight first keyword found
+            String? bestKw;
+            int bestPos = -1;
+            for (var kw in keywords) {
+              int p = lower.indexOf(kw);
+              if (p!=-1 && (bestPos==-1 || p<bestPos)) { bestPos=p; bestKw=kw; }
+            }
+            if (bestKw==null) return Text(text);
+            // build spans
+            int idx = 0;
+            while (true) {
+              int pos = lower.indexOf(bestKw, idx);
+              if (pos==-1) { spans.add(TextSpan(text: text.substring(idx))); break; }
+              if (pos>idx) spans.add(TextSpan(text: text.substring(idx,pos)));
+              spans.add(TextSpan(text: text.substring(pos,pos+bestKw.length), style: TextStyle(backgroundColor: Colors.yellow, fontWeight: FontWeight.bold, color: Colors.black)));
+              idx = pos+bestKw.length;
+            }
+            return RichText(text: TextSpan(style: TextStyle(color: Colors.black87, fontSize: 14), children: spans));
           }
 
           void main(){ runApp(const App()); }
           class App extends StatelessWidget{ const App({super.key}); @override Widget build(BuildContext c){ return MaterialApp(debugShowCheckedModeBanner:false, home: Tabs()); } }
           class Tabs extends StatefulWidget{ @override State<Tabs> createState()=>_TabsS(); }
           class _TabsS extends State<Tabs>{ int i=0; final pages=[Home(), Docs(), Geo(), Research()]; @override Widget build(BuildContext c){ return Scaffold(body: pages[i], bottomNavigationBar: BottomNavigationBar(type: BottomNavigationBarType.fixed, currentIndex:i, onTap:(x)=>setState(()=>i=x), selectedItemColor:Colors.green, items: const [BottomNavigationBarItem(icon: Icon(Icons.school), label:"Subjects"), BottomNavigationBarItem(icon: Icon(Icons.folder), label:"My Docs"), BottomNavigationBarItem(icon: Icon(Icons.map), label:"GeographyLab"), BottomNavigationBarItem(icon: Icon(Icons.search), label:"Research")])); } }
-          class Home extends StatelessWidget{ @override Widget build(BuildContext c){ final s=["Mathematics","Biology","Chemistry","Physics","History","Geography","English","Agriculture"]; return Scaffold(appBar: AppBar(title: Text('MTRDF V12.5 KEYWORD RAG'), backgroundColor: Colors.green, foregroundColor: Colors.white), body: ListView.builder(padding: EdgeInsets.all(12), itemCount:s.length, itemBuilder:(_,j){ return Card(child: ListTile(leading: Icon(Icons.book, color: Colors.green), title: Text(s[j]), subtitle: Text("V12.5 - define geography FIXED"), onTap:(){ Navigator.push(c, MaterialPageRoute(builder:(_)=> Chat(subject: s[j]))); })); })); } }
+
+          class Home extends StatelessWidget{ @override Widget build(BuildContext c){ final s=["Mathematics","Biology","Chemistry","Physics","History","Geography","English","Agriculture"]; return Scaffold(appBar: AppBar(title: Text('MTRDF V13 PDF+ HIGHLIGHT'), backgroundColor: Colors.green, foregroundColor: Colors.white), body: ListView.builder(padding: EdgeInsets.all(12), itemCount:s.length, itemBuilder:(_,j){ return Card(child: ListTile(leading: Icon(Icons.book, color: Colors.green), title: Text(s[j]), subtitle: Text("V13 - PDF + Keyword + Highlight"), onTap:(){ Navigator.push(c, MaterialPageRoute(builder:(_)=> Chat(subject: s[j]))); })); })); } }
+
           class Docs extends StatefulWidget{ @override State<Docs> createState()=>_DocsS(); }
-          class _DocsS extends State<Docs>{ List<Map<String,String>> docs=[]; bool loading=false; @override void initState(){ super.initState(); _load(); } Future<void> _load() async { final p=await SharedPreferences.getInstance(); String? s=p.getString("mtrdf_docs_v10"); if(s!=null) setState(()=>docs=List<Map<String,String>>.from(jsonDecode(s).map((e)=>Map<String,String>.from(e)))); } Future<void> _save() async { final p=await SharedPreferences.getInstance(); p.setString("mtrdf_docs_v10", jsonEncode(docs)); } Future<void> _pick() async { setState(()=>loading=true); try{ FilePickerResult? r=await FilePicker.platform.pickFiles(type: FileType.custom, allowedExtensions:['docx'], withData:true); if(r!=null&&r.files.first.bytes!=null){ String t=extractDocx(r.files.first.bytes!.toList()); setState(()=>docs.add({"name":r.files.first.name,"content":t,"date":DateTime.now().toString().substring(0,10),"type":"docx"})); _save(); } }catch(e){} setState(()=>loading=false); } @override Widget build(BuildContext c){ return Scaffold(appBar: AppBar(title: Text('My Docs - ${docs.length}'), backgroundColor: Colors.green, foregroundColor: Colors.white), body: loading? Center(child: CircularProgressIndicator(color: Colors.green)): docs.isEmpty? Center(child: Text("No docs")): ListView.builder(padding: EdgeInsets.all(12), itemCount:docs.length, itemBuilder:(_,j){ var d=docs[j]; return Card(child: ListTile(leading: Icon(Icons.description, color: Colors.blue), title: Text(d["name"]??""), subtitle: Text(d["type"]??""), onTap:(){ showDialog(context: c, builder:(_)=>AlertDialog(title: Text(d["name"]??""), content: SingleChildScrollView(child: Text(d["content"]??"")), actions:[TextButton(onPressed:()=>Navigator.pop(c), child: Text("Close"))])); }, trailing: IconButton(icon: Icon(Icons.delete), onPressed:(){ setState(()=>docs.removeAt(j)); _save(); }))); }), floatingActionButton: FloatingActionButton.extended(onPressed: _pick, backgroundColor: Colors.green, icon: Icon(Icons.add, color: Colors.white), label: Text("Add DOCX", style: TextStyle(color: Colors.white)))); } }
-          class Geo extends StatelessWidget{ @override Widget build(BuildContext c){ return Scaffold(appBar: AppBar(title: Text('GeographyLab - Hybrid'), backgroundColor: Colors.green, foregroundColor: Colors.white), body: ListView(padding: EdgeInsets.all(12), children: [Card(color: Colors.green[50], child: ListTile(leading: Icon(Icons.map, color: Colors.green, size:40), title: Text("Uganda Offline Map - V12.5 FIXED"), subtitle: Text("Keyword search: define geography -> geography"))), Card(child: ListTile(title: Text("Lake Victoria Basin"), subtitle: Text("Search 'Victoria' now works"))), Card(child: ListTile(title: Text("Rift Valley Lakes"))), Card(child: ListTile(title: Text("Drainage: lakes & rivers")))])); } }
-          class Research extends StatefulWidget{ @override State<Research> createState()=>_ResS(); }
-          class _ResS extends State<Research>{ final _c=TextEditingController(); List<Map<String,String>> res=[]; Future<void> _search(String q) async { final p=await SharedPreferences.getInstance(); String? s=p.getString("mtrdf_docs_v10"); List<Map<String,String>> docs=[]; if(s!=null) docs=List<Map<String,String>>.from(jsonDecode(s).map((e)=>Map<String,String>.from(e))); List<Map<String,String>> r=[]; for(var d in docs){ if(matches(d["content"]??"", q)) r.add({"title":"FROM YOUR DOC: ${d["name"]??""}", "snip":snippet(d["content"]??"", q)}); } if(q.toLowerCase().contains("lake")||q.toLowerCase().contains("river")||q.toLowerCase().contains("geography")){ r.add({"title":"UNEB 2023 Q2: Formation of Rift Valley lakes", "snip":"Past paper - uses your notes"}); } setState(()=>res=r); } @override Widget build(BuildContext c){ return Scaffold(appBar: AppBar(title: Text('Research - Keyword RAG'), backgroundColor: Colors.green, foregroundColor: Colors.white), body: Column(children: [Padding(padding: EdgeInsets.all(12), child: Row(children: [Expanded(child: TextField(controller:_c, decoration: InputDecoration(hintText:"Search lakes, geography...", border: OutlineInputBorder(borderRadius: BorderRadius.circular(20))), onSubmitted:_search)), IconButton(icon: Icon(Icons.search, color: Colors.green), onPressed:()=>_search(_c.text))])), Expanded(child: res.isEmpty? Center(child: Text("V12.5 Fix: 'define geography' -> finds 'geography'")): ListView.builder(padding: EdgeInsets.all(12), itemCount:res.length, itemBuilder:(_,i){ return Card(child: ListTile(title: Text(res[i]["title"]??""), subtitle: Text(res[i]["snip"]??""))); })) ])); } }
+          class _DocsS extends State<Docs>{ List<Map<String,String>> docs=[]; bool loading=false; @override void initState(){ super.initState(); _load(); } Future<void> _load() async { final p=await SharedPreferences.getInstance(); String? s=p.getString("mtrdf_docs_v10"); if(s!=null) setState(()=>docs=List<Map<String,String>>.from(jsonDecode(s).map((e)=>Map<String,String>.from(e)))); } Future<void> _save() async { final p=await SharedPreferences.getInstance(); p.setString("mtrdf_docs_v10", jsonEncode(docs)); } Future<void> _pick() async { setState(()=>loading=true); try{ FilePickerResult? r=await FilePicker.platform.pickFiles(type: FileType.custom, allowedExtensions:['docx','pdf'], withData:true); if(r!=null&&r.files.first.bytes!=null){ String name=r.files.first.name; List<int> bytes=r.files.first.bytes!.toList(); String t=name.toLowerCase().endsWith('.pdf')? extractPdf(bytes) : extractDocx(bytes); setState(()=>docs.add({"name":name,"content":t,"date":DateTime.now().toString().substring(0,10),"type":name.toLowerCase().endsWith('.pdf')?"pdf":"docx"})); _save(); } }catch(e){} setState(()=>loading=false); } @override Widget build(BuildContext c){ return Scaffold(appBar: AppBar(title: Text('My Docs V13 - ${docs.length} PDF+DOCX'), backgroundColor: Colors.green, foregroundColor: Colors.white), body: loading? Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children:[CircularProgressIndicator(color: Colors.green), SizedBox(height:12), Text("Extracting PDF/DOCX...")])): docs.isEmpty? Center(child: Text("No docs - Add DOCX or PDF")): ListView.builder(padding: EdgeInsets.all(12), itemCount:docs.length, itemBuilder:(_,j){ var d=docs[j]; return Card(child: ListTile(leading: Icon(d["type"]=="pdf"? Icons.picture_as_pdf: Icons.description, color: d["type"]=="pdf"? Colors.red: Colors.blue), title: Text(d["name"]??""), subtitle: Text("${d["type"]??""} - ${(d["content"]??"").length} chars"), onTap:(){ showDialog(context: c, builder:(_)=>AlertDialog(title: Text(d["name"]??""), content: SingleChildScrollView(child: Text((d["content"]??"").length>3000? (d["content"]??"").substring(0,3000)+"...": (d["content"]??""))), actions:[TextButton(onPressed:()=>Navigator.pop(c), child: Text("Close"))])); }, trailing: IconButton(icon: Icon(Icons.delete), onPressed:(){ setState(()=>docs.removeAt(j)); _save(); }))); }), floatingActionButton: FloatingActionButton.extended(onPressed: _pick, backgroundColor: Colors.green, icon: Icon(Icons.add, color: Colors.white), label: Text("Add DOCX/PDF", style: TextStyle(color: Colors.white)))); } }
+
+          class Geo extends StatelessWidget{
+            @override Widget build(BuildContext context){
+              return Scaffold(appBar: AppBar(title: Text('GeographyLab - Map Tap'), backgroundColor: Colors.green, foregroundColor: Colors.white), body: ListView(padding: EdgeInsets.all(12), children:[
+                Card(color: Colors.green[50], child: ListTile(leading: Icon(Icons.map, color: Colors.green, size:40), title: Text("Uganda Offline Map - V13 PDF"), subtitle: Text("Tap lake -> searches your docs (PDF+DOCX)\n50MB mbtiles in V13.1"))),
+                Card(child: ListTile(leading: Icon(Icons.water, color: Colors.blue), title: Text("Lake Victoria Basin"), subtitle: Text("Tap -> Research 'Lake Victoria'"), onTap:(){ Navigator.push(context, MaterialPageRoute(builder:(_)=> Research(initialQuery: "Lake Victoria"))); }, trailing: Icon(Icons.arrow_forward))),
+                Card(child: ListTile(leading: Icon(Icons.terrain, color: Colors.brown), title: Text("Rift Valley Lakes: Albert, Edward, George"), subtitle: Text("Tap -> Research 'Rift Valley'"), onTap:(){ Navigator.push(context, MaterialPageRoute(builder:(_)=> Research(initialQuery: "Rift Valley lakes"))); })),
+                Card(child: ListTile(leading: Icon(Icons.water_drop, color: Colors.teal), title: Text("Drainage: lakes & rivers"), subtitle: Text("Tap -> Research importance"), onTap:(){ Navigator.push(context, MaterialPageRoute(builder:(_)=> Research(initialQuery: "importance of lakes and rivers"))); })),
+              ]));
+            }
+          }
+
+          class Research extends StatefulWidget{ final String initialQuery; const Research({super.key, this.initialQuery=""}); @override State<Research> createState()=>_ResS(); }
+          class _ResS extends State<Research>{ final _c=TextEditingController(); List<Map<String,String>> res=[]; String lastQuery=""; @override void initState(){ super.initState(); if(widget.initialQuery.isNotEmpty){ _c.text=widget.initialQuery; Future.delayed(Duration(milliseconds:300), ()=>_search(widget.initialQuery)); } } Future<void> _search(String q) async { lastQuery=q; final p=await SharedPreferences.getInstance(); String? s=p.getString("mtrdf_docs_v10"); List<Map<String,String>> docs=[]; if(s!=null) docs=List<Map<String,String>>.from(jsonDecode(s).map((e)=>Map<String,String>.from(e))); List<Map<String,String>> r=[]; for(var d in docs){ if(matches(d["content"]??"", q)) r.add({"title":"FROM YOUR ${ (d["type"]??"").toUpperCase() }: ${d["name"]??""}", "snip":snippet(d["content"]??"", q)}); } if(q.toLowerCase().contains("lake")||q.toLowerCase().contains("river")||q.toLowerCase().contains("rift")){ r.add({"title":"UNEB 2023 Q2: Formation of Rift Valley lakes", "snip":"Past paper P1 - Use your PDF+DOCX notes to answer CK-CU-AP"}); } if(q.toLowerCase().contains("geography")||q.toLowerCase().contains("map")){ r.add({"title":"UNEB 2022 Q1: Map work - definition", "snip":"Define a map, distinguish from photograph - from your S1-S4 notes"}); } setState(()=>res=r); } @override Widget build(BuildContext c){ return Scaffold(appBar: AppBar(title: Text('Research - PDF RAG'), backgroundColor: Colors.green, foregroundColor: Colors.white), body: Column(children: [Padding(padding: EdgeInsets.all(12), child: Row(children: [Expanded(child: TextField(controller:_c, decoration: InputDecoration(hintText:"Search lakes, geography, map...", border: OutlineInputBorder(borderRadius: BorderRadius.circular(20))), onSubmitted:_search)), IconButton(icon: Icon(Icons.search, color: Colors.green), onPressed:()=>_search(_c.text))])), Expanded(child: res.isEmpty? Center(child: Text(lastQuery.isEmpty? "V13: Search PDF+DOCX\nYellow highlight for keywords" : "No match for '$lastQuery' - Try 'geography'")): ListView.builder(padding: EdgeInsets.all(12), itemCount:res.length, itemBuilder:(_,i){ var r=res[i]; return Card(color: r["title"]!.contains("YOUR")? Colors.green[50]: Colors.blue[50], child: ListTile(title: Text(r["title"]??"", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)), subtitle: Column(crossAxisAlignment: CrossAxisAlignment.start, children:[SizedBox(height:6), highlightText(r["snip"]??"", lastQuery)]))); })) ])); } }
+
           class Chat extends StatefulWidget{ final String subject; const Chat({super.key, required this.subject}); @override State<Chat> createState()=>_ChatS(); }
-          class _ChatS extends State<Chat>{ final _c=TextEditingController(); final List<Map<String,String>> msgs=[{"role":"ai","text":"V12.5 KEYWORD RAG - Ask define geography, now works!"}]; List<Map<String,String>> myDocs=[]; @override void initState(){ super.initState(); _load(); } Future<void> _load() async { final p=await SharedPreferences.getInstance(); String? s=p.getString("mtrdf_docs_v10"); if(s!=null) setState(()=>myDocs=List<Map<String,String>>.from(jsonDecode(s).map((e)=>Map<String,String>.from(e)))); } String _search(String q){ if(myDocs.isEmpty) return "No docs."; String out=""; int f=0; for(var d in myDocs){ if(matches(d["content"]??"", q)){ f++; out+="FROM '${d["name"]??""}':\n${snippet(d["content"]??"", q)}\n\n---\n\n"; } } return f==0? "No match for '$q' in ${myDocs.length} docs - Try keyword 'geography'": "✅ V12.5 FOUND $f (keyword match):\n\n$out"; } void _send(){ if(_c.text.isEmpty) return; String q=_c.text; setState((){ msgs.add({"role":"user","text":q}); msgs.add({"role":"ai","text":_search(q)}); }); _c.clear(); } @override Widget build(BuildContext c){ return Scaffold(appBar: AppBar(title: Text('${widget.subject} - ${myDocs.length} docs V12.5'), backgroundColor: Colors.green, foregroundColor: Colors.white), body: Column(children: [Expanded(child: ListView.builder(padding: EdgeInsets.all(12), itemCount:msgs.length, itemBuilder:(_,i){ final m=msgs[i]; bool u=m["role"]=="user"; return Align(alignment:u? Alignment.centerRight: Alignment.centerLeft, child: Container(margin: EdgeInsets.symmetric(vertical:4), padding: EdgeInsets.all(12), decoration: BoxDecoration(color:u? Colors.green: Colors.grey[200], borderRadius: BorderRadius.circular(12)), child: Text(m["text"]??""))); })), Padding(padding: EdgeInsets.all(8), child: Row(children: [Expanded(child: TextField(controller:_c, decoration: InputDecoration(hintText:"Ask define geography...", border: OutlineInputBorder(borderRadius: BorderRadius.circular(20))), onSubmitted:(_)=>_send())), IconButton(icon: Icon(Icons.send, color: Colors.green), onPressed:_send)])) ])); } }
+          class _ChatS extends State<Chat>{ final _c=TextEditingController(); final List<Map<String,String>> msgs=[{"role":"ai","text":"V13 PDF+HIGHLIGHT - Try define geography, lakes, map work!"}]; List<Map<String,String>> myDocs=[]; @override void initState(){ super.initState(); _load(); } Future<void> _load() async { final p=await SharedPreferences.getInstance(); String? s=p.getString("mtrdf_docs_v10"); if(s!=null) setState(()=>myDocs=List<Map<String,String>>.from(jsonDecode(s).map((e)=>Map<String,String>.from(e)))); } String _search(String q){ if(myDocs.isEmpty) return "No docs. Add PDF/DOCX in My Docs."; String out=""; int f=0; for(var d in myDocs){ if(matches(d["content"]??"", q)){ f++; out+="FROM '${d["name"]??""}':\n${snippet(d["content"]??"", q)}\n\n---\n\n"; } } return f==0? "No match for '$q' in ${myDocs.length} docs": "✅ V13 FOUND $f (PDF+DOCX keyword):\n\n$out"; } void _send(){ if(_c.text.isEmpty) return; String q=_c.text; setState((){ msgs.add({"role":"user","text":q}); msgs.add({"role":"ai","text":_search(q)}); }); _c.clear(); } @override Widget build(BuildContext c){ return Scaffold(appBar: AppBar(title: Text('${widget.subject} - ${myDocs.length} docs V13'), backgroundColor: Colors.green, foregroundColor: Colors.white), body: Column(children: [Expanded(child: ListView.builder(padding: EdgeInsets.all(12), itemCount:msgs.length, itemBuilder:(_,i){ final m=msgs[i]; bool u=m["role"]=="user"; return Align(alignment:u? Alignment.centerRight: Alignment.centerLeft, child: Container(margin: EdgeInsets.symmetric(vertical:4), padding: EdgeInsets.all(12), decoration: BoxDecoration(color:u? Colors.green: Colors.grey[200], borderRadius: BorderRadius.circular(12)), child: m["role"]=="ai" && msgs.length>1? highlightText(m["text"]??"", _c.text.isEmpty? "geography": _c.text) : Text(m["text"]??""))); })), Padding(padding: EdgeInsets.all(8), child: Row(children: [Expanded(child: TextField(controller:_c, decoration: InputDecoration(hintText:"Ask define geography, lakes...", border: OutlineInputBorder(borderRadius: BorderRadius.circular(20))), onSubmitted:(_)=>_send())), IconButton(icon: Icon(Icons.send, color: Colors.green), onPressed:_send)])) ])); } }
           DART
           flutter pub get
           flutter build apk --release
@@ -114,7 +154,7 @@ jobs:
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: MTRDF-V12.5-KEYWORD-FIX
+          name: MTRDF-V13-PDF-HIGHLIGHT
           path: build/app/outputs/flutter-apk/app-release.apk
           if-no-files-found: error
           retention-days: 7

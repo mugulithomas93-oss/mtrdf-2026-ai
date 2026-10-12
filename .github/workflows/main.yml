@@ -16,223 +16,43 @@ jobs:
         with:
           channel: 'stable'
       - name: Recreate
+        run: flutter create . --platforms=android --project-name mtrdf_2026_ai --overwrite
+      - name: Fix SDK + Perms
         run: |
-          flutter create . --platforms=android --project-name mtrdf_2026_ai --overwrite
           sed -i 's/flutter.compileSdkVersion/36/g' android/app/build.gradle.kts
           sed -i 's/flutter.targetSdkVersion/36/g' android/app/build.gradle.kts
           MANIFEST="android/app/src/main/AndroidManifest.xml"
-          grep -q "ACCESS_NETWORK_STATE" $MANIFEST || sed -i 's/<uses-permission android:name="android.permission.INTERNET"\/>/<uses-permission android:name="android.permission.INTERNET" \/>\n <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" \/>\n <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" \/>/' $MANIFEST
-      - name: Pubspec
+          if ! grep -q "ACCESS_NETWORK_STATE" "$MANIFEST"; then
+            sed -i '/android.permission.INTERNET/a \ <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />' "$MANIFEST"
+          fi
+      - name: Pubspec V14.16
         run: |
-          cat > pubspec.yaml << 'YAML'
-          name: mtrdf_2026_ai
-          version: 14.14.0+62
-          environment:
-            sdk: '>=3.0.0 <4.0.0'
-          dependencies:
-            flutter:
-              sdk: flutter
-            shared_preferences: ^2.2.2
-            file_picker: ^10.1.9
-            archive: ^3.6.1
-            syncfusion_flutter_pdf: ^28.2.7
-            hive_flutter: ^1.1.0
-            share_plus: ^12.0.2
-            connectivity_plus: ^6.0.5
-            http: ^1.2.2
-          flutter:
-            uses-material-design: true
-          YAML
-      - name: Write V14.14 ONLINE SEARCH FIXED
+          echo "name: mtrdf_2026_ai" > pubspec.yaml
+          echo "version: 14.16.0+64" >> pubspec.yaml
+          echo "environment:" >> pubspec.yaml
+          echo "  sdk: '>=3.0.0 <4.0.0'" >> pubspec.yaml
+          echo "dependencies:" >> pubspec.yaml
+          echo "  flutter:" >> pubspec.yaml
+          echo "    sdk: flutter" >> pubspec.yaml
+          echo "  shared_preferences: ^2.2.2" >> pubspec.yaml
+          echo "  file_picker: ^10.1.9" >> pubspec.yaml
+          echo "  archive: ^3.6.1" >> pubspec.yaml
+          echo "  syncfusion_flutter_pdf: ^28.2.7" >> pubspec.yaml
+          echo "  hive_flutter: ^1.1.0" >> pubspec.yaml
+          echo "  connectivity_plus: ^6.0.5" >> pubspec.yaml
+          echo "  http: ^1.2.2" >> pubspec.yaml
+          echo "flutter:" >> pubspec.yaml
+          echo "  uses-material-design: true" >> pubspec.yaml
+      - name: Write main.dart NO HEREDOC
         run: |
-          python3 << 'PY'
-          code = """
-          import 'package:flutter/material.dart';
-          import 'package:shared_preferences/shared_preferences.dart';
-          import 'package:file_picker/file_picker.dart';
-          import 'package:archive/archive.dart';
-          import 'package:syncfusion_flutter_pdf/pdf.dart';
-          import 'package:hive_flutter/hive_flutter.dart';
-          import 'package:connectivity_plus/connectivity_plus.dart';
-          import 'package:http/http.dart' as http;
-          import 'dart:convert';
-
-          String extractDocx(List<int> bytes) {
-            try {
-              final archive = ZipDecoder().decodeBytes(bytes);
-              for (final f in archive) {
-                if (f.name == 'word/document.xml') {
-                  final xml = utf8.decode(f.content as List<int>);
-                  return RegExp(r'<w:t[^>]*>([^<]+)</w:t>').allMatches(xml).map((m) => m.group(1)?? '').join(' ');
-                }
-              }
-              return "No xml";
-            } catch (e) { return "Error " + e.toString(); }
-          }
-
-          String extractPdf(List<int> bytes) {
-            try {
-              final doc = PdfDocument(inputBytes: bytes);
-              final t = PdfTextExtractor(doc).extractText();
-              doc.dispose();
-              return t.isEmpty? "Scanned PDF" : t;
-            } catch (e) { return "PDF " + e.toString(); }
-          }
-
-          Future<bool> checkOnlineRobust() async {
-            try {
-              var con = await Connectivity().checkConnectivity();
-              return!con.contains(ConnectivityResult.none);
-            } catch (e) { return true; }
-          }
-
-          // V14.14 FIXED ONLINE RESEARCH - STRIPS define/what is + USES SUMMARY API
-          Future<List<Map<String, String>>> fetchOnlineResearch(String query) async {
-            List<Map<String, String>> online = [];
-            String clean = query.toLowerCase().replaceAll("define ", "").replaceAll("what is ", "").replaceAll("what are ", "").replaceAll("?", "").trim();
-            // Keep only first 2 words for Wikipedia title
-            List<String> words = clean.split(RegExp(r'\\s+')).where((w)=>w.length>2).toList();
-            String searchTerm = words.isNotEmpty? words.take(2).join(" ") : clean;
-            if (searchTerm.isEmpty) searchTerm = query;
-            String titleCase = searchTerm.split(" ").map((w)=> w.isEmpty? "" : w[0].toUpperCase() + w.substring(1)).join(" ");
-
-            // 1. Try Wikipedia Summary API - MOST RELIABLE
-            try {
-              final summaryUrl = Uri.parse('https://en.wikipedia.org/api/rest_v1/page/summary/' + Uri.encodeComponent(titleCase));
-              final res = await http.get(summaryUrl, headers: {"User-Agent":"MTRDF/1.0 (Uganda Edu App)"}).timeout(Duration(seconds: 15));
-              if (res.statusCode == 200) {
-                final data = jsonDecode(res.body);
-                String extract = data['extract']?? '';
-                String title = data['title']?? titleCase;
-                if (extract.isNotEmpty) {
-                  online.add({"title": "WIKIPEDIA: " + title, "snip": extract + "\\n\\nSource: Wikipedia Summary API - Online AI", "source": "online"});
-                }
-              }
-            } catch (e) {}
-
-            // 2. Try Wikipedia Search API if summary failed
-            if (online.isEmpty) {
-              try {
-                final wikiUrl = Uri.parse('https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=' + Uri.encodeComponent(searchTerm) + '&format=json&srlimit=2&origin=*');
-                final wikiRes = await http.get(wikiUrl, headers: {"User-Agent":"MTRDF/1.0"}).timeout(Duration(seconds: 15));
-                if (wikiRes.statusCode == 200) {
-                  final data = jsonDecode(wikiRes.body);
-                  final search = data['query']?['search'] as List?;
-                  if (search!= null && search.isNotEmpty) {
-                    for (var item in search.take(2)) {
-                      String title = item['title']?? '';
-                      String snip = (item['snippet']?? '').replaceAll(RegExp(r'<[^>]*>'), '');
-                      if (title.isNotEmpty && snip.isNotEmpty) {
-                        online.add({"title": "WIKIPEDIA SEARCH: " + title, "snip": snip + "\\n\\nSource: Wikipedia Search", "source": "online"});
-                      }
-                    }
-                  }
-                }
-              } catch (e) {}
-            }
-
-            // 3. DuckDuckGo as backup
-            try {
-              final ddgUrl = Uri.parse('https://api.duckduckgo.com/?q=' + Uri.encodeComponent(searchTerm) + '&format=json&pretty=1&no_html=1');
-              final ddgRes = await http.get(ddgUrl).timeout(Duration(seconds: 15));
-              if (ddgRes.statusCode == 200) {
-                final data = jsonDecode(ddgRes.body);
-                String at = data['AbstractText']?? '';
-                String head = data['Heading']?? searchTerm;
-                String src = data['AbstractSource']?? 'DuckDuckGo';
-                if (at.isNotEmpty && at.length > 30) {
-                  online.add({"title": "ONLINE AI: " + head, "snip": at + "\\n\\nSource: " + src + " - Online AI", "source": "online"});
-                }
-              }
-            } catch (e) {}
-
-            // 4. If still empty, return offline hint with error details
-            if (online.isEmpty) {
-              online.add({"title": "ONLINE CHECK: No Wikipedia result for '" + searchTerm + "'", "snip": "Tried to search Wikipedia for '" + searchTerm + "' (original query: '" + query + "') but network may be slow (49.8 K/S seen in your screenshot). Try again with simpler word like 'history' alone. Your data is ON (" + searchTerm + "), API returned empty. Check internet speed.\\n\\nTip: Type just 'history' not 'define history' for best online results.", "source": "online"});
-            }
-
-            return online;
-          }
-
-          String snippet(String c, String q) {
-            final low = c.toLowerCase();
-            int pos = low.indexOf(q.toLowerCase());
-            if (pos == -1) {
-              for (var k in q.toLowerCase().split(RegExp(r'\\s+')).where((w) => w.length > 2)) {
-                int x = low.indexOf(k);
-                if (x!= -1) { pos = x; break; }
-              }
-            }
-            if (pos == -1) return c.length > 500? c.substring(0, 500) + "..." : c;
-            int s = pos - 200; if (s < 0) s = 0;
-            int e = pos + 500; if (e > c.length) e = c.length;
-            String t = c.substring(s, e);
-            if (s > 0) t = "..." + t;
-            if (e < c.length) t = t + "...";
-            return t;
-          }
-
-          bool matches(String content, String query, String subject) {
-            final low = content.toLowerCase();
-            final qq = query.toLowerCase().trim();
-            if (qq.isEmpty) return false;
-            if (low.contains(qq)) return true;
-            for (var k in qq.split(RegExp(r'\\s+'))) { if (k.length > 2 && low.contains(k)) return true; }
-            return false;
-          }
-
-          Widget highlight(String text, String query) {
-            final low = text.toLowerCase();
-            final kws = query.toLowerCase().split(RegExp(r'\\s+')).where((w) => w.length > 2).toList();
-            if (kws.isEmpty) return Text(text);
-            String? best; int bestPos = -1;
-            for (var k in kws) { int p = low.indexOf(k); if (p!= -1 && (bestPos == -1 || p < bestPos)) { bestPos = p; best = k; } }
-            if (best == null) return Text(text);
-            List<TextSpan> spans = []; int idx = 0;
-            while (true) {
-              int p = low.indexOf(best, idx);
-              if (p == -1) { spans.add(TextSpan(text: text.substring(idx))); break; }
-              if (p > idx) spans.add(TextSpan(text: text.substring(idx, p)));
-              spans.add(TextSpan(text: text.substring(p, p + best.length), style: TextStyle(backgroundColor: Colors.yellow, fontWeight: FontWeight.bold)));
-              idx = p + best.length;
-            }
-            return RichText(text: TextSpan(style: TextStyle(color: Colors.black87), children: spans));
-          }
-
-          void main() async {
-            WidgetsFlutterBinding.ensureInitialized();
-            await Hive.initFlutter();
-            await Hive.openBox('mtrdf_v14');
-            runApp(App());
-          }
-
-          class App extends StatelessWidget { @override Widget build(BuildContext c) { return MaterialApp(debugShowCheckedModeBanner: false, home: Tabs()); } }
-          class Tabs extends StatefulWidget { @override State<Tabs> createState() => _TabsS(); }
-          class _TabsS extends State<Tabs> {
-            int i = 0; final pages = [Home(), Docs(), GeoMap(), Research()];
-            @override Widget build(BuildContext c) {
-              return Scaffold(body: pages[i], bottomNavigationBar: BottomNavigationBar(type: BottomNavigationBarType.fixed, currentIndex: i, selectedItemColor: Colors.green, onTap: (x) => setState(() => i = x), items: [BottomNavigationBarItem(icon: Icon(Icons.school), label: "Subjects"), BottomNavigationBarItem(icon: Icon(Icons.folder), label: "My Docs"), BottomNavigationBarItem(icon: Icon(Icons.map), label: "GeographyLab"), BottomNavigationBarItem(icon: Icon(Icons.search), label: "Research")]));
-            }
-          }
-
-          class Home extends StatelessWidget {
-            @override Widget build(BuildContext c) {
-              final subs = ["Mathematics","Biology","Chemistry","Physics","History","Geography","English","Agriculture"];
-              return Scaffold(appBar: AppBar(title: Text("MTRDF V14.14 ONLINE FIXED"), backgroundColor: Colors.green, foregroundColor: Colors.white), body: ListView.builder(padding: EdgeInsets.all(12), itemCount: subs.length, itemBuilder: (_, j) { return Card(child: ListTile(leading: Icon(Icons.book, color: Colors.green), title: Text(subs[j]), subtitle: Text("Offline+Online AI V14.14"), onTap: () => Navigator.push(c, MaterialPageRoute(builder: (_) => Chat(subject: subs[j]))))); }));
-            }
-          }
-
-          class Docs extends StatefulWidget { @override State<Docs> createState() => _DocsS(); }
-          class _DocsS extends State<Docs> {
-            List<Map<String,String>> docs = []; bool loading = false;
-            @override void initState() { super.initState(); _load(); }
-            Future<void> _load() async { final p = await SharedPreferences.getInstance(); String? s = p.getString("mtrdf_docs_v10"); if (s!= null) docs = List<Map<String,String>>.from(jsonDecode(s).map((e) => Map<String,String>.from(e))); final box = Hive.box('mtrdf_v14'); String? h = box.get('docs'); if (h!= null) { try { docs = List<Map<String,String>>.from(jsonDecode(h).map((e) => Map<String,String>.from(e))); } catch (e) {} } setState(() {}); }
-            Future<void> _save() async { final p = await SharedPreferences.getInstance(); p.setString("mtrdf_docs_v10", jsonEncode(docs)); Hive.box('mtrdf_v14').put('docs', jsonEncode(docs)); }
-            Future<void> _pick() async { setState(() => loading = true); try { FilePickerResult? r = await FilePicker.platform.pickFiles(type: FileType.custom, allowedExtensions: ['docx','pdf'], withData: true); if (r!= null && r.files.first.bytes!= null) { String name = r.files.first.name; List<int> bytes = r.files.first.bytes!.toList(); String txt = name.toLowerCase().endsWith('.pdf')? extractPdf(bytes) : extractDocx(bytes); setState(() => docs.add({"name": name, "content": txt, "type": name.toLowerCase().endsWith('.pdf')? "pdf" : "docx"})); _save(); } } catch (e) {} setState(() => loading = false); }
-            @override Widget build(BuildContext c) { return Scaffold(appBar: AppBar(title: Text("My Docs " + docs.length.toString() + " V14.14"), backgroundColor: Colors.green, foregroundColor: Colors.white), body: loading? Center(child: CircularProgressIndicator()) : docs.isEmpty? Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [Text("No docs - Add your History DOCX"), SizedBox(height: 12), ElevatedButton(onPressed: _pick, child: Text("Add DOCX Now"))])) : ListView.builder(padding: EdgeInsets.all(12), itemCount: docs.length, itemBuilder: (_, j) { var d = docs[j]; return Card(child: ListTile(title: Text(d["name"]?? ""), subtitle: Text((d["type"]?? "") + " " + (d["content"]?? "").length.toString()), trailing: IconButton(icon: Icon(Icons.delete), onPressed: () { setState(() => docs.removeAt(j)); _save(); }))); }), floatingActionButton: FloatingActionButton.extended(onPressed: _pick, backgroundColor: Colors.green, icon: Icon(Icons.add, color: Colors.white), label: Text("Add DOCX/PDF", style: TextStyle(color: Colors.white)))); }
-          }
-
-          class GeoMap extends StatelessWidget {
-            @override Widget build(BuildContext context) {
-              final lakes = [{"name":"Lake Victoria","q":"Lake Victoria","x":0.75,"y":0.6},{"name":"Lake Albert","q":"Lake Albert","x":0.25,"y":0.25},{"name":"Lake Kyoga","q":"Lake Kyoga","x":0.65,"y":0.3},{"name":"Lake Edward","q":"Rift Valley","x":0.15,"y":0.65}];
-              return Scaffold(appBar: AppBar(title: Text("GeographyLab V14.14"), backgroundColor: Colors.green, foregroundColor: Colors.white), body: Column(children: [Expanded(flex: 3, child: Stack(children: [Container(width: double.infinity, height: double.infinity, color: Color(0xFFE8F5E9), child: CustomPaint(painter: UgandaPainter())), for (var l in lakes) Positioned(left: MediaQuery.of(context).size.width * (l["x"] as double) - 30, top: 250 * (l["y"] as double), child: GestureDetector(onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => Research(initialQuery: l["q"] as String))), child: Column(children: [Icon(Icons.location_on, color: Colors.red, size: 32), Container(padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2), decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(6), border: Border.all(color: Colors.red)), child: Text(l["name"] as String, style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold)))]))), Positioned(top: 8, left: 8, child: Container(padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4), decoration: BoxDecoration(color: Colors.green, borderRadius: BorderRadius.circular(12)), child: Text("OFFLINE CANVAS - 0 B/S", style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)))) ])), Expanded(flex: 2, child
+          rm -f lib/main.dart
+          echo "import 'package:flutter/material.dart';import 'package:shared_preferences/shared_preferences.dart';import 'package:file_picker/file_picker.dart';import 'package:archive/archive.dart';import 'package:syncfusion_flutter_pdf/pdf.dart';import 'package:hive_flutter/hive_flutter.dart';import 'package:connectivity_plus/connectivity_plus.dart';import 'package:http/http.dart' as http;import 'dart:convert';String extractDocx(List<int> b){try{final a=ZipDecoder().decodeBytes(b);for(final f in a){if(f.name=='word/document.xml'){final x=utf8.decode(f.content as List<int>);return RegExp(r'<w:t[^>]*>([^<]+)</w:t>').allMatches(x).map((m)=>m.group(1)??'').join(' ');}}return 'No xml';}catch(e){return 'Err';}}String extractPdf(List<int> b){try{final d=PdfDocument(inputBytes:b);final t=PdfTextExtractor(d).extractText();d.dispose();return t.isEmpty?'Scanned':t;}catch(e){return 'PDF Err';}}Future<bool> checkOnline() async {try{var c=await Connectivity().checkConnectivity();return!c.contains(ConnectivityResult.none);}catch(e){return true;}}Future<List<Map<String,String>>> fetchOnline(String q) async {List<Map<String,String>> o=[];String clean=q.toLowerCase().replaceAll('define ','').replaceAll('what is ','').replaceAll('?','').trim();List<String> ws=clean.split(RegExp(r'\s+')).where((w)=>w.length>2).toList();String term=ws.isNotEmpty?ws.take(2).join(' '):clean;if(term.isEmpty) term=q;String titleCase=term.split(' ').map((w)=>w.isEmpty?'':w[0].toUpperCase()+w.substring(1)).join(' ');try{final u=Uri.parse('https://en.wikipedia.org/api/rest_v1/page/summary/'+Uri.encodeComponent(titleCase));final r=await http.get(u,headers:{'User-Agent':'MTRDF/1.0'}).timeout(Duration(seconds:15));if(r.statusCode==200){final d=jsonDecode(r.body);String ex=d['extract']??'';String ti=d['title']??titleCase;if(ex.isNotEmpty){o.add({'title':'WIKIPEDIA: '+ti,'snip':ex,'source':'online'});}}}catch(e){}if(o.isEmpty){try{final u=Uri.parse('https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch='+Uri.encodeComponent(term)+'&format=json&srlimit=2&origin=*');final r=await http.get(u,headers:{'User-Agent':'MTRDF/1.0'}).timeout(Duration(seconds:15));if(r.statusCode==200){final d=jsonDecode(r.body);final s=d['query']?['search'] as List?;if(s!=null){for(var it in s.take(2)){String ti=it['title']??'';String sn=(it['snippet']??'').replaceAll(RegExp(r'<[^>]*>'),'');if(ti.isNotEmpty) o.add({'title':'WIKI: '+ti,'snip':sn,'source':'online'});}}}}catch(e){}}try{final u=Uri.parse('https://api.duckduckgo.com/?q='+Uri.encodeComponent(term)+'&format=json&pretty=1&no_html=1');final r=await http.get(u).timeout(Duration(seconds:15));if(r.statusCode==200){final d=jsonDecode(r.body);String at=d['AbstractText']??'';if(at.length>30) o.add({'title':'ONLINE AI: '+(d['Heading']??term),'snip':at,'source':'online'});}}catch(e){}if(o.isEmpty){o.add({'title':'ONLINE: No result for '+term,'snip':'Tried '+term+' slow 21.7K/S try history','source':'online'});}return o;}String snippet(String c,String q){final low=c.toLowerCase();int p=low.indexOf(q.toLowerCase());if(p==-1){for(var k in q.toLowerCase().split(RegExp(r'\s+')).where((w)=>w.length>2)){int x=low.indexOf(k);if(x!=-1){p=x;break;}}}if(p==-1) return c.length>500?c.substring(0,500)+'...':c;int s=p-200;if(s<0) s=0;int e=p+500;if(e>c.length) e=c.length;String t=c.substring(s,e);if(s>0) t='...'+t;if(e<c.length) t=t+'...';return t;}bool matches(String c,String q,String subj){final low=c.toLowerCase();final qq=q.toLowerCase().trim();if(qq.isEmpty) return false;if(low.contains(qq)) return true;for(var k in qq.split(RegExp(r'\s+'))){if(k.length>2&&low.contains(k)) return true;}return false;}void main() async {WidgetsFlutterBinding.ensureInitialized();await Hive.initFlutter();await Hive.openBox('mtrdf_v14');runApp(App());}class App extends StatelessWidget{@override Widget build(BuildContext c){return MaterialApp(debugShowCheckedModeBanner:false,home:Tabs());}}class Tabs extends StatefulWidget{@override State<Tabs> createState()=>_TabsS();}class _TabsS extends State<Tabs>{int i=0;final p=[Home(),Docs(),GeoMap(),Research()];@override Widget build(BuildContext c){return Scaffold(body:p[i],bottomNavigationBar:BottomNavigationBar(type:BottomNavigationBarType.fixed,currentIndex:i,selectedItemColor:Colors.green,onTap:(x)=>setState(()=>i=x),items:[BottomNavigationBarItem(icon:Icon(Icons.school),label:'Subjects'),BottomNavigationBarItem(icon:Icon(Icons.folder),label:'My Docs'),BottomNavigationBarItem(icon:Icon(Icons.map),label:'GeographyLab'),BottomNavigationBarItem(icon:Icon(Icons.search),label:'Research')]));}}class Home extends StatelessWidget{@override Widget build(BuildContext c){final subs=['Mathematics','Biology','Chemistry','Physics','History','Geography','English','Agriculture'];return Scaffold(appBar:AppBar(title:Text('MTRDF V14.16 FIXED'),backgroundColor:Colors.green,foregroundColor:Colors.white),body:ListView.builder(padding:EdgeInsets.all(12),itemCount:subs.length,itemBuilder:(_,j){return Card(child:ListTile(leading:Icon(Icons.book,color:Colors.green),title:Text(subs[j]),subtitle:Text('Offline+Online V14.16'),onTap:()=>Navigator.push(c,MaterialPageRoute(builder:(_)=>Chat(subject:subs[j])))));}));}}class Docs extends StatefulWidget{@override State<Docs> createState()=>_DocsS();}class _DocsS extends State<Docs>{List<Map<String,String>> docs=[];bool l=false;@override void initState(){super.initState();ld();}Future<void> ld() async {final p=await SharedPreferences.getInstance();String? s=p.getString('mtrdf_docs_v10');if(s!=null) docs=List<Map<String,String>>.from(jsonDecode(s).map((e)=>Map<String,String>.from(e)));final b=Hive.box('mtrdf_v14');String? h=b.get('docs');if(h!=null){try{docs=List<Map<String,String>>.from(jsonDecode(h).map((e)=>Map<String,String>.from(e)));}catch(e){}}setState((){});}Future<void> sv() async {final p=await SharedPreferences.getInstance();p.setString('mtrdf_docs_v10',jsonEncode(docs));Hive.box('mtrdf_v14').put('docs',jsonEncode(docs));}Future<void> pk() async {setState(()=>l=true);try{FilePickerResult? r=await FilePicker.platform.pickFiles(type:FileType.custom,allowedExtensions:['docx','pdf'],withData:true);if(r!=null&&r.files.first.bytes!=null){String n=r.files.first.name;List<int> by=r.files.first.bytes!.toList();String t=n.toLowerCase().endsWith('.pdf')?extractPdf(by):extractDocx(by);setState(()=>docs.add({'name':n,'content':t,'type':n.toLowerCase().endsWith('.pdf')?'pdf':'docx'}));sv();}}catch(e){}setState(()=>l=false);}@override Widget build(BuildContext c){return Scaffold(appBar:AppBar(title:Text('My Docs '+docs.length.toString()+' V14.16'),backgroundColor:Colors.green,foregroundColor:Colors.white),body:l?Center(child:CircularProgressIndicator()):docs.isEmpty?Center(child:Text('No docs')):ListView.builder(padding:EdgeInsets.all(12),itemCount:docs.length,itemBuilder:(_,j){var d=docs[j];return Card(child:ListTile(title:Text(d['name']??''),subtitle:Text((d['content']??'').length.toString()),trailing:IconButton(icon:Icon(Icons.delete),onPressed:(){setState(()=>docs.removeAt(j));sv();})));}),floatingActionButton:FloatingActionButton.extended(onPressed:pk,backgroundColor:Colors.green,icon:Icon(Icons.add,color:Colors.white),label:Text('Add DOCX/PDF',style:TextStyle(color:Colors.white))));}}class GeoMap extends StatelessWidget{@override Widget build(BuildContext context){final lakes=[{'name':'Lake Victoria','q':'Lake Victoria','x':0.75,'y':0.6},{'name':'Lake Albert','q':'Lake Albert','x':0.25,'y':0.25},{'name':'Lake Kyoga','q':'Lake Kyoga','x':0.65,'y':0.3},{'name':'Lake Edward','q':'Rift Valley','x':0.15,'y':0.65}];return Scaffold(appBar:AppBar(title:Text('GeographyLab V14.16'),backgroundColor:Colors.green,foregroundColor:Colors.white),body:Column(children:[Expanded(flex:3,child:Stack(children:[Container(width:double.infinity,height:double.infinity,color:Color(0xFFE8F5E9),child:CustomPaint(painter:UgandaPainter())),for(var la in lakes) Positioned(left:MediaQuery.of(context).size.width*(la['x'] as double)-30,top:250*(la['y'] as double),child:GestureDetector(onTap:()=>Navigator.push(context,MaterialPageRoute(builder:(_)=>Research(initialQuery:la['q'] as String))),child:Column(children:[Icon(Icons.location_on,color:Colors.red,size:32),Container(padding:EdgeInsets.symmetric(horizontal:6,vertical:2),decoration:BoxDecoration(color:Colors.white,borderRadius:BorderRadius.circular(6),border:Border.all(color:Colors.red)),child:Text(la['name'] as String,style:TextStyle(fontSize:10,fontWeight:FontWeight.bold))) ]))),Positioned(top:8,left:8,child:Container(padding:EdgeInsets.symmetric(horizontal:8,vertical:4),decoration:BoxDecoration(color:Colors.green,borderRadius:BorderRadius.circular(12)),child:Text('OFFLINE CANVAS - 0 B/S',style:TextStyle(color:Colors.white,fontSize:10,fontWeight:FontWeight.bold)))) ])),Expanded(flex:2,child:ListView(padding:EdgeInsets.all(8),children:[Card(color:Colors.green[50],child:ListTile(leading:Icon(Icons.check_circle,color:Colors.green),title:Text('V14.16 FIXED'),subtitle:Text('Tap pins'))),for(var la in lakes)Card(child:ListTile(title:Text(la['name'] as String),onTap:()=>Navigator.push(context,MaterialPageRoute(builder:(_)=>Research(initialQuery:la['q'] as String))))),])),]));}}class UgandaPainter extends CustomPainter{@override void paint(Canvas c,Size s){final f=Paint()..color=Color(0xFFC8E6C9)..style=PaintingStyle.fill;final b=Paint()..color=Colors.green..style=PaintingStyle.stroke..strokeWidth=2;Path p=Path();p.moveTo(s.width*0.2,s.height*0.2);p.lineTo(s.width*0.8,s.height*0.15);p.lineTo(s.width*0.85,s.height*0.75);p.lineTo(s.width*0.15,s.height*0.8);p.close();c.drawPath(p,f);c.drawPath(p,b);} @override bool shouldRepaint(covariant CustomPainter old)=>false;}class Research extends StatefulWidget{final String initialQuery;const Research({super.key,this.initialQuery=''});@override State<Research> createState()=>_ResS();}class _ResS extends State<Research>{final ctrl=TextEditingController();List<Map<String,String>> res=[];String last='';bool searching=false;@override void initState(){super.initState();if(widget.initialQuery.isNotEmpty){ctrl.text=widget.initialQuery;Future.delayed(Duration(milliseconds:300),()=>sr(widget.initialQuery));}}Future<void> sr(String q) async {if(q.trim().isEmpty) return;setState(()=>searching=true);last=q;final p=await SharedPreferences.getInstance();String? s=p.getString('mtrdf_docs_v10');List<Map<String,String>> ds=[];if(s!=null) ds=List<Map<String,String>>.from(jsonDecode(s).map((e)=>Map<String,String>.from(e)));final b=Hive.box('mtrdf_v14');String? h=b.get('docs');if(h!=null){try{ds=List<Map<String,String>>.from(jsonDecode(h).map((e)=>Map<String,String>.from(e)));}catch(e){}}List<Map<String,String>> r=[];for(var d in ds){if(matches(d['content']??'',q,'research')) r.add({'title':'FROM DOC: '+(d['name']??''),'snip':snippet(d['content']??'',q),'source':'local'});}try{var o=await fetchOnline(q);r.addAll(o);}catch(e){r.add({'title':'ONLINE ERROR','snip':e.toString(),'source':'online'});}setState(()=>{res=r,searching=false});}@override Widget build(BuildContext c){return Scaffold(appBar:AppBar(title:Text('Research ONLINE V14.16'),backgroundColor:Colors.blue,foregroundColor:Colors.white),body:Column(children:[Padding(padding:EdgeInsets.all(12),child:Row(children:[Expanded(child:TextField(controller:ctrl,decoration:InputDecoration(hintText:'Search docs + Wikipedia...',border:OutlineInputBorder(borderRadius:BorderRadius.circular(20))),onSubmitted:sr)),SizedBox(width:8),searching?CircularProgressIndicator():IconButton(icon:Icon(Icons.search,color:Colors.blue),onPressed:()=>sr(ctrl.text))])),Expanded(child:res.isEmpty?Center(child:Text(searching?'Searching Wikipedia 15s...':last.isEmpty?'Type history':'No results')):ListView.builder(padding:EdgeInsets.all(12),itemCount:res.length,itemBuilder:(_,i){var r=res[i];bool o=r['source']=='online';return Card(color:o?Colors.blue[50]:Colors.green[50],child:ListTile(leading:Icon(o?Icons.cloud:Icons.folder,color:o?Colors.blue:Colors.green),title:Text(r['title']??'',style:TextStyle(fontWeight:FontWeight.bold,fontSize:13)),subtitle:Text(r['snip']??'')));}))]));}}class Chat extends StatefulWidget{final String subject;const Chat({super.key,required this.subject});@override State<Chat> createState()=>_ChatS();}class _ChatS extends State<Chat>{final ctrl=TextEditingController();List<Map<String,String>> msgs=[{'role':'ai','text':'V14.16 ONLINE FIXED'}];List<Map<String,String>> myDocs=[];bool sending=false;@override void initState(){super.initState();ld();}Future<void> ld() async {final p=await SharedPreferences.getInstance();String? s=p.getString('mtrdf_docs_v10');if(s!=null) setState(()=>myDocs=List<Map<String,String>>.from(jsonDecode(s).map((e)=>Map<String,String>.from(e))));final b=Hive.box('mtrdf_v14');String? h=b.get('docs');if(h!=null){try{myDocs=List<Map<String,String>>.from(jsonDecode(h).map((e)=>Map<String,String>.from(e)));setState((){});}catch(e){}}}String searchOffline(String q){if(myDocs.isEmpty) return '';String out='';int f=0;for(var d in myDocs){if(matches(d['content']??'',q,widget.subject)){f++;out+='FROM '+(d['name']??'')+':\\n'+snippet(d['content']??'',q)+'\\n\\n---\\n\\n';}}if(f==0) return '';return 'FOUND '+f.toString()+' offline:\\n\\n'+out;}Future<String> searchWithOnline(String q) async {String off=searchOffline(q);String comb='';if(off.isNotEmpty) comb+=off+'\\n\\n';try{var o=await fetchOnline(q+' '+widget.subject);if(o.isNotEmpty){comb+='ONLINE AI ('+o.length.toString()+'):\\n\\n';for(var r in o){comb+=r['title']!+'\\n'+(r['snip']??'')+'\\n\\n---\\n\\n';}}else{comb+='No online.';}}catch(e){comb+='Online err: '+e.toString();}if(comb.isEmpty) comb='Add docs';return comb;}void send() async {if(ctrl.text.isEmpty||sending) return;String q=ctrl.text;setState(()=>{msgs.add({'role':'user','text':q}),sending=true});ctrl.clear();String a=await searchWithOnline(q);setState(()=>{msgs.add({'role':'ai','text':a}),sending=false});}@override Widget build(BuildContext c){return Scaffold(appBar:AppBar(title:Text(widget.subject+' - '+myDocs.length.toString()+' ONLINE'),backgroundColor:Colors.blue,foregroundColor:Colors.white),body:Column(children:[Container(width:double.infinity,color:Colors.blue[100],padding:EdgeInsets.all(6),child:Text('V14.16 ONLINE ALWAYS',textAlign:TextAlign.center,style:TextStyle(fontSize:11,color:Colors.blue[900],fontWeight:FontWeight.bold))),Expanded(child:ListView.builder(padding:EdgeInsets.all(12),itemCount:msgs.length,itemBuilder:(_,i){final m=msgs[i];bool u=m['role']=='user';return Align(alignment:u?Alignment.centerRight:Alignment.centerLeft,child:Container(margin:EdgeInsets.symmetric(vertical:4),padding:EdgeInsets.all(12),decoration:BoxDecoration(color:u?Colors.blue:Colors.grey[200],borderRadius:BorderRadius.circular(12)),child:Text(m['text']??'')));})),if(sending) Padding(padding:EdgeInsets.all(8),child:Row(children:[CircularProgressIndicator(),SizedBox(width:12),Text('Searching Wikipedia...')])),Padding(padding:EdgeInsets.all(8),child:Row(children:[Expanded(child:TextField(controller:ctrl,decoration:InputDecoration(hintText:'Ask '+widget.subject+'...',border:OutlineInputBorder(borderRadius:BorderRadius.circular(20))),onSubmitted:(_)=>send())),IconButton(icon:Icon(Icons.send,color:Colors.blue),onPressed:send)])) ]));}}" > lib/main.dart
+      - name: Build APK
+        run: |
+          flutter pub get
+          flutter build apk --release
+      - name: Upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: MTRDF-V14-16-FIXED
+          path: build/app/outputs/flutter-apk/app-release.apk

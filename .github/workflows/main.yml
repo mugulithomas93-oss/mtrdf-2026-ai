@@ -15,16 +15,20 @@ jobs:
       - uses: subosito/flutter-action@v2
         with:
           channel: 'stable'
-      - name: Recreate
+      - name: Recreate + Permissions
         run: |
           flutter create . --platforms=android --project-name mtrdf_2026_ai --overwrite
           sed -i 's/flutter.compileSdkVersion/36/g' android/app/build.gradle.kts
           sed -i 's/flutter.targetSdkVersion/36/g' android/app/build.gradle.kts
-      - name: Pubspec ONLINE
+          # FIX ONLINE PERMISSION - THIS WAS MISSING IN V14.12!
+          MANIFEST="android/app/src/main/AndroidManifest.xml"
+          grep -q "ACCESS_NETWORK_STATE" $MANIFEST || sed -i 's/<uses-permission android:name="android.permission.INTERNET"\/>/<uses-permission android:name="android.permission.INTERNET" \/>\n <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" \/>\n <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" \/>/' $MANIFEST
+          cat $MANIFEST
+      - name: Pubspec V14.13
         run: |
           cat > pubspec.yaml << 'YAML'
           name: mtrdf_2026_ai
-          version: 14.12.0+60
+          version: 14.13.0+61
           environment:
             sdk: '>=3.0.0 <4.0.0'
           dependencies:
@@ -38,11 +42,10 @@ jobs:
             share_plus: ^12.0.2
             connectivity_plus: ^6.0.5
             http: ^1.2.2
-            internet_connection_checker_plus: ^2.5.2
           flutter:
             uses-material-design: true
           YAML
-      - name: Write MULTI-LINE main.dart FIXED
+      - name: Write V14.13 ONLINE FORCE FIX
         run: |
           python3 << 'PY'
           code = """
@@ -54,7 +57,6 @@ jobs:
           import 'package:hive_flutter/hive_flutter.dart';
           import 'package:connectivity_plus/connectivity_plus.dart';
           import 'package:http/http.dart' as http;
-          import 'package:internet_connection_checker_plus/internet_connection_checker_plus.dart';
           import 'dart:convert';
 
           String extractDocx(List<int> bytes) {
@@ -79,20 +81,28 @@ jobs:
             } catch (e) { return "PDF " + e.toString(); }
           }
 
-          Future<bool> isOnline() async {
+          // V14.13 ROBUST ONLINE CHECK - FIXES 0.00 B/S BUG
+          Future<bool> checkOnlineRobust() async {
             try {
-              final checker = InternetConnection();
-              bool hasInternet = await checker.hasInternetAccess;
               var con = await Connectivity().checkConnectivity();
-              return hasInternet &&!con.contains(ConnectivityResult.none);
+              bool hasConnection =!con.contains(ConnectivityResult.none);
+              if (!hasConnection) return false;
+              // Try quick HTTP to Google - if fails, still treat as online if connectivity says wifi/mobile
+              try {
+                final res = await http.get(Uri.parse('https://www.google.com')).timeout(Duration(seconds: 3));
+                if (res.statusCode == 200) return true;
+                return hasConnection; // Connectivity says online, so treat as online even if google ping fails
+              } catch (_) {
+                return hasConnection; // In Uganda, DNS may fail but data is ON - trust connectivity_plus
+              }
             } catch (e) { return false; }
           }
 
           Future<List<Map<String, String>>> fetchOnlineResearch(String query) async {
             List<Map<String, String>> online = [];
             try {
-              final wikiUrl = Uri.parse('https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=' + Uri.encodeComponent(query) + '&format=json&srlimit=3');
-              final wikiRes = await http.get(wikiUrl).timeout(Duration(seconds: 8));
+              final wikiUrl = Uri.parse('https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=' + Uri.encodeComponent(query) + '&format=json&srlimit=3&origin=*');
+              final wikiRes = await http.get(wikiUrl, headers: {"User-Agent":"MTRDF/1.0"}).timeout(Duration(seconds: 10));
               if (wikiRes.statusCode == 200) {
                 final data = jsonDecode(wikiRes.body);
                 final search = data['query']?['search'] as List?;
@@ -109,12 +119,12 @@ jobs:
             } catch (e) {}
             try {
               final ddgUrl = Uri.parse('https://api.duckduckgo.com/?q=' + Uri.encodeComponent(query) + '&format=json&pretty=1&no_html=1');
-              final ddgRes = await http.get(ddgUrl).timeout(Duration(seconds: 8));
+              final ddgRes = await http.get(ddgUrl).timeout(Duration(seconds: 10));
               if (ddgRes.statusCode == 200) {
                 final data = jsonDecode(ddgRes.body);
                 String at = data['AbstractText']?? '';
                 String as = data['AbstractSource']?? '';
-                if (at.isNotEmpty && at.length > 50) {
+                if (at.isNotEmpty && at.length > 30) {
                   online.add({"title": "ONLINE AI: " + (data['Heading']?? query), "snip": at + " Source: " + as, "source": "online"});
                 }
               }
@@ -151,9 +161,7 @@ jobs:
             }
             if (subj == "history" && low.contains("manufacturing industries") && qq.contains("sources of history")) return false;
             if (low.contains(qq)) return true;
-            for (var k in qq.split(RegExp(r'\\s+'))) {
-              if (k.length > 2 && low.contains(k)) return true;
-            }
+            for (var k in qq.split(RegExp(r'\\s+'))) { if (k.length > 2 && low.contains(k)) return true; }
             return false;
           }
 
@@ -162,10 +170,7 @@ jobs:
             final kws = query.toLowerCase().split(RegExp(r'\\s+')).where((w) => w.length > 2).toList();
             if (kws.isEmpty) return Text(text);
             String? best; int bestPos = -1;
-            for (var k in kws) {
-              int p = low.indexOf(k);
-              if (p!= -1 && (bestPos == -1 || p < bestPos)) { bestPos = p; best = k; }
-            }
+            for (var k in kws) { int p = low.indexOf(k); if (p!= -1 && (bestPos == -1 || p < bestPos)) { bestPos = p; best = k; } }
             if (best == null) return Text(text);
             List<TextSpan> spans = []; int idx = 0;
             while (true) {
@@ -185,43 +190,20 @@ jobs:
             runApp(App());
           }
 
-          class App extends StatelessWidget {
-            @override Widget build(BuildContext c) { return MaterialApp(debugShowCheckedModeBanner: false, home: Tabs()); }
-          }
+          class App extends StatelessWidget { @override Widget build(BuildContext c) { return MaterialApp(debugShowCheckedModeBanner: false, home: Tabs()); } }
 
           class Tabs extends StatefulWidget { @override State<Tabs> createState() => _TabsS(); }
           class _TabsS extends State<Tabs> {
-            int i = 0;
-            final pages = [Home(), Docs(), GeoMap(), Research()];
+            int i = 0; final pages = [Home(), Docs(), GeoMap(), Research()];
             @override Widget build(BuildContext c) {
-              return Scaffold(
-                body: pages[i],
-                bottomNavigationBar: BottomNavigationBar(
-                  type: BottomNavigationBarType.fixed, currentIndex: i, selectedItemColor: Colors.green,
-                  onTap: (x) => setState(() => i = x),
-                  items: [
-                    BottomNavigationBarItem(icon: Icon(Icons.school), label: "Subjects"),
-                    BottomNavigationBarItem(icon: Icon(Icons.folder), label: "My Docs"),
-                    BottomNavigationBarItem(icon: Icon(Icons.map), label: "GeographyLab"),
-                    BottomNavigationBarItem(icon: Icon(Icons.search), label: "Research"),
-                  ],
-                ),
-              );
+              return Scaffold(body: pages[i], bottomNavigationBar: BottomNavigationBar(type: BottomNavigationBarType.fixed, currentIndex: i, selectedItemColor: Colors.green, onTap: (x) => setState(() => i = x), items: [BottomNavigationBarItem(icon: Icon(Icons.school), label: "Subjects"), BottomNavigationBarItem(icon: Icon(Icons.folder), label: "My Docs"), BottomNavigationBarItem(icon: Icon(Icons.map), label: "GeographyLab"), BottomNavigationBarItem(icon: Icon(Icons.search), label: "Research")]));
             }
           }
 
           class Home extends StatelessWidget {
             @override Widget build(BuildContext c) {
               final subs = ["Mathematics","Biology","Chemistry","Physics","History","Geography","English","Agriculture"];
-              return Scaffold(
-                appBar: AppBar(title: Text("MTRDF V14.12 ONLINE+OFFLINE"), backgroundColor: Colors.green, foregroundColor: Colors.white),
-                body: ListView.builder(
-                  padding: EdgeInsets.all(12), itemCount: subs.length,
-                  itemBuilder: (_, j) {
-                    return Card(child: ListTile(leading: Icon(Icons.book, color: Colors.green), title: Text(subs[j]), subtitle: Text("Offline + Online AI when data ON"), onTap: () => Navigator.push(c, MaterialPageRoute(builder: (_) => Chat(subject: subs[j])))));
-                  },
-                ),
-              );
+              return Scaffold(appBar: AppBar(title: Text("MTRDF V14.13 ONLINE FIX"), backgroundColor: Colors.green, foregroundColor: Colors.white), body: ListView.builder(padding: EdgeInsets.all(12), itemCount: subs.length, itemBuilder: (_, j) { return Card(child: ListTile(leading: Icon(Icons.book, color: Colors.green), title: Text(subs[j]), subtitle: Text("Offline+Online AI"), onTap: () => Navigator.push(c, MaterialPageRoute(builder: (_) => Chat(subject: subs[j]))))); }));
             }
           }
 
@@ -229,105 +211,33 @@ jobs:
           class _DocsS extends State<Docs> {
             List<Map<String,String>> docs = []; bool loading = false;
             @override void initState() { super.initState(); _load(); }
-            Future<void> _load() async {
-              final p = await SharedPreferences.getInstance();
-              String? s = p.getString("mtrdf_docs_v10");
-              if (s!= null) docs = List<Map<String,String>>.from(jsonDecode(s).map((e) => Map<String,String>.from(e)));
-              final box = Hive.box('mtrdf_v14'); String? h = box.get('docs');
-              if (h!= null) { try { docs = List<Map<String,String>>.from(jsonDecode(h).map((e) => Map<String,String>.from(e))); } catch (e) {} }
-              setState(() {});
-            }
-            Future<void> _save() async {
-              final p = await SharedPreferences.getInstance();
-              p.setString("mtrdf_docs_v10", jsonEncode(docs));
-              Hive.box('mtrdf_v14').put('docs', jsonEncode(docs));
-            }
-            Future<void> _pick() async {
-              setState(() => loading = true);
-              try {
-                FilePickerResult? r = await FilePicker.platform.pickFiles(type: FileType.custom, allowedExtensions: ['docx','pdf'], withData: true);
-                if (r!= null && r.files.first.bytes!= null) {
-                  String name = r.files.first.name; List<int> bytes = r.files.first.bytes!.toList();
-                  String txt = name.toLowerCase().endsWith('.pdf')? extractPdf(bytes) : extractDocx(bytes);
-                  setState(() => docs.add({"name": name, "content": txt, "type": name.toLowerCase().endsWith('.pdf')? "pdf" : "docx"}));
-                  _save();
-                }
-              } catch (e) {}
-              setState(() => loading = false);
-            }
-            @override Widget build(BuildContext c) {
-              return Scaffold(
-                appBar: AppBar(title: Text("My Docs " + docs.length.toString() + " V14.12"), backgroundColor: Colors.green, foregroundColor: Colors.white),
-                body: loading? Center(child: CircularProgressIndicator()) : docs.isEmpty? Center(child: Text("No docs")) : ListView.builder(padding: EdgeInsets.all(12), itemCount: docs.length, itemBuilder: (_, j) {
-                  var d = docs[j];
-                  return Card(child: ListTile(title: Text(d["name"]?? ""), subtitle: Text((d["type"]?? "") + " " + (d["content"]?? "").length.toString()), trailing: IconButton(icon: Icon(Icons.delete), onPressed: () { setState(() => docs.removeAt(j)); _save(); })));
-                }),
-                floatingActionButton: FloatingActionButton.extended(onPressed: _pick, backgroundColor: Colors.green, icon: Icon(Icons.add, color: Colors.white), label: Text("Add DOCX/PDF", style: TextStyle(color: Colors.white))),
-              );
-            }
+            Future<void> _load() async { final p = await SharedPreferences.getInstance(); String? s = p.getString("mtrdf_docs_v10"); if (s!= null) docs = List<Map<String,String>>.from(jsonDecode(s).map((e) => Map<String,String>.from(e))); final box = Hive.box('mtrdf_v14'); String? h = box.get('docs'); if (h!= null) { try { docs = List<Map<String,String>>.from(jsonDecode(h).map((e) => Map<String,String>.from(e))); } catch (e) {} } setState(() {}); }
+            Future<void> _save() async { final p = await SharedPreferences.getInstance(); p.setString("mtrdf_docs_v10", jsonEncode(docs)); Hive.box('mtrdf_v14').put('docs', jsonEncode(docs)); }
+            Future<void> _pick() async { setState(() => loading = true); try { FilePickerResult? r = await FilePicker.platform.pickFiles(type: FileType.custom, allowedExtensions: ['docx','pdf'], withData: true); if (r!= null && r.files.first.bytes!= null) { String name = r.files.first.name; List<int> bytes = r.files.first.bytes!.toList(); String txt = name.toLowerCase().endsWith('.pdf')? extractPdf(bytes) : extractDocx(bytes); setState(() => docs.add({"name": name, "content": txt, "type": name.toLowerCase().endsWith('.pdf')? "pdf" : "docx"})); _save(); } } catch (e) {} setState(() => loading = false); }
+            @override Widget build(BuildContext c) { return Scaffold(appBar: AppBar(title: Text("My Docs " + docs.length.toString() + " V14.13"), backgroundColor: Colors.green, foregroundColor: Colors.white), body: loading? Center(child: CircularProgressIndicator()) : docs.isEmpty? Center(child: Text("No docs")) : ListView.builder(padding: EdgeInsets.all(12), itemCount: docs.length, itemBuilder: (_, j) { var d = docs[j]; return Card(child: ListTile(title: Text(d["name"]?? ""), subtitle: Text((d["type"]?? "") + " " + (d["content"]?? "").length.toString()), trailing: IconButton(icon: Icon(Icons.delete), onPressed: () { setState(() => docs.removeAt(j)); _save(); }))); }), floatingActionButton: FloatingActionButton.extended(onPressed: _pick, backgroundColor: Colors.green, icon: Icon(Icons.add, color: Colors.white), label: Text("Add DOCX/PDF", style: TextStyle(color: Colors.white)))); }
           }
 
           class GeoMap extends StatelessWidget {
             @override Widget build(BuildContext context) {
-              final lakes = [
-                {"name":"Lake Victoria","q":"Lake Victoria rainfall","x":0.75,"y":0.6},
-                {"name":"Lake Albert","q":"Lake Albert Rift Valley","x":0.25,"y":0.25},
-                {"name":"Lake Kyoga","q":"Lake Kyoga Nile","x":0.65,"y":0.3},
-                {"name":"Lake Edward","q":"Rift Valley","x":0.15,"y":0.65},
-              ];
-              return Scaffold(
-                appBar: AppBar(title: Text("GeographyLab OFFLINE V14.12"), backgroundColor: Colors.green, foregroundColor: Colors.white),
-                body: Column(children: [
-                  Expanded(flex: 3, child: Stack(children: [
-                    Container(width: double.infinity, height: double.infinity, color: Color(0xFFE8F5E9), child: CustomPaint(painter: UgandaPainter())),
-                    for (var l in lakes) Positioned(left: MediaQuery.of(context).size.width * (l["x"] as double) - 30, top: 250 * (l["y"] as double), child: GestureDetector(onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => Research(initialQuery: l["q"] as String))), child: Column(children: [Icon(Icons.location_on, color: Colors.red, size: 32), Container(padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2), decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(6), border: Border.all(color: Colors.red)), child: Text(l["name"] as String, style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold)))]))),
-                    Positioned(top: 8, left: 8, child: Container(padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4), decoration: BoxDecoration(color: Colors.green, borderRadius: BorderRadius.circular(12)), child: Text("OFFLINE CANVAS - 0 B/S", style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)))),
-                  ])),
-                  Expanded(flex: 2, child: ListView(padding: EdgeInsets.all(8), children: [
-                    Card(color: Colors.green[50], child: ListTile(leading: Icon(Icons.check_circle, color: Colors.green), title: Text("V14.12 OFFLINE+ONLINE"), subtitle: Text("Tap pins -> Research auto online if data on"))),
-                    for (var l in lakes) Card(child: ListTile(title: Text(l["name"] as String), subtitle: Text(l["q"] as String), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => Research(initialQuery: l["q"] as String))))),
-                  ])),
-                ]),
-              );
+              final lakes = [{"name":"Lake Victoria","q":"Lake Victoria rainfall","x":0.75,"y":0.6},{"name":"Lake Albert","q":"Lake Albert Rift Valley","x":0.25,"y":0.25},{"name":"Lake Kyoga","q":"Lake Kyoga Nile","x":0.65,"y":0.3},{"name":"Lake Edward","q":"Rift Valley","x":0.15,"y":0.65}];
+              return Scaffold(appBar: AppBar(title: Text("GeographyLab V14.13"), backgroundColor: Colors.green, foregroundColor: Colors.white), body: Column(children: [Expanded(flex: 3, child: Stack(children: [Container(width: double.infinity, height: double.infinity, color: Color(0xFFE8F5E9), child: CustomPaint(painter: UgandaPainter())), for (var l in lakes) Positioned(left: MediaQuery.of(context).size.width * (l["x"] as double) - 30, top: 250 * (l["y"] as double), child: GestureDetector(onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => Research(initialQuery: l["q"] as String))), child: Column(children: [Icon(Icons.location_on, color: Colors.red, size: 32), Container(padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2), decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(6), border: Border.all(color: Colors.red)), child: Text(l["name"] as String, style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold)))]))), Positioned(top: 8, left: 8, child: Container(padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4), decoration: BoxDecoration(color: Colors.green, borderRadius: BorderRadius.circular(12)), child: Text("OFFLINE CANVAS - 0 B/S", style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)))) ])), Expanded(flex: 2, child: ListView(padding: EdgeInsets.all(8), children: [Card(color: Colors.green[50], child: ListTile(leading: Icon(Icons.check_circle, color: Colors.green), title: Text("V14.13 ONLINE FIX"), subtitle: Text("Tap pins -> Research"))), for (var l in lakes) Card(child: ListTile(title: Text(l["name"] as String), subtitle: Text(l["q"] as String), onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => Research(initialQuery: l["q"] as String))))),])),]));
             }
           }
 
           class UgandaPainter extends CustomPainter {
-            @override void paint(Canvas canvas, Size size) {
-              final fill = Paint()..color=Color(0xFFC8E6C9)..style=PaintingStyle.fill;
-              final border = Paint()..color=Colors.green..style=PaintingStyle.stroke..strokeWidth=2;
-              Path p = Path();
-              p.moveTo(size.width*0.2, size.height*0.2);
-              p.lineTo(size.width*0.8, size.height*0.15);
-              p.lineTo(size.width*0.85, size.height*0.75);
-              p.lineTo(size.width*0.15, size.height*0.8);
-              p.close();
-              canvas.drawPath(p, fill); canvas.drawPath(p, border);
-              final grid = Paint()..color=Colors.green.withOpacity(0.2)..strokeWidth=0.5;
-              for (int i=0;i<5;i++) { canvas.drawLine(Offset(0, size.height*i/5), Offset(size.width, size.height*i/5), grid); canvas.drawLine(Offset(size.width*i/5, 0), Offset(size.width*i/5, size.height), grid); }
-            }
+            @override void paint(Canvas canvas, Size size) { final fill = Paint()..color=Color(0xFFC8E6C9)..style=PaintingStyle.fill; final border = Paint()..color=Colors.green..style=PaintingStyle.stroke..strokeWidth=2; Path p = Path(); p.moveTo(size.width*0.2, size.height*0.2); p.lineTo(size.width*0.8, size.height*0.15); p.lineTo(size.width*0.85, size.height*0.75); p.lineTo(size.width*0.15, size.height*0.8); p.close(); canvas.drawPath(p, fill); canvas.drawPath(p, border); final grid = Paint()..color=Colors.green.withOpacity(0.2)..strokeWidth=0.5; for (int i=0;i<5;i++) { canvas.drawLine(Offset(0, size.height*i/5), Offset(size.width, size.height*i/5), grid); canvas.drawLine(Offset(size.width*i/5, 0), Offset(size.width*i/5, size.height), grid); } }
             @override bool shouldRepaint(covariant CustomPainter old)=>false;
           }
 
           class Research extends StatefulWidget { final String initialQuery; const Research({super.key, this.initialQuery=""}); @override State<Research> createState()=>_ResS(); }
           class _ResS extends State<Research> {
-            final ctrl = TextEditingController();
-            List<Map<String,String>> results = [];
-            String lastQ = "";
-            bool onlineMode = false;
-            bool isSearching = false;
+            final ctrl = TextEditingController(); List<Map<String,String>> results = []; String lastQ = ""; bool onlineMode = false; bool isSearching = false; bool forceOnline = false;
 
-            @override void initState() {
-              super.initState();
-              if (widget.initialQuery.isNotEmpty) {
-                ctrl.text=widget.initialQuery;
-                Future.delayed(Duration(milliseconds: 300), ()=>search(widget.initialQuery));
-              }
-              _checkOnline();
-            }
+            @override void initState() { super.initState(); if (widget.initialQuery.isNotEmpty) { ctrl.text=widget.initialQuery; Future.delayed(Duration(milliseconds: 300), ()=>search(widget.initialQuery)); } _checkOnline(); }
 
             Future<void> _checkOnline() async {
-              bool on = await isOnline();
+              if (forceOnline) { setState(()=>onlineMode=true); return; }
+              bool on = await checkOnlineRobust();
               setState(() => onlineMode = on);
             }
 
@@ -335,54 +245,40 @@ jobs:
               if (q.trim().isEmpty) return;
               setState(() => isSearching = true);
               lastQ = q;
-              await _checkOnline();
+              if (!forceOnline) await _checkOnline();
               final p = await SharedPreferences.getInstance();
               String? s = p.getString("mtrdf_docs_v10");
               List<Map<String,String>> ds = [];
               if (s!= null) ds = List<Map<String,String>>.from(jsonDecode(s).map((e)=>Map<String,String>.from(e)));
-              final box = Hive.box('mtrdf_v14');
-              String? h = box.get('docs');
-              if (h!= null) {
-                try { ds = List<Map<String,String>>.from(jsonDecode(h).map((e)=>Map<String,String>.from(e))); } catch(e){}
-              }
+              final box = Hive.box('mtrdf_v14'); String? h = box.get('docs');
+              if (h!= null) { try { ds = List<Map<String,String>>.from(jsonDecode(h).map((e)=>Map<String,String>.from(e))); } catch(e){} }
               List<Map<String,String>> r = [];
-              for(var d in ds){
-                if(matches(d["content"]??"", q, "research")) {
-                  r.add({"title":"FROM YOUR DOC: " + (d["name"]?? ""), "snip":snippet(d["content"]??"", q), "source":"local"});
-                }
+              for(var d in ds){ if(matches(d["content"]??"", q, "research")) r.add({"title":"FROM YOUR DOC: " + (d["name"]?? ""), "snip":snippet(d["content"]??"", q), "source":"local"}); }
+              if (onlineMode || forceOnline) {
+                try { var onlineResults = await fetchOnlineResearch(q); r.addAll(onlineResults); } catch (e) {}
               }
-              if (onlineMode) {
-                try {
-                  var onlineResults = await fetchOnlineResearch(q);
-                  r.addAll(onlineResults);
-                } catch (e) {}
-              }
-              setState(() {
-                results = r;
-                isSearching = false;
-              });
+              setState(() { results = r; isSearching = false; });
             }
 
             @override Widget build(BuildContext c) {
               return Scaffold(
                 appBar: AppBar(
-                  title: Text(onlineMode? "Research ONLINE AI V14.12" : "Research OFFLINE V14.12"),
-                  backgroundColor: onlineMode? Colors.blue : Colors.green, foregroundColor: Colors.white,
+                  title: Text((onlineMode||forceOnline)? "Research ONLINE AI V14.13" : "Research OFFLINE V14.13"),
+                  backgroundColor: (onlineMode||forceOnline)? Colors.blue : Colors.green, foregroundColor: Colors.white,
                   actions: [
-                    Padding(padding: EdgeInsets.all(8), child: Container(padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4), decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)), child: Text(onlineMode? "ONLINE" : "OFFLINE", style: TextStyle(color: onlineMode? Colors.blue : Colors.green, fontWeight: FontWeight.bold, fontSize: 11)))),
+                    IconButton(icon: Icon(forceOnline? Icons.cloud_done : Icons.cloud_off), tooltip: "Force Online", onPressed: (){ setState(()=>{forceOnline=!forceOnline, onlineMode=forceOnline}); if (forceOnline && lastQ.isNotEmpty) search(lastQ); }),
+                    Padding(padding: EdgeInsets.all(8), child: Container(padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4), decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)), child: Text((onlineMode||forceOnline)? "ONLINE" : "OFFLINE", style: TextStyle(color: (onlineMode||forceOnline)? Colors.blue : Colors.green, fontWeight: FontWeight.bold, fontSize: 11)))),
                   ],
                 ),
                 body: Column(children: [
                   Padding(padding: EdgeInsets.all(12), child: Row(children: [
-                    Expanded(child: TextField(controller: ctrl, decoration: InputDecoration(hintText: onlineMode? "Search offline docs + online AI..." : "Search offline docs (0 B/S)...", border: OutlineInputBorder(borderRadius: BorderRadius.circular(20)), suffixIcon: Icon(onlineMode? Icons.cloud : Icons.cloud_off)), onSubmitted: search)),
+                    Expanded(child: TextField(controller: ctrl, decoration: InputDecoration(hintText: (onlineMode||forceOnline)? "Search offline + online AI..." : "Search offline (0 B/S)...", border: OutlineInputBorder(borderRadius: BorderRadius.circular(20)), suffixIcon: Icon((onlineMode||forceOnline)? Icons.cloud : Icons.cloud_off)), onSubmitted: search)),
                     SizedBox(width: 8),
-                    isSearching? CircularProgressIndicator() : IconButton(icon: Icon(Icons.search, color: onlineMode? Colors.blue : Colors.green), onPressed: ()=>search(ctrl.text)),
+                    isSearching? CircularProgressIndicator() : IconButton(icon: Icon(Icons.search, color: (onlineMode||forceOnline)? Colors.blue : Colors.green), onPressed: ()=>search(ctrl.text)),
                   ])),
-                  if (onlineMode) Padding(padding: EdgeInsets.symmetric(horizontal: 12), child: Card(color: Colors.blue[50], child: ListTile(leading: Icon(Icons.lightbulb, color: Colors.blue), title: Text("Online AI Enabled", style: TextStyle(fontWeight: FontWeight.bold)), subtitle: Text("Data ON: docs + Wikipedia + DuckDuckGo")))),
-                  Expanded(child: results.isEmpty? Center(child: Text(isSearching? "Searching..." : lastQ.isEmpty? "Tap map pin" : onlineMode? "No match for " + lastQ : "No match offline. Turn data ON")) : ListView.builder(padding: EdgeInsets.all(12), itemCount: results.length, itemBuilder: (_,i){
-                    var r=results[i]; bool isOnlineRes = r["source"]=="online";
-                    return Card(color: isOnlineRes? Colors.blue[50] : Colors.green[50], child: ListTile(leading: Icon(isOnlineRes? Icons.cloud : Icons.folder, color: isOnlineRes? Colors.blue : Colors.green), title: Text(r["title"]?? "", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: isOnlineRes? Colors.blue[900] : Colors.black)), subtitle: highlight(r["snip"]?? "", lastQ)));
-                  })),
+                  if (onlineMode||forceOnline) Padding(padding: EdgeInsets.symmetric(horizontal: 12), child: Card(color: Colors.blue[50], child: ListTile(leading: Icon(Icons.lightbulb, color: Colors.blue), title: Text(forceOnline? "FORCE ONLINE Enabled" : "Online AI Enabled", style: TextStyle(fontWeight: FontWeight.bold)), subtitle: Text(forceOnline? "Manual ON: Will search Wikipedia even if checker says offline" : "Data ON: docs + Wikipedia + DuckDuckGo")))),
+                  if (!onlineMode &&!forceOnline) Padding(padding: EdgeInsets.symmetric(horizontal: 12), child: Card(color: Colors.orange[50], child: ListTile(leading: Icon(Icons.wifi_off, color: Colors.orange), title: Text("Offline Mode"), subtitle: Text("Tap cloud icon top-right to FORCE ONLINE if you have data ON but it shows OFFLINE")))),
+                  Expanded(child: results.isEmpty? Center(child: Text(isSearching? "Searching..." : lastQ.isEmpty? "Tap map pin" : (onlineMode||forceOnline)? "No match for " + lastQ : "No match offline. Tap cloud icon to force ONLINE")) : ListView.builder(padding: EdgeInsets.all(12), itemCount: results.length, itemBuilder: (_,i){ var r=results[i]; bool isOnlineRes = r["source"]=="online"; return Card(color: isOnlineRes? Colors.blue[50] : Colors.green[50], child: ListTile(leading: Icon(isOnlineRes? Icons.cloud : Icons.folder, color: isOnlineRes? Colors.blue : Colors.green), title: Text(r["title"]?? "", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: isOnlineRes? Colors.blue[900] : Colors.black)), subtitle: highlight(r["snip"]?? "", lastQ))); })),
                 ]),
               );
             }
@@ -390,42 +286,18 @@ jobs:
 
           class Chat extends StatefulWidget { final String subject; const Chat({super.key, required this.subject}); @override State<Chat> createState()=>_ChatS(); }
           class _ChatS extends State<Chat> {
-            final ctrl=TextEditingController();
-            List<Map<String,String>> msgs=[{"role":"ai","text":"V14.12 GOLD - Offline docs + Online AI when data is ON. Ask anything!"}];
-            List<Map<String,String>> myDocs=[];
-            bool onlineMode=false;
-            bool sending=false;
-
+            final ctrl=TextEditingController(); List<Map<String,String>> msgs=[{"role":"ai","text":"V14.13 GOLD - Offline docs + Online AI. If ONLINE stays off but you have data, tap cloud icon to FORCE ONLINE!"}]; List<Map<String,String>> myDocs=[]; bool onlineMode=false; bool sending=false; bool forceOnline=false;
             @override void initState(){ super.initState(); _load(); _checkOnline(); }
-            Future<void> _checkOnline() async { bool on = await isOnline(); setState(()=>onlineMode=on); }
-            Future<void> _load() async {
-              final p=await SharedPreferences.getInstance();
-              String? s=p.getString("mtrdf_docs_v10");
-              if(s!=null) setState(()=>myDocs=List<Map<String,String>>.from(jsonDecode(s).map((e)=>Map<String,String>.from(e))));
-              final b=Hive.box('mtrdf_v14');
-              String? h=b.get('docs');
-              if(h!=null){ try{ myDocs=List<Map<String,String>>.from(jsonDecode(h).map((e)=>Map<String,String>.from(e))); setState((){});}catch(e){} }
-            }
-
-            String searchOffline(String q){
-              if(myDocs.isEmpty) return "No docs. Add DOCX in My Docs.";
-              String out=""; int f=0;
-              for(var d in myDocs){
-                if(matches(d["content"]??"", q, widget.subject)){
-                  f++;
-                  out += "FROM '" + (d["name"]?? "") + "':\\n" + snippet(d["content"]??"", q) + "\\n\\n---\\n\\n";
-                }
-              }
-              if(f==0) return "No match for '" + q + "' in " + widget.subject + ". Have " + myDocs.length.toString() + " docs.";
-              return "FOUND " + f.toString() + " offline for " + widget.subject + ":\\n\\n" + out;
-            }
-
+            Future<void> _checkOnline() async { if (forceOnline) { setState(()=>onlineMode=true); return; } bool on = await checkOnlineRobust(); setState(()=>onlineMode=on); }
+            Future<void> _load() async { final p=await SharedPreferences.getInstance(); String? s=p.getString("mtrdf_docs_v10"); if(s!=null) setState(()=>myDocs=List<Map<String,String>>.from(jsonDecode(s).map((e)=>Map<String,String>.from(e)))); final b=Hive.box('mtrdf_v14'); String? h=b.get('docs'); if(h!=null){ try{ myDocs=List<Map<String,String>>.from(jsonDecode(h).map((e)=>Map<String,String>.from(e))); setState((){});}catch(e){} } }
+            String searchOffline(String q){ if(myDocs.isEmpty) return "No docs. Add DOCX in My Docs."; String out=""; int f=0; for(var d in myDocs){ if(matches(d["content"]??"", q, widget.subject)){ f++; out += "FROM '" + (d["name"]?? "") + "':\\n" + snippet(d["content"]??"", q) + "\\n\\n---\\n\\n"; } } if(f==0) return "No match for '" + q + "' in " + widget.subject + ". Have " + myDocs.length.toString() + " docs."; return "FOUND " + f.toString() + " offline for " + widget.subject + ":\\n\\n" + out; }
             Future<String> searchWithOnline(String q) async {
               String offlineResult = searchOffline(q);
               bool hasOffline =!offlineResult.startsWith("No match") &&!offlineResult.startsWith("No docs");
-              if (!onlineMode) {
-                if (hasOffline) return offlineResult + "\\nOFFLINE: Turn data ON for online AI";
-                return offlineResult + "\\nOFFLINE: No offline match. Turn data ON for Wikipedia+AI";
+              bool isOnlineNow = onlineMode || forceOnline;
+              if (!isOnlineNow) {
+                if (hasOffline) return offlineResult + "\\nOFFLINE: Tap cloud icon to FORCE ONLINE for Wikipedia+AI";
+                return offlineResult + "\\nOFFLINE: No offline match. Tap cloud icon top-right to FORCE ONLINE";
               }
               String combined = "";
               if (hasOffline) combined += offlineResult + "\\n\\n";
@@ -435,42 +307,40 @@ jobs:
                 if (onlineRes.isNotEmpty) {
                   combined += "ONLINE AI (" + onlineRes.length.toString() + " results):\\n\\n";
                   for (var r in onlineRes) { combined += r["title"]! + "\\n" + (r["snip"]??"") + "\\n\\n---\\n\\n"; }
-                } else { combined += "Online no extra results."; }
+                } else { combined += "Online searched but no extra results."; }
               } catch (e) { combined += "Online error: " + e.toString(); }
               return combined;
             }
-
             void send() async {
               if(ctrl.text.isEmpty || sending) return;
-              String q=ctrl.text;
-              setState(()=>{msgs.add({"role":"user","text":q}), sending=true});
-              ctrl.clear();
+              String q=ctrl.text; setState(()=>{msgs.add({"role":"user","text":q}), sending=true}); ctrl.clear();
               String answer = await searchWithOnline(q);
               setState(()=>{msgs.add({"role":"ai","text":answer}), sending=false});
-              _checkOnline();
+              if (!forceOnline) _checkOnline();
             }
-
             @override Widget build(BuildContext c){
               return Scaffold(
-                appBar: AppBar(title: Text(widget.subject + " - " + myDocs.length.toString() + " " + (onlineMode? "ONLINE" : "OFFLINE") + " V14.12"), backgroundColor: onlineMode? Colors.blue : Colors.green, foregroundColor: Colors.white, actions: [IconButton(icon: Icon(onlineMode? Icons.cloud_done : Icons.cloud_off), onPressed: _checkOnline)]),
+                appBar: AppBar(
+                  title: Text(widget.subject + " - " + myDocs.length.toString() + " " + ((onlineMode||forceOnline)? "ONLINE" : "OFFLINE") + " V14.13"),
+                  backgroundColor: (onlineMode||forceOnline)? Colors.blue : Colors.green, foregroundColor: Colors.white,
+                  actions: [
+                    IconButton(icon: Icon(forceOnline? Icons.cloud_done : Icons.cloud_off), tooltip: "Force Online", onPressed: (){ setState(()=>{forceOnline=!forceOnline, onlineMode=forceOnline}); }),
+                    IconButton(icon: Icon(Icons.refresh), onPressed: _checkOnline),
+                  ],
+                ),
                 body: Column(children: [
-                  if (onlineMode) Container(width: double.infinity, color: Colors.blue[100], padding: EdgeInsets.all(6), child: Text("ONLINE AI ON: Wikipedia + DuckDuckGo + your docs", textAlign: TextAlign.center, style: TextStyle(fontSize: 11, color: Colors.blue[900], fontWeight: FontWeight.bold))),
-                  Expanded(child: ListView.builder(padding: EdgeInsets.all(12), itemCount: msgs.length, itemBuilder: (_,i){
-                    final m=msgs[i]; bool u=m["role"]=="user";
-                    return Align(alignment: u?Alignment.centerRight:Alignment.centerLeft, child: Container(margin: EdgeInsets.symmetric(vertical:4),padding: EdgeInsets.all(12),decoration: BoxDecoration(color: u? (onlineMode? Colors.blue: Colors.green) : Colors.grey[200],borderRadius:BorderRadius.circular(12)),child: Text(m["text"]??"")));
-                  })),
-                  if (sending) Padding(padding: EdgeInsets.all(8), child: Row(children: [CircularProgressIndicator(), SizedBox(width: 12), Text(onlineMode? "Searching offline + online AI..." : "Searching offline...")])),
-                  Padding(padding: EdgeInsets.all(8), child: Row(children: [
-                    Expanded(child: TextField(controller: ctrl, decoration: InputDecoration(hintText: onlineMode? "Ask " + widget.subject + " (online+offline)..." : "Ask " + widget.subject + " (offline)...", border: OutlineInputBorder(borderRadius:BorderRadius.circular(20))), onSubmitted: (_)=>send())),
-                    IconButton(icon: Icon(Icons.send, color: onlineMode? Colors.blue : Colors.green), onPressed: send),
-                  ])),
+                  if (onlineMode||forceOnline) Container(width: double.infinity, color: Colors.blue[100], padding: EdgeInsets.all(6), child: Text(forceOnline? "FORCE ONLINE ON: Wikipedia + DuckDuckGo + your docs" : "ONLINE AI ON: Wikipedia + DuckDuckGo + your docs", textAlign: TextAlign.center, style: TextStyle(fontSize: 11, color: Colors.blue[900], fontWeight: FontWeight.bold))),
+                  if (!onlineMode &&!forceOnline) Container(width: double.infinity, color: Colors.orange[100], padding: EdgeInsets.all(6), child: Text("OFFLINE: You have data ON but checker says OFFLINE? Tap cloud icon top-right to FORCE ONLINE", textAlign: TextAlign.center, style: TextStyle(fontSize: 11, color: Colors.orange[900]))),
+                  Expanded(child: ListView.builder(padding: EdgeInsets.all(12), itemCount: msgs.length, itemBuilder: (_,i){ final m=msgs[i]; bool u=m["role"]=="user"; return Align(alignment: u?Alignment.centerRight:Alignment.centerLeft, child: Container(margin: EdgeInsets.symmetric(vertical:4),padding: EdgeInsets.all(12),decoration: BoxDecoration(color: u? ((onlineMode||forceOnline)? Colors.blue : Colors.green) : Colors.grey[200],borderRadius:BorderRadius.circular(12)),child: Text(m["text"]??""))); })),
+                  if (sending) Padding(padding: EdgeInsets.all(8), child: Row(children: [CircularProgressIndicator(), SizedBox(width: 12), Text((onlineMode||forceOnline)? "Searching offline + online AI..." : "Searching offline...")])),
+                  Padding(padding: EdgeInsets.all(8), child: Row(children: [Expanded(child: TextField(controller: ctrl, decoration: InputDecoration(hintText: (onlineMode||forceOnline)? "Ask " + widget.subject + " (online+offline)..." : "Ask " + widget.subject + " (offline)...", border: OutlineInputBorder(borderRadius:BorderRadius.circular(20))), onSubmitted: (_)=>send())), IconButton(icon: Icon(Icons.send, color: (onlineMode||forceOnline)? Colors.blue : Colors.green), onPressed: send)])),
                 ]),
               );
             }
           }
           """
           open('lib/main.dart','w',encoding='utf-8').write(code)
-          print("Wrote V14.12 MULTI-LINE FIXED")
+          print("Wrote V14.13 FORCE ONLINE FIX")
           PY
       - name: Build APK
         run: |
@@ -480,6 +350,6 @@ jobs:
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: MTRDF-V14-12-ONLINE-AI-MULTILINE-FIXED
+          name: MTRDF-V14-13-FORCE-ONLINE-FIX
           path: build/app/outputs/flutter-apk/app-release.apk
           if-no-files-found: error

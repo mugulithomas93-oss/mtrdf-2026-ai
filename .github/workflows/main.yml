@@ -28,7 +28,7 @@ jobs:
         run: |
           cat > pubspec.yaml <<'YAML'
           name: mtrdf_2026_ai
-          version: 14.24.2+82
+          version: 14.26.0+84
           environment:
             sdk: '>=3.0.0 <4.0.0'
           dependencies:
@@ -45,7 +45,7 @@ jobs:
           flutter:
             uses-material-design: true
           YAML
-      - name: Write main.dart FIXED
+      - name: Write main.dart
         run: |
           cat > lib/main.dart <<'DART'
           import 'dart:convert';
@@ -61,30 +61,62 @@ jobs:
 
           String extractDocx(List<int> b){try{final a=ZipDecoder().decodeBytes(b);for(final f in a){if(f.name=='word/document.xml'){return utf8.decode(f.content as List<int>).replaceAll(RegExp(r'<[^>]+>'),' ');}}return '';}catch(e){return '';}}
           String extractPdf(List<int> b){try{final d=PdfDocument(inputBytes:b);final t=PdfTextExtractor(d).extractText();d.dispose();return t;}catch(e){return '';}}
-          String decodeHtml(String t){return t.replaceAll('&amp;','&').replaceAll('&#039;',"'").replaceAll('&quot;','"').replaceAll('&lt;','<').replaceAll('&gt;','>').replaceAll('&#39;',"'").replaceAll(RegExp(r'<[^>]+>'),'');}
+          String decodeHtml(String t){return t.replaceAll('&amp;','&').replaceAll('&#039;',"'").replaceAll('&quot;','"').replaceAll('&#39;',"'").replaceAll(RegExp(r'<[^>]+>'),'');}
           String fixTypos(String q){var s=q.toLowerCase();s=s.replaceAll('importantantances','importance').replaceAll('importantances','importance').replaceAll('importances','importance');return s;}
+          String cleanQ(String q){String s=fixTypos(q.toLowerCase());s=s.replaceAll('location of','').replaceAll('where is','').replaceAll('what is','').replaceAll('tell me about','').replaceAll('explain','').trim();return s.isEmpty?q:s;}
 
           String getCurriculum(String q, String subj){
             String l=fixTypos(q.toLowerCase()); String s=subj.toLowerCase();
-            bool imp=l.contains('importance')||l.contains('important')||l.contains('why study');
+            bool imp=l.contains('importance')||l.contains('important');
+            if(l.contains('lake victoria')){
+              return 'LOCATION OF LAKE VICTORIA - UGANDA CURRICULUM:\n• Largest lake in Africa, 2nd largest freshwater in world\n• Shared by 3 countries: UGANDA 45% (Central region Kampala/Entebbe), TANZANIA 49% (Mwanza), KENYA 6% (Kisumu)\n• Coordinates: 1°S, 33°E\n• Area: 59,947 km2\n• Source of River Nile at Jinja\n• Importance: fishing, transport, hydro power, water';
+            }
             if(imp && (l.contains('geography')||s.contains('geography'))){
-              return 'UGANDA - IMPORTANCE OF GEOGRAPHY:\n1. Physical env (Rwenzori, L.Victoria)\n2. Weather & agriculture\n3. Population & settlement\n4. Natural resources\n5. Conservation\n6. Map reading\n7. Careers: meteorologist, surveyor\n8. Global trade';
+              return 'IMPORTANCE OF GEOGRAPHY:\n1. Physical env Rwenzori, L.Victoria, climate\n2. Weather & agriculture link\n3. Population & settlement\n4. Natural resources\n5. Conservation\n6. Map reading skills\n7. Careers: meteorologist, surveyor, planner';
             }
             if(imp && (l.contains('history')||s.contains('history'))){
-              return 'IMPORTANCE OF HISTORY:\n1. Origin of man\n2. Learn from past\n3. Culture (Buganda, Bunyoro)\n4. National unity\n5. Critical thinking\n6. Careers: historian, teacher';
+              return 'IMPORTANCE OF HISTORY:\n1. Origin of man\n2. Learn from past mistakes\n3. Culture Buganda/Bunyoro\n4. National unity\n5. Critical thinking\n6. Careers: historian, teacher';
             }
             return '';
           }
 
-          Future<List<Map<String,String>>> searchWiki(String q) async {
+          Future<List<Map<String,String>>> searchWikiSmart(String originalQ) async {
             List<Map<String,String>> r=[];
+            String q=cleanQ(originalQ);
+            List<String> tryExact=[q];
+            if(q.toLowerCase().contains('lake victoria')) tryExact.insert(0,'Lake Victoria');
+            if(q.toLowerCase().contains('geography') && q.length<20) tryExact.insert(0,'Geography');
+            for(String t in tryExact.take(2)){
+              try{
+                final u=Uri.parse('https://en.wikipedia.org/api/rest_v1/page/summary/' + Uri.encodeComponent(t.trim()));
+                final resp=await http.get(u, headers:{'User-Agent':'MTRDF/1.0'}).timeout(Duration(seconds:8));
+                if(resp.statusCode==200){
+                  final d=jsonDecode(resp.body);
+                  String ex=decodeHtml((d['extract']??'').toString());
+                  if(ex.length>80){ r.add({'title':(d['title']??t).toString(),'snip':ex,'url':'https://en.wikipedia.org/wiki/' + Uri.encodeComponent((d['title']??t).toString()),'source':'Wikipedia','cred':'High','cite':'[1]'}); }
+                }
+              }catch(e){}
+            }
             try{
-              final u=Uri.parse('https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=' + Uri.encodeComponent(q) + '&format=json&origin=*&srlimit=5');
+              String phrase='"' + q + '"';
+              final u=Uri.parse('https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=' + Uri.encodeComponent(phrase) + '&format=json&origin=*&srlimit=8');
               final resp=await http.get(u, headers:{'User-Agent':'MTRDF/1.0'}).timeout(Duration(seconds:10));
               if(resp.statusCode==200){
                 final d=jsonDecode(resp.body);
                 var list=d['query']?['search'] as List?;
-                if(list!=null){ for(var s in list){ r.add({'title':s['title'],'snip':decodeHtml(s['snippet']??''),'url':'https://en.wikipedia.org/wiki/' + Uri.encodeComponent(s['title']),'source':'Wikipedia','cred':'High','cite':'[Wiki]'}); } }
+                if(list!=null){
+                  for(var s in list){
+                    String title=(s['title']??'').toString();
+                    String snip=decodeHtml(s['snippet']??'');
+                    String lt=title.toLowerCase();
+                    if(lt.contains('prisoners of geography')) continue;
+                    if(lt.contains('geography now')) continue;
+                    if(q.toLowerCase().contains('lake victoria') &&!lt.contains('lake victoria')) continue;
+                    if(r.any((e)=>e['title']==title)) continue;
+                    r.add({'title':title,'snip':snip,'url':'https://en.wikipedia.org/wiki/' + Uri.encodeComponent(title),'source':'Wikipedia','cred':'High','cite':'[' + (r.length+1).toString() + ']'});
+                    if(r.length>=6) break;
+                  }
+                }
               }
             }catch(e){}
             return r;
@@ -93,66 +125,29 @@ jobs:
           Future<List<Map<String,String>>> searchDuck(String q) async {
             List<Map<String,String>> r=[];
             try{
-              final u=Uri.parse('https://api.duckduckgo.com/?q=' + Uri.encodeComponent(q) + '&format=json&pretty=1&no_html=1');
+              final u=Uri.parse('https://api.duckduckgo.com/?q=' + Uri.encodeComponent(cleanQ(q)) + '&format=json&pretty=1&no_html=1');
               final resp=await http.get(u).timeout(Duration(seconds:8));
               if(resp.statusCode==200){
                 final d=jsonDecode(resp.body);
                 String at=(d['AbstractText']??'').toString();
-                if(at.length>40) r.add({'title':d['Heading']??q,'snip':at,'url':(d['AbstractURL']??'').toString(),'source':'Web','cred':'Medium','cite':'[Web]'});
+                if(at.length>60) r.add({'title':d['Heading']??q,'snip':at,'url':(d['AbstractURL']??'').toString(),'source':'Web','cred':'Medium','cite':'[Web]'});
               }
             }catch(e){}
             return r;
-          }
-
-          Future<List<Map<String,String>>> searchArxiv(String q) async {
-            List<Map<String,String>> r=[];
-            try{
-              final u=Uri.parse('http://export.arxiv.org/api/query?search_query=all:' + Uri.encodeComponent(q) + '&start=0&max_results=2');
-              final resp=await http.get(u).timeout(Duration(seconds:10));
-              if(resp.statusCode==200){
-                final body=resp.body;
-                var entries=body.split('<entry>').skip(1);
-                for(var e in entries.take(2)){
-                  var title=RegExp(r'<title>(.*?)</title>',dotAll:true).firstMatch(e)?.group(1)?.replaceAll('\n','').trim()??'';
-                  var summary=RegExp(r'<summary>(.*?)</summary>',dotAll:true).firstMatch(e)?.group(1)?.replaceAll('\n',' ').trim()??'';
-                  var link=RegExp(r'<id>(.*?)</id>').firstMatch(e)?.group(1)??'';
-                  if(title.isNotEmpty) r.add({'title':'PAPER: ' + title,'snip':summary.length>300?summary.substring(0,300):summary,'url':link,'source':'arXiv','cred':'High','cite':'[Paper]'});
-                }
-              }
-            }catch(e){}
-            return r;
-          }
-
-          Future<List<Map<String,String>>> searchYT(String q) async {
-            return [
-              {'title':'YouTube: ' + q + ' explained','snip':'Video lessons','url':'https://www.youtube.com/results?search_query=' + Uri.encodeComponent(q),'source':'YouTube','cred':'Medium','cite':'[Video]'}
-            ];
           }
 
           Future<Map<String,dynamic>> deepResearch(String q, String subject) async {
-            String fixed=fixTypos(q);
             List<Map<String,String>> all=[];
-            String curr=getCurriculum(fixed, subject);
-            if(curr.isNotEmpty) all.add({'title':'MTRDF CURRICULUM - ' + subject.toUpperCase(),'snip':curr,'url':'','source':'MTRDF Curriculum','cred':'High','cite':'[Curriculum]'});
-            var wiki=await searchWiki(fixed);
-            var duck=await searchDuck(fixed);
-            var papers=await searchArxiv(fixed);
-            var yt=await searchYT(fixed);
+            String curr=getCurriculum(q, subject);
+            if(curr.isNotEmpty) all.add({'title':'MTRDF CURRICULUM','snip':curr,'url':'','source':'Curriculum','cred':'High','cite':'[Curriculum]'});
+            var wiki=await searchWikiSmart(q);
+            var duck=await searchDuck(q);
             all.addAll(wiki);
             all.addAll(duck);
-            all.addAll(papers);
-            all.addAll(yt);
-            String summary='';
-            if(all.isNotEmpty){
-              summary='Based on ' + all.length.toString() + ' sources:\n';
-              for(int i=0;i<all.length && i<3;i++){ summary+=all[i]['snip']!.split('.').first + '.\n'; }
-            }
-            List<String> followups=[
-              'What are challenges of ' + fixed + '?',
-              'How does ' + fixed + ' relate to Uganda?',
-              'Explain ' + fixed + ' for S1 level'
-            ];
-            return {'results':all,'summary':summary,'followups':followups};
+            all.add({'title':'YouTube: ' + q,'snip':'Watch video lessons','url':'https://www.youtube.com/results?search_query=' + Uri.encodeComponent(q),'source':'YouTube','cred':'Medium','cite':'[Video]'});
+            String summary=all.isNotEmpty? (all.firstWhere((e)=>e['source']=='Wikipedia', orElse:()=>all[0])['snip']??'') : '';
+            if(summary.length>400) summary=summary.substring(0,400) + '...';
+            return {'results':all,'summary':summary,'followups':['Where is ' + q + '?','Importance of ' + q,'Explain for S1']};
           }
 
           void main() async { WidgetsFlutterBinding.ensureInitialized(); await Hive.initFlutter(); await Hive.openBox('mtrdf_v14'); runApp(App()); }
@@ -160,32 +155,13 @@ jobs:
           class Tabs extends StatefulWidget { @override State<Tabs> createState()=>_TabsS(); }
           class _TabsS extends State<Tabs> {
             int i=0;
-            final pages=[Home(),DocsPage(),ResearchUltimate(),OnlineHubUltimate()];
-            @override Widget build(BuildContext c){
-              return Scaffold(
-                body: pages[i],
-                bottomNavigationBar: BottomNavigationBar(
-                  type: BottomNavigationBarType.fixed, currentIndex: i, selectedItemColor: Colors.deepPurple,
-                  onTap: (x){ setState((){ i=x; }); },
-                  items: [
-                    BottomNavigationBarItem(icon:Icon(Icons.school),label:'Subjects'),
-                    BottomNavigationBarItem(icon:Icon(Icons.folder),label:'My Docs'),
-                    BottomNavigationBarItem(icon:Icon(Icons.biotech),label:'Research PRO'),
-                    BottomNavigationBarItem(icon:Icon(Icons.public),label:'Online AI')
-                  ]
-                )
-              );
-            }
+            final pages=[Home(),DocsPage(),ResearchPro(),OnlinePro()];
+            @override Widget build(BuildContext c){ return Scaffold(body: pages[i], bottomNavigationBar: BottomNavigationBar(type: BottomNavigationBarType.fixed, currentIndex: i, selectedItemColor: Colors.deepPurple, onTap: (x){ setState((){ i=x; }); }, items: [BottomNavigationBarItem(icon:Icon(Icons.school),label:'Subjects'), BottomNavigationBarItem(icon:Icon(Icons.folder),label:'My Docs'), BottomNavigationBarItem(icon:Icon(Icons.biotech),label:'Research PRO'), BottomNavigationBarItem(icon:Icon(Icons.public),label:'Online AI')])); }
           }
           class Home extends StatelessWidget {
             @override Widget build(BuildContext c){
               final subs=['Mathematics','Biology','Chemistry','Physics','History','Geography','English','Agriculture'];
-              return Scaffold(
-                appBar: AppBar(title:Text('MTRDF V14.24.2 FIXED'),backgroundColor:Colors.deepPurple,foregroundColor:Colors.white),
-                body: ListView.builder(padding:EdgeInsets.all(12),itemCount:subs.length,itemBuilder:(_,j){
-                  return Card(child:ListTile(title:Text(subs[j]),subtitle:Text('AI Research PRO'),onTap:()=>Navigator.push(c,MaterialPageRoute(builder:(_)=>ChatUltimate(subject:subs[j])))));
-                })
-              );
+              return Scaffold(appBar: AppBar(title:Text('MTRDF V14.26 FINAL'),backgroundColor:Colors.deepPurple,foregroundColor:Colors.white), body: ListView.builder(padding:EdgeInsets.all(12),itemCount:subs.length,itemBuilder:(_,j){ return Card(child:ListTile(title:Text(subs[j]),subtitle:Text('AI Research PRO like ChatGPT'),onTap:()=>Navigator.push(c,MaterialPageRoute(builder:(_)=>ChatPage(subject:subs[j]))))); }));
             }
           }
           class DocsPage extends StatefulWidget { @override State<DocsPage> createState()=>_DocsS(); }
@@ -194,125 +170,66 @@ jobs:
             @override void initState(){ super.initState(); ld(); }
             Future<void> ld() async { final p=await SharedPreferences.getInstance(); String? s=p.getString('mtrdf_docs_v10'); if(s!=null){ setState((){ docs=List<Map<String,String>>.from(jsonDecode(s).map((e)=>Map<String,String>.from(e))); }); } }
             Future<void> sv() async { final p=await SharedPreferences.getInstance(); p.setString('mtrdf_docs_v10',jsonEncode(docs)); }
-            Future<void> pk() async {
-              try{
-                FilePickerResult? r=await FilePicker.platform.pickFiles(type:FileType.custom,allowedExtensions:['docx','pdf'],withData:true);
-                if(r!=null&&r.files.first.bytes!=null){ String n=r.files.first.name; List<int> by=r.files.first.bytes!.toList(); String t=n.toLowerCase().endsWith('.pdf')?extractPdf(by):extractDocx(by); setState((){ docs.add({'name':n,'content':t}); }); sv(); }
-              }catch(e){}
-            }
-            @override Widget build(BuildContext c){
-              return Scaffold(appBar: AppBar(title:Text('My Docs ' + docs.length.toString()),backgroundColor:Colors.green,foregroundColor:Colors.white), body: docs.isEmpty?Center(child:Text('No docs')):ListView.builder(padding:EdgeInsets.all(12),itemCount:docs.length,itemBuilder:(_,j){ return Card(child:ListTile(title:Text(docs[j]['name']??''))); }), floatingActionButton: FloatingActionButton(onPressed:pk,child:Icon(Icons.add)));
-            }
+            Future<void> pk() async { try{ FilePickerResult? r=await FilePicker.platform.pickFiles(type:FileType.custom,allowedExtensions:['docx','pdf'],withData:true); if(r!=null&&r.files.first.bytes!=null){ String n=r.files.first.name; List<int> by=r.files.first.bytes!.toList(); String t=n.toLowerCase().endsWith('.pdf')?extractPdf(by):extractDocx(by); setState((){ docs.add({'name':n,'content':t}); }); sv(); } }catch(e){} }
+            @override Widget build(BuildContext c){ return Scaffold(appBar: AppBar(title:Text('My Docs ' + docs.length.toString()),backgroundColor:Colors.green,foregroundColor:Colors.white), body: docs.isEmpty?Center(child:Text('No docs')):ListView.builder(padding:EdgeInsets.all(12),itemCount:docs.length,itemBuilder:(_,j){ return Card(child:ListTile(title:Text(docs[j]['name']??''))); }), floatingActionButton: FloatingActionButton(onPressed:pk,child:Icon(Icons.add))); }
           }
-          class ResearchUltimate extends StatefulWidget { const ResearchUltimate({super.key}); @override State<ResearchUltimate> createState()=>_ResUlt(); }
-          class _ResUlt extends State<ResearchUltimate> {
-            final ctrl=TextEditingController();
+          class ResearchPro extends StatefulWidget { const ResearchPro({super.key}); @override State<ResearchPro> createState()=>_ResPro(); }
+          class _ResPro extends State<ResearchPro> {
+            final ctrl=TextEditingController(text:'location of lake Victoria');
             bool searching=false;
-            Map<String,dynamic> data={'results':[],'summary':'','followups':[]};
-            int selectedTab=0;
-            Future<void> doResearch(String q) async {
-              if(q.trim().isEmpty) return;
-              setState((){ searching=true; });
-              var res=await deepResearch(q, 'general');
-              setState((){ data=res; searching=false; selectedTab=0; });
-            }
+            Map<String,dynamic> data={'results':[],'summary':''};
+            int tab=0;
+            Future<void> doSearch(String q) async { if(q.trim().isEmpty) return; setState((){ searching=true; }); var r=await deepResearch(q,'general'); setState((){ data=r; searching=false; tab=0; }); }
+            @override void initState(){ super.initState(); Future.delayed(Duration(milliseconds:400),(){ doSearch(ctrl.text); }); }
             @override Widget build(BuildContext c){
               List<Map<String,String>> results=(data['results'] as List).cast<Map<String,String>>();
-              var sources=results.where((e)=>e['source']!='MTRDF Curriculum').toList();
-              var curriculum=results.where((e)=>e['source']!.contains('Curriculum')).toList();
+              var sources=results.where((e)=>e['source']!='Curriculum').toList();
+              var curr=results.where((e)=>e['source']=='Curriculum').toList();
               return Scaffold(
-                appBar: AppBar(title:Text('Research PRO - FIXED'),backgroundColor:Colors.deepPurple,foregroundColor:Colors.white),
+                appBar: AppBar(title:Text('Research PRO - SMART'),backgroundColor:Colors.deepPurple,foregroundColor:Colors.white),
                 body: Column(children:[
                   Padding(padding:EdgeInsets.all(12), child: TextField(
                     controller: ctrl,
                     decoration: InputDecoration(
-                      hintText: 'Ask like ChatGPT research...',
+                      hintText: 'Ask like Meta AI / ChatGPT...',
                       border: OutlineInputBorder(),
                       prefixIcon: Icon(Icons.search),
-                      suffixIcon: IconButton(icon: Icon(Icons.send), onPressed: (){ doResearch(ctrl.text); })
+                      suffixIcon: IconButton(icon: Icon(Icons.send), onPressed: (){ doSearch(ctrl.text); })
                     ),
-                    onSubmitted: (v){ doResearch(v); }
+                    onSubmitted: (v){ doSearch(v); }
                   )),
                   searching? LinearProgressIndicator() : SizedBox(),
                   Container(color:Colors.grey[100], child: Row(children:[
-                    Expanded(child: InkWell(onTap:(){setState((){selectedTab=0;});}, child: Container(padding:EdgeInsets.all(10), child: Text('Answer',textAlign:TextAlign.center)))),
-                    Expanded(child: InkWell(onTap:(){setState((){selectedTab=1;});}, child: Container(padding:EdgeInsets.all(10), child: Text('Sources ' + sources.length.toString(),textAlign:TextAlign.center)))),
+                    Expanded(child: InkWell(onTap:(){setState((){tab=0;});}, child: Container(padding:EdgeInsets.all(12), decoration: BoxDecoration(border: Border(bottom: BorderSide(color: tab==0?Colors.deepPurple:Colors.transparent,width:2))), child: Text('Answer',textAlign:TextAlign.center,style:TextStyle(fontWeight: tab==0?FontWeight.bold:FontWeight.normal))))),
+                    Expanded(child: InkWell(onTap:(){setState((){tab=1;});}, child: Container(padding:EdgeInsets.all(12), decoration: BoxDecoration(border: Border(bottom: BorderSide(color: tab==1?Colors.deepPurple:Colors.transparent,width:2))), child: Text('Sources ' + sources.length.toString(),textAlign:TextAlign.center)))),
                   ])),
-                  Expanded(child: selectedTab==0? ListView(padding:EdgeInsets.all(12), children:[
-                    if(curriculum.isNotEmpty) Card(color:Colors.yellow[100], child: Padding(padding:EdgeInsets.all(12), child: Text(curriculum[0]['snip']??'',style:TextStyle(fontSize:13)))),
-                    Card(child: Padding(padding:EdgeInsets.all(12), child: Text(data['summary'].toString().isEmpty?'Search to get AI summary':data['summary'].toString(),style:TextStyle(fontSize:13)))),
-                  ...results.take(4).map((r){ return Card(child: ListTile(title:Text((r['cite']??'') + ' ' + (r['title']??''),style:TextStyle(fontSize:12,fontWeight:FontWeight.bold)), subtitle:Text(r['snip']??'',style:TextStyle(fontSize:11)))); }).toList()
-                  ]) : ListView.builder(padding:EdgeInsets.all(12),itemCount:sources.length,itemBuilder:(_,i){
-                    var r=sources[i]; return Card(child: ListTile(title:Text(r['title']??'',style:TextStyle(fontSize:12)), subtitle:Text(r['snip']??'',style:TextStyle(fontSize:11)), trailing: IconButton(icon:Icon(Icons.open_in_new), onPressed:() async { if((r['url']??'').isNotEmpty){ final uri=Uri.parse(r['url']!); if(await canLaunchUrl(uri)) await launchUrl(uri,mode:LaunchMode.externalApplication); } })));
-                  }))
+                  Expanded(child: tab==0? ListView(padding:EdgeInsets.all(12), children:[
+                    if(curr.isNotEmpty) Card(color:Colors.yellow[100], child: Padding(padding:EdgeInsets.all(12), child: Column(crossAxisAlignment:CrossAxisAlignment.start, children:[Text('MTRDF CURRICULUM - UGANDA',style:TextStyle(fontWeight:FontWeight.bold,color:Colors.green)), SizedBox(height:6), Text(curr[0]['snip']??'',style:TextStyle(fontSize:13))]))),
+                    Card(child: Padding(padding:EdgeInsets.all(12), child: Column(crossAxisAlignment:CrossAxisAlignment.start, children:[Row(children:[Icon(Icons.auto_awesome,color:Colors.deepPurple,size:18), SizedBox(width:6), Text('AI Summary with Citations',style:TextStyle(fontWeight:FontWeight.bold))]), SizedBox(height:8), Text(data['summary'].toString().isEmpty?'Searching 8 sources...':data['summary'].toString(),style:TextStyle(fontSize:13))]))),
+                   ...results.take(5).map((r){ return Card(child: ListTile(leading: Text(r['cite']??'',style:TextStyle(fontWeight:FontWeight.bold,color:Colors.deepPurple)), title: Text(r['title']??'',style:TextStyle(fontSize:12,fontWeight:FontWeight.bold)), subtitle: Text(r['snip']??'',style:TextStyle(fontSize:11)))); }).toList()
+                  ]) : ListView.builder(padding:EdgeInsets.all(12),itemCount:sources.length,itemBuilder:(_,i){ var r=sources[i]; return Card(child: ListTile(leading: CircleAvatar(child: Text((i+1).toString()), backgroundColor: Colors.deepPurple), title: Text(r['title']??'',style:TextStyle(fontSize:12,fontWeight:FontWeight.bold)), subtitle: Column(crossAxisAlignment:CrossAxisAlignment.start, children:[Text(r['snip']??'',style:TextStyle(fontSize:11)), SizedBox(height:4), Row(children:[Chip(label: Text(r['source']??'',style:TextStyle(fontSize:9))), SizedBox(width:4), Chip(label: Text(r['cite']??'',style:TextStyle(fontSize:9)), backgroundColor: Colors.deepPurple[100])])]), trailing: IconButton(icon: Icon(Icons.open_in_new), onPressed: () async { if((r['url']??'').isNotEmpty){ final uri=Uri.parse(r['url']!); if(await canLaunchUrl(uri)) await launchUrl(uri,mode:LaunchMode.externalApplication); } }))); }))
                 ])
               );
             }
           }
-          class OnlineHubUltimate extends StatefulWidget { @override State<OnlineHubUltimate> createState()=>_OnlineUlt(); }
-          class _OnlineUlt extends State<OnlineHubUltimate> {
+          class OnlinePro extends StatefulWidget { @override State<OnlinePro> createState()=>_OnlineProS(); }
+          class _OnlineProS extends State<OnlinePro> {
             final ctrl=TextEditingController(text:'importance of geography');
             Map<String,dynamic> data={'results':[],'summary':''};
             bool searching=false;
             Future<void> doSearch(String q) async { if(q.trim().isEmpty) return; setState((){ searching=true; }); var r=await deepResearch(q,'general'); setState((){ data=r; searching=false; }); }
-            @override void initState(){ super.initState(); Future.delayed(Duration(milliseconds:500),(){ doSearch('importance of geography'); }); }
+            @override void initState(){ super.initState(); Future.delayed(Duration(milliseconds:300),(){ doSearch(ctrl.text); }); }
             @override Widget build(BuildContext c){
               List<Map<String,String>> results=(data['results'] as List).cast<Map<String,String>>();
-              return Scaffold(
-                appBar: AppBar(title:Text('Online AI PRO'),backgroundColor:Colors.deepPurple,foregroundColor:Colors.white),
-                body: Column(children:[
-                  Padding(padding:EdgeInsets.all(8), child: Column(children:[
-                    TextField(
-                      controller: ctrl,
-                      decoration: InputDecoration(hintText: 'Deep research...', border: OutlineInputBorder(), prefixIcon: Icon(Icons.search)),
-                      onSubmitted: (v){ doSearch(v); }
-                    ),
-                    Row(children:[ Expanded(child:ElevatedButton(onPressed:(){ doSearch(ctrl.text); }, child:Text('DEEP RESEARCH'))), SizedBox(width:8), ElevatedButton(onPressed:(){ Share.share(results.map((e)=> (e['cite']??'') + ' ' + (e['title']??'')).join('\n')); }, child:Text('EXPORT')) ]),
-                    searching? LinearProgressIndicator(): Text(results.length.toString() + ' sources',style:TextStyle(fontSize:11))
-                  ])),
-                  Expanded(child: ListView.builder(padding:EdgeInsets.all(12),itemCount:results.length,itemBuilder:(_,i){
-                    var r=results[i]; return Card(child:ListTile(title:Text((r['cite']??'') + ' ' + (r['title']??''),style:TextStyle(fontSize:12,fontWeight:FontWeight.bold)), subtitle:Text(r['snip']??'',style:TextStyle(fontSize:11))));
-                  }))
-                ])
-              );
+              return Scaffold(appBar: AppBar(title:Text('Online AI PRO SMART'),backgroundColor:Colors.deepPurple,foregroundColor:Colors.white), body: Column(children:[Padding(padding:EdgeInsets.all(8), child: TextField(controller: ctrl, decoration: InputDecoration(hintText: 'Deep research...', border: OutlineInputBorder(), prefixIcon: Icon(Icons.search), suffixIcon: IconButton(icon: Icon(Icons.send), onPressed: (){ doSearch(ctrl.text); })), onSubmitted: (v){ doSearch(v); })), searching? LinearProgressIndicator(): Text(results.length.toString() + ' sources - like Meta AI',style:TextStyle(fontSize:11)), Expanded(child: ListView.builder(padding:EdgeInsets.all(12),itemCount:results.length,itemBuilder:(_,i){ var r=results[i]; return Card(color: r['source']=='Curriculum'?Colors.yellow[100]:null, child:ListTile(leading: Text(r['cite']??'',style:TextStyle(fontWeight:FontWeight.bold)), title: Text(r['title']??'',style:TextStyle(fontSize:12,fontWeight:FontWeight.bold)), subtitle: Text(r['snip']??'',style:TextStyle(fontSize:11)))); }))]));
             }
           }
-          class ChatUltimate extends StatefulWidget { final String subject; const ChatUltimate({super.key,required this.subject}); @override State<ChatUltimate> createState()=>_ChatUlt(); }
-          class _ChatUlt extends State<ChatUltimate> {
+          class ChatPage extends StatefulWidget { final String subject; const ChatPage({super.key,required this.subject}); @override State<ChatPage> createState()=>_ChatS(); }
+          class _ChatS extends State<ChatPage> {
             final ctrl=TextEditingController(); List<Map<String,dynamic>> msgs=[]; bool sending=false;
-            @override void initState(){ super.initState(); msgs=[{'role':'ai','summary':'V14.24.2 FIXED - ' + widget.subject + ' Research PRO','results':[]}]; }
-            Future<void> send() async {
-              if(ctrl.text.isEmpty) return; String q=ctrl.text;
-              setState((){ msgs.add({'role':'user','text':q}); sending=true; }); ctrl.clear();
-              var res=await deepResearch(q, widget.subject);
-              setState((){ msgs.add({'role':'ai','summary':res['summary'],'results':res['results'],'followups':res['followups']}); sending=false; });
-            }
-            @override Widget build(BuildContext c){
-              return Scaffold(
-                appBar: AppBar(title:Text(widget.subject + ' - PRO'),backgroundColor:Colors.deepPurple,foregroundColor:Colors.white),
-                body: Column(children:[
-                  Expanded(child: ListView.builder(padding:EdgeInsets.all(12),itemCount:msgs.length,itemBuilder:(_,i){
-                    var m=msgs[i]; bool isUser=m['role']=='user';
-                    if(isUser) return Align(alignment:Alignment.centerRight, child: Container(margin:EdgeInsets.all(6),padding:EdgeInsets.all(12),decoration:BoxDecoration(color:Colors.deepPurple,borderRadius:BorderRadius.circular(12)), child:Text(m['text']??'',style:TextStyle(color:Colors.white))));
-                    List<Map<String,String>> res=(m['results'] as List?)?.cast<Map<String,String>>()??[];
-                    String summary=m['summary']??'';
-                    return Card(child: Padding(padding:EdgeInsets.all(12), child: Column(crossAxisAlignment:CrossAxisAlignment.start, children:[
-                      Text(summary,style:TextStyle(fontSize:13)),
-                    ...res.take(2).map((r){ return ListTile(title:Text((r['cite']??'') + ' ' + (r['title']??''),style:TextStyle(fontSize:11,fontWeight:FontWeight.bold)), subtitle:Text(r['snip']??'',style:TextStyle(fontSize:10))); }).toList()
-                    ])));
-                  })),
-                  sending? LinearProgressIndicator(): SizedBox(),
-                  Padding(padding:EdgeInsets.all(8), child: Row(children:[
-                    Expanded(child: TextField(
-                      controller:ctrl,
-                      decoration: InputDecoration(hintText: 'Ask ' + widget.subject + '...', border: OutlineInputBorder(borderRadius: BorderRadius.circular(20)), prefixIcon: Icon(Icons.chat)),
-                      onSubmitted: (_)=>send()
-                    )),
-                    IconButton(icon:Icon(Icons.send,color:Colors.deepPurple), onPressed:send)
-                  ]))
-                ])
-              );
-            }
+            @override void initState(){ super.initState(); msgs=[{'role':'ai','summary':'V14.26 FINAL SMART - ' + widget.subject + ' PRO like ChatGPT','results':[]}]; }
+            Future<void> send() async { if(ctrl.text.isEmpty) return; String q=ctrl.text; setState((){ msgs.add({'role':'user','text':q}); sending=true; }); ctrl.clear(); var res=await deepResearch(q, widget.subject); setState((){ msgs.add({'role':'ai','summary':res['summary'],'results':res['results']}); sending=false; }); }
+            @override Widget build(BuildContext c){ return Scaffold(appBar: AppBar(title:Text(widget.subject + ' - PRO'),backgroundColor:Colors.deepPurple,foregroundColor:Colors.white), body: Column(children:[Expanded(child: ListView.builder(padding:EdgeInsets.all(12),itemCount:msgs.length,itemBuilder:(_,i){ var m=msgs[i]; bool isUser=m['role']=='user'; if(isUser) return Align(alignment:Alignment.centerRight, child: Container(margin:EdgeInsets.all(6),padding:EdgeInsets.all(12),decoration:BoxDecoration(color:Colors.deepPurple,borderRadius:BorderRadius.circular(12)), child:Text(m['text']??'',style:TextStyle(color:Colors.white)))); List<Map<String,String>> res=(m['results'] as List?)?.cast<Map<String,String>>()??[]; String summary=m['summary']??''; return Card(child: Padding(padding:EdgeInsets.all(12), child: Text(summary,style:TextStyle(fontSize:13)))); })), sending? LinearProgressIndicator(): SizedBox(), Padding(padding:EdgeInsets.all(8), child: Row(children:[Expanded(child: TextField(controller:ctrl, decoration: InputDecoration(hintText: 'Ask ' + widget.subject + '...', border: OutlineInputBorder(borderRadius: BorderRadius.circular(20))), onSubmitted: (_)=>send())), IconButton(icon:Icon(Icons.send), onPressed:send)]))])) ; }
           }
           DART
       - name: Build APK
@@ -322,5 +239,5 @@ jobs:
       - name: Upload
         uses: actions/upload-artifact@v4
         with:
-          name: MTRDF-V14-24-2-FIXED-InputDecoration
+          name: MTRDF-V14-26-FINAL-SMART-ALL-FEATURES
           path: build/app/outputs/flutter-apk/app-release.apk

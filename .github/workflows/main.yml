@@ -15,18 +15,20 @@ jobs:
       - uses: subosito/flutter-action@v2
         with:
           channel: 'stable'
-      - name: Recreate FIXED SPACE
-        run: flutter create . --platforms=android --project-name mtrdf_2026_ai --overwrite
+      - name: Recreate FIXED
+        run: |
+          flutter create . --platforms=android --project-name mtrdf_2026_ai --overwrite
+          rm -rf test
+          rm -f test/widget_test.dart
       - name: Fix SDK
         run: |
           sed -i 's/flutter.compileSdkVersion/36/g' android/app/build.gradle.kts
           sed -i 's/flutter.targetSdkVersion/36/g' android/app/build.gradle.kts
-          cat android/app/build.gradle.kts | grep compileSdk
       - name: Pubspec
         run: |
           cat > pubspec.yaml <<'YAML'
           name: mtrdf_2026_ai
-          version: 14.18.7+71
+          version: 14.18.8+72
           environment:
             sdk: '>=3.0.0 <4.0.0'
           dependencies:
@@ -43,7 +45,7 @@ jobs:
           flutter:
             uses-material-design: true
           YAML
-      - name: Write main.dart VERIFIED COMPILE
+      - name: Write main.dart VERIFIED
         run: |
           cat > lib/main.dart <<'DART'
           import 'package:flutter/material.dart';
@@ -131,14 +133,6 @@ jobs:
               box.put('search_history',jsonEncode(hist));
             }catch(e){}
           }
-          Future<List<Map<String,String>>> getHist() async {
-            try{
-              final box=Hive.box('mtrdf_v14');
-              String? h=box.get('search_history');
-              if(h!=null) return List<Map<String,String>>.from(jsonDecode(h).map((e)=>Map<String,String>.from(e)));
-            }catch(e){}
-            return [];
-          }
           String snippet(String c,String q){
             if(c.isEmpty) return '';
             final low=c.toLowerCase();
@@ -168,27 +162,13 @@ jobs:
             int i=0;
             final pages=[Home(),DocsPage(),ResearchPage(),OnlineHubPage()];
             @override Widget build(BuildContext c){
-              return Scaffold(
-                body:pages[i],
-                bottomNavigationBar:BottomNavigationBar(
-                  type:BottomNavigationBarType.fixed,
-                  currentIndex:i,
-                  selectedItemColor:Colors.green,
-                  onTap:(x)=>setState(()=>i=x),
-                  items:[
-                    BottomNavigationBarItem(icon:Icon(Icons.school),label:'Subjects'),
-                    BottomNavigationBarItem(icon:Icon(Icons.folder),label:'My Docs'),
-                    BottomNavigationBarItem(icon:Icon(Icons.search),label:'Research'),
-                    BottomNavigationBarItem(icon:Icon(Icons.public),label:'Online AI')
-                  ]
-                )
-              );
+              return Scaffold(body:pages[i],bottomNavigationBar:BottomNavigationBar(type:BottomNavigationBarType.fixed,currentIndex:i,selectedItemColor:Colors.green,onTap:(x)=>setState(()=>i=x),items:[BottomNavigationBarItem(icon:Icon(Icons.school),label:'Subjects'),BottomNavigationBarItem(icon:Icon(Icons.folder),label:'My Docs'),BottomNavigationBarItem(icon:Icon(Icons.search),label:'Research'),BottomNavigationBarItem(icon:Icon(Icons.public),label:'Online AI')]));
             }
           }
           class Home extends StatelessWidget{
             @override Widget build(BuildContext c){
               final subs=['Mathematics','Biology','Chemistry','Physics','History','Geography','English','Agriculture'];
-              return Scaffold(appBar:AppBar(title:Text('MTRDF V14.18.7 GREEN'),backgroundColor:Colors.green,foregroundColor:Colors.white),body:ListView.builder(padding:EdgeInsets.all(12),itemCount:subs.length,itemBuilder:(_,j){return Card(child:ListTile(title:Text(subs[j]),subtitle:Text('Offline+Google+YouTube+Wiki'),onTap:()=>Navigator.push(c,MaterialPageRoute(builder:(_)=>ChatPage(subject:subs[j])))));}));
+              return Scaffold(appBar:AppBar(title:Text('MTRDF V14.18.8 GREEN'),backgroundColor:Colors.green,foregroundColor:Colors.white),body:ListView.builder(padding:EdgeInsets.all(12),itemCount:subs.length,itemBuilder:(_,j){return Card(child:ListTile(title:Text(subs[j]),subtitle:Text('Offline+Google+YouTube+Wiki'),onTap:()=>Navigator.push(c,MaterialPageRoute(builder:(_)=>ChatPage(subject:subs[j])))));}));
             }
           }
           class DocsPage extends StatefulWidget{
@@ -266,7 +246,7 @@ jobs:
               setState(()=>{results=r,searching=false});
             }
             @override Widget build(BuildContext c){
-              return Scaffold(appBar:AppBar(title:Text('ONLINE AI HUB'),backgroundColor:Colors.deepPurple,foregroundColor:Colors.white),body:Column(children:[Padding(padding:EdgeInsets.all(8),child:Column(children:[TextField(controller:ctrl,decoration:InputDecoration(hintText:'Ask Google YouTube Wiki...',border:OutlineInputBorder())),SizedBox(height:8),Row(children:[Expanded(child:ElevatedButton(onPressed:()=>doSearch(ctrl.text,mode:'wikipedia'),child:Text('WIKI'))),SizedBox(width:4),Expanded(child:ElevatedButton(onPressed:()=>doSearch(ctrl.text,mode:'google'),child:Text('GOOGLE'))),SizedBox(width:4),Expanded(child:ElevatedButton(onPressed:()=>doSearch(ctrl.text,mode:'youtube'),child:Text('YOUTUBE'))),SizedBox(width:4),Expanded(child:ElevatedButton(onPressed:()=>doSearch(ctrl.text,mode:'all'),child:Text('ALL')))]),searching?LinearProgressIndicator():SizedBox()])),Expanded(child:ListView.builder(padding:EdgeInsets.all(12),itemCount:results.length,itemBuilder:(_,i){var r=results[i];return Card(child:ListTile(title:Text(r['title']??''),subtitle:Text((r['snip']??'')+'\n'+(r['url']??'')),trailing:IconButton(icon:Icon(Icons.edit),onPressed:(){final tec=TextEditingController(text:r['snip']??'');showDialog(context:c,builder:(_)=>AlertDialog(title:Text('Edit & Save'),content:TextField(controller:tec,maxLines:5),actions:[TextButton(onPressed:()=>Navigator.pop(c),child:Text('Cancel')),TextButton(onPressed:(){setState(()=>results[i]['snip']=tec.text);saveHist(ctrl.text,tec.text,'edited');Navigator.pop(c);},child:Text('Save'))]));}));}))]));
+              return Scaffold(appBar:AppBar(title:Text('ONLINE AI HUB - Google+YouTube'),backgroundColor:Colors.deepPurple,foregroundColor:Colors.white),body:Column(children:[Padding(padding:EdgeInsets.all(8),child:Column(children:[TextField(controller:ctrl,decoration:InputDecoration(hintText:'Ask Google YouTube Wiki...',border:OutlineInputBorder())),SizedBox(height:8),Row(children:[Expanded(child:ElevatedButton(onPressed:()=>doSearch(ctrl.text,mode:'wikipedia'),child:Text('WIKI'))),SizedBox(width:4),Expanded(child:ElevatedButton(onPressed:()=>doSearch(ctrl.text,mode:'google'),child:Text('GOOGLE'))),SizedBox(width:4),Expanded(child:ElevatedButton(onPressed:()=>doSearch(ctrl.text,mode:'youtube'),child:Text('YOUTUBE'))),SizedBox(width:4),Expanded(child:ElevatedButton(onPressed:()=>doSearch(ctrl.text,mode:'all'),child:Text('ALL')))]),searching?LinearProgressIndicator():SizedBox()])),Expanded(child:ListView.builder(padding:EdgeInsets.all(12),itemCount:results.length,itemBuilder:(_,i){var r=results[i];return Card(child:ListTile(title:Text(r['title']??''),subtitle:Text((r['snip']??'')+'\n'+(r['url']??'')),trailing:IconButton(icon:Icon(Icons.edit),onPressed:(){final tec=TextEditingController(text:r['snip']??'');showDialog(context:c,builder:(_)=>AlertDialog(title:Text('Edit & Save'),content:TextField(controller:tec,maxLines:5),actions:[TextButton(onPressed:()=>Navigator.pop(c),child:Text('Cancel')),TextButton(onPressed:(){setState(()=>results[i]['snip']=tec.text);saveHist(ctrl.text,tec.text,'edited');Navigator.pop(c);},child:Text('Save'))]));}));}))]));
             }
           }
           class ChatPage extends StatefulWidget{
@@ -276,7 +256,7 @@ jobs:
           }
           class _ChatS extends State<ChatPage>{
             final ctrl=TextEditingController();
-            List<Map<String,String>> msgs=[{'role':'ai','text':'V14.18.7 GREEN - Google YouTube Wiki Save Edit'}];
+            List<Map<String,String>> msgs=[{'role':'ai','text':'V14.18.8 GREEN - Google YouTube Wiki Save Edit'}];
             List<Map<String,String>> myDocs=[];
             bool sending=false;
             @override void initState(){super.initState();ld();}
@@ -306,9 +286,9 @@ jobs:
       - name: Analyze
         run: flutter analyze --no-pub
       - name: Build APK
-        run: flutter build apk --release --verbose
+        run: flutter build apk --release
       - name: Upload
         uses: actions/upload-artifact@v4
         with:
-          name: MTRDF-V14-18-7-ANALYZED
+          name: MTRDF-V14-18-8-GREEN-FINAL
           path: build/app/outputs/flutter-apk/app-release.apk

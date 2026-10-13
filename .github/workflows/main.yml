@@ -7,28 +7,28 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-            - uses: actions/checkout@v4
-            - uses: actions/setup-java@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '17'
-            - uses: subosito/flutter-action@v2
+      - uses: subosito/flutter-action@v2
         with:
           channel: 'stable'
-            - name: Recreate
+      - name: Recreate
         run: |
           flutter create . --platforms=android --project-name mtrdf_2026_ai --overwrite
           rm -rf test
-            - name: Fix SDK
+      - name: Fix SDK
         run: |
           sed -i 's/flutter.compileSdkVersion/36/g' android/app/build.gradle.kts
           sed -i 's/flutter.targetSdkVersion/36/g' android/app/build.gradle.kts
           grep -q "INTERNET" android/app/src/main/AndroidManifest.xml || sed -i '/<manifest/a <uses-permission android:name="android.permission.INTERNET" \/>' android/app/src/main/AndroidManifest.xml
-            - name: Pubspec
+      - name: Pubspec
         run: |
           cat > pubspec.yaml <<'YAML'
           name: mtrdf_2026_ai
-          version: 14.24.0+80
+          version: 14.24.1+81
           environment:
             sdk: '>=3.0.0 <4.0.0'
           dependencies:
@@ -45,7 +45,7 @@ jobs:
           flutter:
             uses-material-design: true
           YAML
-            - name: Write main.dart ULTIMATE
+      - name: Write main.dart
         run: |
           cat > lib/main.dart <<'DART'
           import 'dart:convert';
@@ -61,55 +61,44 @@ jobs:
 
           String extractDocx(List<int> b){try{final a=ZipDecoder().decodeBytes(b);for(final f in a){if(f.name=='word/document.xml'){return utf8.decode(f.content as List<int>).replaceAll(RegExp(r'<[^>]+>'),' ');}}return '';}catch(e){return '';}}
           String extractPdf(List<int> b){try{final d=PdfDocument(inputBytes:b);final t=PdfTextExtractor(d).extractText();d.dispose();return t;}catch(e){return '';}}
-          String decodeHtml(String t){return t.replaceAll('&amp;','&').replaceAll('&#039;',"'").replaceAll('&quot;','"').replaceAll('&lt;','<').replaceAll('&gt;','>').replaceAll('&#39;',"'").replaceAll('&rsquo;',"'").replaceAll(RegExp(r'<[^>]+>'),'');}
+          String decodeHtml(String t){return t.replaceAll('&amp;','&').replaceAll('&#039;',"'").replaceAll('&quot;','"').replaceAll('&lt;','<').replaceAll('&gt;','>').replaceAll('&#39;',"'").replaceAll(RegExp(r'<[^>]+>'),'');}
           String fixTypos(String q){var s=q.toLowerCase();s=s.replaceAll('importantantances','importance').replaceAll('importantances','importance').replaceAll('importances','importance');return s;}
 
           String getCurriculum(String q, String subj){
             String l=fixTypos(q.toLowerCase()); String s=subj.toLowerCase();
             bool imp=l.contains('importance')||l.contains('important')||l.contains('why study');
             if(imp && (l.contains('geography')||s.contains('geography'))){
-              return 'UGANDA CURRICULUM - IMPORTANCE OF GEOGRAPHY:\n1. Understand physical environment (Rwenzori, L.Victoria, climate)\n2. Weather & agriculture link\n3. Population & settlement\n4. Natural resources use\n5. Environmental conservation\n6. Map reading skills\n7. Careers: meteorologist, surveyor, planner\n8. Global trade & planning';
+              return 'UGANDA - IMPORTANCE OF GEOGRAPHY:\n1. Physical env (Rwenzori, L.Victoria)\n2. Weather & agriculture\n3. Population & settlement\n4. Natural resources\n5. Conservation\n6. Map reading\n7. Careers: meteorologist, surveyor\n8. Global trade';
             }
             if(imp && (l.contains('history')||s.contains('history'))){
-              return 'IMPORTANCE OF HISTORY:\n1. Origin of man & societies\n2. Learn from past mistakes\n3. Culture & heritage (Buganda, Bunyoro)\n4. National unity\n5. Political/economic development\n6. Critical thinking\n7. Careers: historian, archaeologist, teacher';
+              return 'IMPORTANCE OF HISTORY:\n1. Origin of man\n2. Learn from past\n3. Culture (Buganda, Bunyoro)\n4. National unity\n5. Critical thinking\n6. Careers: historian, teacher';
             }
             return '';
           }
 
-          // === RESEARCH ENGINES LIKE CHATGPT / CLAUDE ===
           Future<List<Map<String,String>>> searchWiki(String q) async {
             List<Map<String,String>> r=[];
             try{
-              final u=Uri.parse('https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=${Uri.encodeComponent(q)}&format=json&origin=*&srlimit=5');
+              final u=Uri.parse('https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=' + Uri.encodeComponent(q) + '&format=json&origin=*&srlimit=5');
               final resp=await http.get(u, headers:{'User-Agent':'MTRDF/1.0'}).timeout(Duration(seconds:10));
               if(resp.statusCode==200){
                 final d=jsonDecode(resp.body);
                 var list=d['query']?['search'] as List?;
-                if(list!=null){ for(var s in list){ r.add({'title':s['title'],'snip':decodeHtml(s['snippet']??''),'url':'https://en.wikipedia.org/wiki/${Uri.encodeComponent(s['title'])}','source':'Wikipedia','cred':'High','cite':'[Wiki]'}); } }
+                if(list!=null){ for(var s in list){ r.add({'title':s['title'],'snip':decodeHtml(s['snippet']??''),'url':'https://en.wikipedia.org/wiki/' + Uri.encodeComponent(s['title']),'source':'Wikipedia','cred':'High','cite':'[Wiki]'}); } }
               }
             }catch(e){}
-            // summary for first result
-            if(r.isNotEmpty){
-              try{
-                final u2=Uri.parse('https://en.wikipedia.org/api/rest_v1/page/summary/${Uri.encodeComponent(r[0]['title']!)}');
-                final r2=await http.get(u2, headers:{'User-Agent':'MTRDF/1.0'}).timeout(Duration(seconds:8));
-                if(r2.statusCode==200){ final d=jsonDecode(r2.body); String ex=decodeHtml((d['extract']??'').toString()); if(ex.length>80) r.insert(0,{'title':d['title']??r[0]['title']!,'snip':ex,'url':'https://en.wikipedia.org/wiki/${Uri.encodeComponent(d['title']??r[0]['title']!)}','source':'Wikipedia Summary','cred':'High','cite':'[1]'}); }
-              }catch(e){}
-            }
             return r;
           }
 
           Future<List<Map<String,String>>> searchDuck(String q) async {
             List<Map<String,String>> r=[];
             try{
-              final u=Uri.parse('https://api.duckduckgo.com/?q=${Uri.encodeComponent(q)}&format=json&pretty=1&no_html=1');
+              final u=Uri.parse('https://api.duckduckgo.com/?q=' + Uri.encodeComponent(q) + '&format=json&pretty=1&no_html=1');
               final resp=await http.get(u).timeout(Duration(seconds:8));
               if(resp.statusCode==200){
                 final d=jsonDecode(resp.body);
                 String at=(d['AbstractText']??'').toString();
-                if(at.length>40) r.add({'title':d['Heading']??q,'snip':at,'url':(d['AbstractURL']??'').toString(),'source':'DuckDuckGo/Bing','cred':'Medium','cite':'[Web]'});
-                var topics=d['RelatedTopics'] as List?;
-                if(topics!=null){ for(var t in topics.take(3)){ if(t is Map && t['Text']!=null){ r.add({'title':'Related: ${t['Text'].toString().substring(0,30)}','snip':t['Text'].toString(),'url':t['FirstURL']??'','source':'Web','cred':'Medium','cite':'[Web]'}); } } }
+                if(at.length>40) r.add({'title':d['Heading']??q,'snip':at,'url':(d['AbstractURL']??'').toString(),'source':'Web','cred':'Medium','cite':'[Web]'});
               }
             }catch(e){}
             return r;
@@ -118,7 +107,7 @@ jobs:
           Future<List<Map<String,String>>> searchArxiv(String q) async {
             List<Map<String,String>> r=[];
             try{
-              final u=Uri.parse('http://export.arxiv.org/api/query?search_query=all:${Uri.encodeComponent(q)}&start=0&max_results=3');
+              final u=Uri.parse('http://export.arxiv.org/api/query?search_query=all:' + Uri.encodeComponent(q) + '&start=0&max_results=2');
               final resp=await http.get(u).timeout(Duration(seconds:10));
               if(resp.statusCode==200){
                 final body=resp.body;
@@ -127,7 +116,7 @@ jobs:
                   var title=RegExp(r'<title>(.*?)</title>',dotAll:true).firstMatch(e)?.group(1)?.replaceAll('\n','').trim()??'';
                   var summary=RegExp(r'<summary>(.*?)</summary>',dotAll:true).firstMatch(e)?.group(1)?.replaceAll('\n',' ').trim()??'';
                   var link=RegExp(r'<id>(.*?)</id>').firstMatch(e)?.group(1)??'';
-                  if(title.isNotEmpty) r.add({'title':'PAPER: $title','snip':summary.length>300?summary.substring(0,300):summary,'url':link,'source':'arXiv Academic','cred':'High','cite':'[Paper]'});
+                  if(title.isNotEmpty) r.add({'title':'PAPER: ' + title,'snip':summary.length>300?summary.substring(0,300):summary,'url':link,'source':'arXiv','cred':'High','cite':'[Paper]'});
                 }
               }
             }catch(e){}
@@ -136,17 +125,15 @@ jobs:
 
           Future<List<Map<String,String>>> searchYT(String q) async {
             return [
-              {'title':'YouTube: $q explained','snip':'Video lessons and documentaries','url':'https://www.youtube.com/results?search_query=${Uri.encodeComponent(q)}','source':'YouTube','cred':'Medium','cite':'[Video]'},
-              {'title':'YouTube: $q for S1-S4','snip':'Uganda curriculum videos','url':'https://www.youtube.com/results?search_query=${Uri.encodeComponent('$q Uganda curriculum')}','source':'YouTube','cred':'Medium','cite':'[Video]'}
+              {'title':'YouTube: ' + q + ' explained','snip':'Video lessons','url':'https://www.youtube.com/results?search_query=' + Uri.encodeComponent(q),'source':'YouTube','cred':'Medium','cite':'[Video]'}
             ];
           }
 
-          // Deep Research like ChatGPT
           Future<Map<String,dynamic>> deepResearch(String q, String subject) async {
             String fixed=fixTypos(q);
             List<Map<String,String>> all=[];
             String curr=getCurriculum(fixed, subject);
-            if(curr.isNotEmpty) all.add({'title':'MTRDF CURRICULUM - ${subject.toUpperCase()}','snip':curr,'url':'','source':'MTRDF Curriculum','cred':'High','cite':'[Curriculum]'});
+            if(curr.isNotEmpty) all.add({'title':'MTRDF CURRICULUM - ' + subject.toUpperCase(),'snip':curr,'url':'','source':'MTRDF Curriculum','cred':'High','cite':'[Curriculum]'});
             var wiki=await searchWiki(fixed);
             var duck=await searchDuck(fixed);
             var papers=await searchArxiv(fixed);
@@ -155,19 +142,16 @@ jobs:
             all.addAll(duck);
             all.addAll(papers);
             all.addAll(yt);
-            // Generate AI-style summary
             String summary='';
             if(all.isNotEmpty){
-              summary='Based on ${all.length} sources:\n\n';
-              for(int i=0;i<all.length && i<3;i++){ summary+='• ${all[i]['snip']!.split('.').first}.\n'; }
-              summary+='\nKey sources: ${all.map((e)=>e['cite']).toSet().join(', ')}';
+              summary='Based on ' + all.length.toString() + ' sources:\n';
+              for(int i=0;i<all.length && i<3;i++){ summary+=all[i]['snip']!.split('.').first + '.\n'; }
             }
-            // Follow-up questions like Claude
             List<String> followups=[
-              'What are the challenges of $fixed?',
-              'How does $fixed relate to Uganda?',
-              'Explain $fixed for S1 level',
-              'Give examples of $fixed in daily life'
+              'What are challenges of ' + fixed + '?',
+              'How does ' + fixed + ' relate to Uganda?',
+              'Explain ' + fixed + ' for S1 level',
+              'Give examples of ' + fixed
             ];
             return {'results':all,'summary':summary,'followups':followups};
           }
@@ -198,9 +182,9 @@ jobs:
             @override Widget build(BuildContext c){
               final subs=['Mathematics','Biology','Chemistry','Physics','History','Geography','English','Agriculture'];
               return Scaffold(
-                appBar: AppBar(title:Text('MTRDF V14.24 ULTIMATE'),backgroundColor:Colors.deepPurple,foregroundColor:Colors.white),
+                appBar: AppBar(title:Text('MTRDF V14.24.1 ULTIMATE'),backgroundColor:Colors.deepPurple,foregroundColor:Colors.white),
                 body: ListView.builder(padding:EdgeInsets.all(12),itemCount:subs.length,itemBuilder:(_,j){
-                  return Card(child:ListTile(title:Text(subs[j]),subtitle:Text('AI Research like ChatGPT'),onTap:()=>Navigator.push(c,MaterialPageRoute(builder:(_)=>ChatUltimate(subject:subs[j])))));
+                  return Card(child:ListTile(title:Text(subs[j]),subtitle:Text('AI Research PRO'),onTap:()=>Navigator.push(c,MaterialPageRoute(builder:(_)=>ChatUltimate(subject:subs[j])))));
                 })
               );
             }
@@ -218,18 +202,15 @@ jobs:
               }catch(e){}
             }
             @override Widget build(BuildContext c){
-              return Scaffold(appBar: AppBar(title:Text('My Docs ${docs.length}'),backgroundColor:Colors.green,foregroundColor:Colors.white), body: docs.isEmpty?Center(child:Text('No docs')):ListView.builder(padding:EdgeInsets.all(12),itemCount:docs.length,itemBuilder:(_,j){ return Card(child:ListTile(title:Text(docs[j]['name']??''))); }), floatingActionButton: FloatingActionButton(onPressed:pk,child:Icon(Icons.add)));
+              return Scaffold(appBar: AppBar(title:Text('My Docs ' + docs.length.toString()),backgroundColor:Colors.green,foregroundColor:Colors.white), body: docs.isEmpty?Center(child:Text('No docs')):ListView.builder(padding:EdgeInsets.all(12),itemCount:docs.length,itemBuilder:(_,j){ return Card(child:ListTile(title:Text(docs[j]['name']??''))); }), floatingActionButton: FloatingActionButton(onPressed:pk,child:Icon(Icons.add)));
             }
           }
-
-          // === ULTIMATE RESEARCH LIKE CHATGPT ===
           class ResearchUltimate extends StatefulWidget { const ResearchUltimate({super.key}); @override State<ResearchUltimate> createState()=>_ResUlt(); }
           class _ResUlt extends State<ResearchUltimate> {
             final ctrl=TextEditingController();
             bool searching=false;
-            String mode='Deep Research';
             Map<String,dynamic> data={'results':[],'summary':'','followups':[]};
-            int selectedTab=0; // 0 Answer, 1 Sources, 2 Papers, 3 Videos
+            int selectedTab=0;
             Future<void> doResearch(String q) async {
               if(q.trim().isEmpty) return;
               setState((){ searching=true; });
@@ -239,54 +220,27 @@ jobs:
             @override Widget build(BuildContext c){
               List<Map<String,String>> results=(data['results'] as List).cast<Map<String,String>>();
               var sources=results.where((e)=>e['source']!='MTRDF Curriculum').toList();
-              var papers=results.where((e)=>e['source']!.contains('arXiv')).toList();
-              var videos=results.where((e)=>e['source']!.contains('YouTube')).toList();
               var curriculum=results.where((e)=>e['source']!.contains('Curriculum')).toList();
               return Scaffold(
-                appBar: AppBar(title:Text('Research PRO - $mode'),backgroundColor:Colors.deepPurple,foregroundColor:Colors.white, actions:[PopupMenuButton(onSelected:(v){setState((){mode=v;});}, itemBuilder:(_)=>[PopupMenuItem(child:Text('Quick'),value:'Quick'),PopupMenuItem(child:Text('Deep Research'),value:'Deep Research'),PopupMenuItem(child:Text('Academic'),value:'Academic')])]),
+                appBar: AppBar(title:Text('Research PRO'),backgroundColor:Colors.deepPurple,foregroundColor:Colors.white),
                 body: Column(children:[
-                  Padding(padding:EdgeInsets.all(12), child: Column(children:[
-                    TextField(controller: ctrl, decoration: InputDecoration(hintText:'Ask anything - like ChatGPT research...',border:OutlineInputBorder(prefixIcon:Icon(Icons.search),suffixIcon:IconButton(icon:Icon(Icons.send),onPressed:(){doResearch(ctrl.text);}))), onSubmitted:(v){doResearch(v);}),
-                    SizedBox(height:8),
-                    SingleChildScrollView(scrollDirection:Axis.horizontal, child: Row(children: (data['followups'] as List).map((q){ return Padding(padding:EdgeInsets.only(right:6), child: ActionChip(label:Text(q.toString(),style:TextStyle(fontSize:11)), onPressed:(){ ctrl.text=q.toString(); doResearch(q.toString()); })); }).toList()))
-                  ])),
+                  Padding(padding:EdgeInsets.all(12), child: TextField(controller: ctrl, decoration: InputDecoration(hintText:'Ask like ChatGPT research...',border:OutlineInputBorder(prefixIcon:Icon(Icons.search),suffixIcon:IconButton(icon:Icon(Icons.send),onPressed:(){doResearch(ctrl.text);}))), onSubmitted:(v){doResearch(v);})),
                   searching? LinearProgressIndicator() : SizedBox(),
-                  // Tabs like Perplexity
                   Container(color:Colors.grey[100], child: Row(children:[
-                    _tabBtn('Answer',0,curriculum.length+1), _tabBtn('Sources ${sources.length}',1,sources.length), _tabBtn('Papers ${papers.length}',2,papers.length), _tabBtn('Videos',3,videos.length)
+                    Expanded(child: InkWell(onTap:(){setState((){selectedTab=0;});}, child: Container(padding:EdgeInsets.all(10), child: Text('Answer',textAlign:TextAlign.center)))),
+                    Expanded(child: InkWell(onTap:(){setState((){selectedTab=1;});}, child: Container(padding:EdgeInsets.all(10), child: Text('Sources ' + sources.length.toString(),textAlign:TextAlign.center)))),
                   ])),
-                  Expanded(child: selectedTab==0? _buildAnswerTab(curriculum, results, data['summary'].toString()) : selectedTab==1? _buildSourcesTab(sources) : selectedTab==2? _buildSourcesTab(papers) : _buildSourcesTab(videos))
+                  Expanded(child: selectedTab==0? ListView(padding:EdgeInsets.all(12), children:[
+                    if(curriculum.isNotEmpty) Card(color:Colors.yellow[100], child: Padding(padding:EdgeInsets.all(12), child: Text(curriculum[0]['snip']??'',style:TextStyle(fontSize:13)))),
+                    Card(child: Padding(padding:EdgeInsets.all(12), child: Text(data['summary'].toString().isEmpty?'Search to get AI summary':data['summary'].toString(),style:TextStyle(fontSize:13)))),
+                   ...results.take(4).map((r){ return Card(child: ListTile(title:Text((r['cite']??'') + ' ' + (r['title']??''),style:TextStyle(fontSize:12,fontWeight:FontWeight.bold)), subtitle:Text(r['snip']??'',style:TextStyle(fontSize:11)))); }).toList()
+                  ]) : ListView.builder(padding:EdgeInsets.all(12),itemCount:sources.length,itemBuilder:(_,i){
+                    var r=sources[i]; return Card(child: ListTile(title:Text(r['title']??'',style:TextStyle(fontSize:12)), subtitle:Text(r['snip']??'',style:TextStyle(fontSize:11)), trailing: IconButton(icon:Icon(Icons.open_in_new), onPressed:() async { if((r['url']??'').isNotEmpty){ final uri=Uri.parse(r['url']!); if(await canLaunchUrl(uri)) await launchUrl(uri,mode:LaunchMode.externalApplication); } })));
+                  }))
                 ])
               );
             }
-            Widget _tabBtn(String label,int idx,int count){
-              bool sel=selectedTab==idx;
-              return Expanded(child: InkWell(onTap:(){setState((){selectedTab=idx;});}, child: Container(padding:EdgeInsets.all(10), decoration:BoxDecoration(border:Border(bottom:BorderSide(color:sel?Colors.deepPurple:Colors.transparent,width:2))), child: Text(label, textAlign:TextAlign.center, style:TextStyle(fontWeight:sel?FontWeight.bold:FontWeight.normal, color:sel?Colors.deepPurple:Colors.black54, fontSize:12)))));
-            }
-            Widget _buildAnswerTab(List<Map<String,String>> curriculum, List<Map<String,String>> all, String summary){
-              return ListView(padding:EdgeInsets.all(12), children:[
-                if(curriculum.isNotEmpty) Card(color:Colors.yellow[100], child: Padding(padding:EdgeInsets.all(12), child: Column(crossAxisAlignment:CrossAxisAlignment.start, children:[Row(children:[Icon(Icons.school,color:Colors.green),SizedBox(width:6),Text('MTRDF CURRICULUM',style:TextStyle(fontWeight:FontWeight.bold))]), SizedBox(height:6), Text(curriculum[0]['snip']??'',style:TextStyle(fontSize:13)), Row(children:[TextButton(onPressed:(){Share.share(curriculum[0]['snip']??'');}, child:Text('Share')), TextButton(onPressed:(){}, child:Text('Save'))])]))),
-                Card(child: Padding(padding:EdgeInsets.all(12), child: Column(crossAxisAlignment:CrossAxisAlignment.start, children:[Row(children:[Icon(Icons.auto_awesome,color:Colors.deepPurple),SizedBox(width:6),Text('AI Summary',style:TextStyle(fontWeight:FontWeight.bold))]), SizedBox(height:8), Text(summary.isEmpty?'Search to get AI summary with citations':summary,style:TextStyle(fontSize:13)), SizedBox(height:8), if(all.isNotEmpty) Wrap(children: all.take(3).map((e)=>Chip(label:Text(e['cite']??'',style:TextStyle(fontSize:10)))).toList())]))),
-                SizedBox(height:8),
-                Text('Key Points',style:TextStyle(fontWeight:FontWeight.bold)),
-               ...all.take(4).map((r){ return Card(child: ListTile(title:Text(r['title']??'',style:TextStyle(fontSize:12,fontWeight:FontWeight.bold)), subtitle:Text((r['snip']??'').length>200?r['snip']!.substring(0,200)+'...':r['snip']??'',style:TextStyle(fontSize:11)), trailing: Text(r['cite']??'',style:TextStyle(color:Colors.deepPurple,fontWeight:FontWeight.bold)))); }).toList()
-              ]);
-            }
-            Widget _buildSourcesTab(List<Map<String,String>> list){
-              if(list.isEmpty) return Center(child:Text('No results - Search first'));
-              return ListView.builder(padding:EdgeInsets.all(12),itemCount:list.length,itemBuilder:(_,i){
-                var r=list[i];
-                return Card(child: ListTile(
-                  leading: CircleAvatar(child:Text('${i+1}'), backgroundColor: r['cred']=='High'?Colors.green:Colors.orange),
-                  title: Text(r['title']??'',style:TextStyle(fontSize:12,fontWeight:FontWeight.bold)),
-                  subtitle: Column(crossAxisAlignment:CrossAxisAlignment.start, children:[Text(r['snip']??'',style:TextStyle(fontSize:11)), SizedBox(height:4), Row(children:[Chip(label:Text(r['source']??'',style:TextStyle(fontSize:9))), SizedBox(width:4), Chip(label:Text(r['cred']??'',style:TextStyle(fontSize:9)), backgroundColor:r['cred']=='High'?Colors.green[100]:Colors.orange[100])])]),
-                  trailing: IconButton(icon:Icon(Icons.open_in_new), onPressed:() async { if((r['url']??'').isNotEmpty){ final uri=Uri.parse(r['url']!); if(await canLaunchUrl(uri)) await launchUrl(uri,mode:LaunchMode.externalApplication); } }),
-                  isThreeLine: true,
-                ));
-              });
-            }
           }
-
           class OnlineHubUltimate extends StatefulWidget { @override State<OnlineHubUltimate> createState()=>_OnlineUlt(); }
           class _OnlineUlt extends State<OnlineHubUltimate> {
             final ctrl=TextEditingController(text:'importance of geography');
@@ -301,46 +255,43 @@ jobs:
                 body: Column(children:[
                   Padding(padding:EdgeInsets.all(8), child: Column(children:[
                     TextField(controller: ctrl, decoration: InputDecoration(hintText:'Deep research...',border:OutlineInputBorder()), onSubmitted:(v){ doSearch(v); }),
-                    Row(children:[ Expanded(child:ElevatedButton(onPressed:(){ doSearch(ctrl.text); }, child:Text('DEEP RESEARCH'))), SizedBox(width:8), ElevatedButton(onPressed:(){ Share.share(results.map((e)=>'${e['cite']} ${e['title']}\n${e['snip']}\n${e['url']}').join('\n\n')); }, child:Text('EXPORT')) ]),
-                    searching? LinearProgressIndicator(): Text('${results.length} sources found',style:TextStyle(fontSize:11))
+                    Row(children:[ Expanded(child:ElevatedButton(onPressed:(){ doSearch(ctrl.text); }, child:Text('DEEP RESEARCH'))), SizedBox(width:8), ElevatedButton(onPressed:(){ Share.share(results.map((e)=> (e['cite']??'') + ' ' + (e['title']??'')).join('\n')); }, child:Text('EXPORT')) ]),
+                    searching? LinearProgressIndicator(): Text(results.length.toString() + ' sources',style:TextStyle(fontSize:11))
                   ])),
                   Expanded(child: ListView.builder(padding:EdgeInsets.all(12),itemCount:results.length,itemBuilder:(_,i){
-                    var r=results[i]; return Card(child:ListTile(title:Text('${r['cite']} ${r['title']}',style:TextStyle(fontSize:12,fontWeight:FontWeight.bold)), subtitle:Text(r['snip']??'',style:TextStyle(fontSize:11)), trailing: IconButton(icon:Icon(Icons.open_in_new), onPressed:() async { if((r['url']??'').isNotEmpty){ final uri=Uri.parse(r['url']!); if(await canLaunchUrl(uri)) await launchUrl(uri,mode:LaunchMode.externalApplication); } })));
+                    var r=results[i]; return Card(child:ListTile(title:Text((r['cite']??'') + ' ' + (r['title']??''),style:TextStyle(fontSize:12,fontWeight:FontWeight.bold)), subtitle:Text(r['snip']??'',style:TextStyle(fontSize:11))));
                   }))
                 ])
               );
             }
           }
-
           class ChatUltimate extends StatefulWidget { final String subject; const ChatUltimate({super.key,required this.subject}); @override State<ChatUltimate> createState()=>_ChatUlt(); }
           class _ChatUlt extends State<ChatUltimate> {
             final ctrl=TextEditingController(); List<Map<String,dynamic>> msgs=[]; bool sending=false;
-            @override void initState(){ super.initState(); msgs=[{'role':'ai','summary':'V14.24 ULTIMATE - ${widget.subject} Research PRO','results':[],'followups':[]}]; }
+            @override void initState(){ super.initState(); msgs=[{'role':'ai','summary':'V14.24.1 ULTIMATE - ' + widget.subject + ' Research PRO','results':[]}]; }
             Future<void> send() async {
               if(ctrl.text.isEmpty) return; String q=ctrl.text;
               setState((){ msgs.add({'role':'user','text':q}); sending=true; }); ctrl.clear();
               var res=await deepResearch(q, widget.subject);
-              setState((){ msgs.add({'role':'ai','summary':res['summary'],'results':res['results'],'followups':res['followups'],'query':q}); sending=false; });
+              setState((){ msgs.add({'role':'ai','summary':res['summary'],'results':res['results'],'followups':res['followups']}); sending=false; });
             }
             @override Widget build(BuildContext c){
               return Scaffold(
-                appBar: AppBar(title:Text('${widget.subject} - Research PRO'),backgroundColor:Colors.deepPurple,foregroundColor:Colors.white),
+                appBar: AppBar(title:Text(widget.subject + ' - PRO'),backgroundColor:Colors.deepPurple,foregroundColor:Colors.white),
                 body: Column(children:[
                   Expanded(child: ListView.builder(padding:EdgeInsets.all(12),itemCount:msgs.length,itemBuilder:(_,i){
                     var m=msgs[i]; bool isUser=m['role']=='user';
                     if(isUser) return Align(alignment:Alignment.centerRight, child: Container(margin:EdgeInsets.all(6),padding:EdgeInsets.all(12),decoration:BoxDecoration(color:Colors.deepPurple,borderRadius:BorderRadius.circular(12)), child:Text(m['text']??'',style:TextStyle(color:Colors.white))));
                     List<Map<String,String>> res=(m['results'] as List?)?.cast<Map<String,String>>()??[];
                     String summary=m['summary']??'';
-                    return Card(color:Colors.grey[50], margin:EdgeInsets.all(6), child: Padding(padding:EdgeInsets.all(12), child: Column(crossAxisAlignment:CrossAxisAlignment.start, children:[
-                      if(summary.isNotEmpty) Text(summary,style:TextStyle(fontSize:13)),
-                      SizedBox(height:8),
-                     ...res.take(3).map((r){ return Padding(padding:EdgeInsets.only(bottom:6), child: Row(crossAxisAlignment:CrossAxisAlignment.start, children:[Text(r['cite']??'',style:TextStyle(color:Colors.deepPurple,fontWeight:FontWeight.bold)), SizedBox(width:6), Expanded(child: Column(crossAxisAlignment:CrossAxisAlignment.start, children:[Text(r['title']??'',style:TextStyle(fontSize:12,fontWeight:FontWeight.bold)), Text(r['snip']??'',style:TextStyle(fontSize:11))]))])); }).toList(),
-                      if((m['followups'] as List?)?.isNotEmpty??false) Wrap(children: (m['followups'] as List).map((q){ return Padding(padding:EdgeInsets.only(right:4), child: ActionChip(label:Text(q.toString(),style:TextStyle(fontSize:10)), onPressed:(){ ctrl.text=q.toString(); send(); })); }).toList())
+                    return Card(child: Padding(padding:EdgeInsets.all(12), child: Column(crossAxisAlignment:CrossAxisAlignment.start, children:[
+                      Text(summary,style:TextStyle(fontSize:13)),
+                     ...res.take(2).map((r){ return ListTile(title:Text((r['cite']??'') + ' ' + (r['title']??''),style:TextStyle(fontSize:11,fontWeight:FontWeight.bold)), subtitle:Text(r['snip']??'',style:TextStyle(fontSize:10))); }).toList()
                     ])));
                   })),
                   sending? LinearProgressIndicator(): SizedBox(),
                   Padding(padding:EdgeInsets.all(8), child: Row(children:[
-                    Expanded(child: TextField(controller:ctrl, decoration:InputDecoration(hintText:'Ask ${widget.subject}...',border:OutlineInputBorder(borderRadius:BorderRadius.circular(20))), onSubmitted:(_)=>send())),
+                    Expanded(child: TextField(controller:ctrl, decoration:InputDecoration(hintText:'Ask ' + widget.subject + '...',border:OutlineInputBorder(borderRadius:BorderRadius.circular(20))), onSubmitted:(_)=>send())),
                     IconButton(icon:Icon(Icons.send,color:Colors.deepPurple), onPressed:send)
                   ]))
                 ])
@@ -348,12 +299,12 @@ jobs:
             }
           }
           DART
-            - name: Build APK
+      - name: Build APK
         run: |
           flutter pub get
           flutter build apk --release
-            - name: Upload
+      - name: Upload
         uses: actions/upload-artifact@v4
         with:
-          name: MTRDF-V14-24-ULTIMATE-RESEARCH
+          name: MTRDF-V14-24-1-ULTIMATE-FIXED-YAML
           path: build/app/outputs/flutter-apk/app-release.apk

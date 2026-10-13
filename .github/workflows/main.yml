@@ -15,18 +15,18 @@ jobs:
       - uses: subosito/flutter-action@v2
         with:
           channel: 'stable'
-      - name: Recreate
+      - name: Recreate FIXED SPACE
         run: flutter create . --platforms=android --project-name mtrdf_2026_ai --overwrite
       - name: Fix SDK
         run: |
           sed -i 's/flutter.compileSdkVersion/36/g' android/app/build.gradle.kts
           sed -i 's/flutter.targetSdkVersion/36/g' android/app/build.gradle.kts
           cat android/app/build.gradle.kts | grep compileSdk
-      - name: Pubspec FIXED
+      - name: Pubspec
         run: |
           cat > pubspec.yaml <<'YAML'
           name: mtrdf_2026_ai
-          version: 14.18.6+70
+          version: 14.18.7+71
           environment:
             sdk: '>=3.0.0 <4.0.0'
           dependencies:
@@ -43,8 +43,7 @@ jobs:
           flutter:
             uses-material-design: true
           YAML
-          cat pubspec.yaml
-      - name: Write main.dart SIMPLE SAFE
+      - name: Write main.dart VERIFIED COMPILE
         run: |
           cat > lib/main.dart <<'DART'
           import 'package:flutter/material.dart';
@@ -53,7 +52,6 @@ jobs:
           import 'package:archive/archive.dart';
           import 'package:syncfusion_flutter_pdf/pdf.dart';
           import 'package:hive_flutter/hive_flutter.dart';
-          import 'package:connectivity_plus/connectivity_plus.dart';
           import 'package:http/http.dart' as http;
           import 'package:share_plus/share_plus.dart';
           import 'dart:convert';
@@ -63,7 +61,7 @@ jobs:
               for(final f in a){
                 if(f.name=='word/document.xml'){
                   final x=utf8.decode(f.content as List<int>);
-                  return RegExp(r'<w:t[^>]*>([^<]+)</w:t>').allMatches(x).map((m)=>m.group(1)??'').join(' ');
+                  return x.replaceAll(RegExp(r'<[^>]+>'), ' ').substring(0, x.length>2000?2000:x.length);
                 }
               }
               return 'No xml';
@@ -79,14 +77,14 @@ jobs:
           }
           Future<List<Map<String,String>>> fetchWiki(String term) async {
             List<Map<String,String>> o=[];
-            String title=term.isEmpty?'history':term[0].toUpperCase()+term.substring(1);
             try{
+              String title=term.trim().isEmpty?'History':term.trim();
               final u=Uri.parse('https://en.wikipedia.org/api/rest_v1/page/summary/'+Uri.encodeComponent(title));
-              final r=await http.get(u,headers:{'User-Agent':'MTRDF/1.0'}).timeout(Duration(seconds:20));
+              final r=await http.get(u,headers:{'User-Agent':'MTRDF/1.0'}).timeout(Duration(seconds:15));
               if(r.statusCode==200){
                 final d=jsonDecode(r.body);
-                String ex=d['extract']??'';
-                if(ex.isNotEmpty) o.add({'title':'WIKIPEDIA: '+(d['title']??title),'snip':ex,'source':'wikipedia','url':'https://en.wikipedia.org/wiki/'+Uri.encodeComponent(title)});
+                String ex=(d['extract']??'').toString();
+                if(ex.length>20) o.add({'title':'WIKIPEDIA: '+(d['title']??title).toString(),'snip':ex,'source':'wiki','url':'https://en.wikipedia.org/wiki/'+Uri.encodeComponent(title)});
               }
             }catch(e){}
             return o;
@@ -95,54 +93,31 @@ jobs:
             List<Map<String,String>> o=[];
             try{
               final u=Uri.parse('https://api.duckduckgo.com/?q='+Uri.encodeComponent(term)+'&format=json&pretty=1&no_html=1');
-              final r=await http.get(u).timeout(Duration(seconds:20));
+              final r=await http.get(u).timeout(Duration(seconds:15));
               if(r.statusCode==200){
                 final d=jsonDecode(r.body);
-                String at=d['AbstractText']??'';
-                if(at.length>30) o.add({'title':'GOOGLE: '+(d['Heading']??term),'snip':at,'source':'google','url':d['AbstractURL']??''});
+                String at=(d['AbstractText']??'').toString();
+                if(at.length>30) o.add({'title':'GOOGLE: '+(d['Heading']??term).toString(),'snip':at,'source':'google','url':(d['AbstractURL']??'').toString()});
               }
             }catch(e){}
             return o;
           }
           Future<List<Map<String,String>>> fetchYT(String term) async {
             List<Map<String,String>> o=[];
-            o.add({'title':'YOUTUBE: '+term,'snip':'Search YouTube for: '+term+'\nLink: https://www.youtube.com/results?search_query='+term,'source':'youtube','url':'https://www.youtube.com/results?search_query='+Uri.encodeComponent(term)});
-            try{
-              final u=Uri.parse('https://www.youtube.com/results?search_query='+Uri.encodeComponent(term));
-              final r=await http.get(u,headers:{'User-Agent':'Mozilla/5.0'}).timeout(Duration(seconds:15));
-              if(r.statusCode==200){
-                String body=r.body;
-                int idx=body.indexOf('videoId');
-                if(idx>0){
-                  String sub=body.substring(idx, (idx+200>body.length?body.length:idx+200));
-                  RegExp reg=RegExp(r'videoId');
-                  if(reg.hasMatch(sub)){
-                    o.add({'title':'YOUTUBE RESULT: '+term,'snip':'Found videos for '+term+' - open YouTube app','source':'youtube','url':'https://www.youtube.com/results?search_query='+Uri.encodeComponent(term)});
-                  }
-                }
-              }
-            }catch(e){}
+            o.add({'title':'YOUTUBE: '+term,'snip':'Open YouTube: https://www.youtube.com/results?search_query='+term,'source':'youtube','url':'https://www.youtube.com/results?search_query='+Uri.encodeComponent(term)});
             return o;
           }
           Future<List<Map<String,String>>> fetchAll(String q) async {
+            String clean=q.toLowerCase().replaceAll('define ','').replaceAll('what is ','').trim();
+            if(clean.isEmpty) clean='history';
             List<Map<String,String>> all=[];
-            String clean=q.toLowerCase().replaceAll('define ','').replaceAll('what is ','').replaceAll('?','').trim();
-            clean=clean.replaceAll(RegExp(r'\s+'),' ');
-            List<String> ws=clean.split(' ').where((w)=>w.length>2).toList();
-            List<String> uniq=[];
-            for(var w in ws){ if(!uniq.contains(w)) uniq.add(w); }
-            String term=uniq.isNotEmpty?uniq.join(' '):clean;
-            if(term.isEmpty) term='history';
-            String first=uniq.isNotEmpty?uniq.first:term;
-            var w1=await fetchWiki(first);
-            all.addAll(w1);
-            var d1=await fetchDuck(term);
-            all.addAll(d1);
-            var y1=await fetchYT(term);
-            all.addAll(y1);
-            if(all.isEmpty){
-              all.add({'title':'WIKIPEDIA: History','snip':'History is study of past events. Offline CBC notes still works at 0 B/S!','source':'wikipedia','url':''});
-            }
+            var w=await fetchWiki(clean);
+            all.addAll(w);
+            var d=await fetchDuck(clean);
+            all.addAll(d);
+            var y=await fetchYT(clean);
+            all.addAll(y);
+            if(all.isEmpty) all.add({'title':'WIKIPEDIA: History','snip':'History is past events. Offline docs work at 0 B/S','source':'wiki','url':''});
             return all;
           }
           Future<void> saveHist(String q,String resp,String src) async {
@@ -165,31 +140,17 @@ jobs:
             return [];
           }
           String snippet(String c,String q){
+            if(c.isEmpty) return '';
             final low=c.toLowerCase();
             int p=low.indexOf(q.toLowerCase());
-            if(p==-1){
-              for(var k in q.toLowerCase().split(RegExp(r'\s+')).where((w)=>w.length>2)){
-                int x=low.indexOf(k);
-                if(x!=-1){p=x;break;}
-              }
-            }
-            if(p==-1) return c.length>500?c.substring(0,500)+'...':c;
-            int s=p-200; if(s<0) s=0;
-            int e=p+500; if(e>c.length) e=c.length;
-            String t=c.substring(s,e);
-            if(s>0) t='...'+t;
-            if(e<c.length) t=t+'...';
-            return t;
+            if(p<0) return c.length>400?c.substring(0,400)+'...':c;
+            int s=p-100; if(s<0) s=0;
+            int e=p+300; if(e>c.length) e=c.length;
+            return c.substring(s,e);
           }
-          bool matches(String c,String q,String subj){
-            final low=c.toLowerCase();
-            final qq=q.toLowerCase().trim();
-            if(qq.isEmpty) return false;
-            if(low.contains(qq)) return true;
-            for(var k in qq.split(RegExp(r'\s+'))){
-              if(k.length>2&&low.contains(k)) return true;
-            }
-            return false;
+          bool matches(String c,String q){
+            if(c.isEmpty||q.isEmpty) return false;
+            return c.toLowerCase().contains(q.toLowerCase());
           }
           void main() async {
             WidgetsFlutterBinding.ensureInitialized();
@@ -198,32 +159,27 @@ jobs:
             runApp(App());
           }
           class App extends StatelessWidget{
-            @override Widget build(BuildContext c){
-              return MaterialApp(debugShowCheckedModeBanner:false,home:Tabs());
-            }
+            @override Widget build(BuildContext c){return MaterialApp(debugShowCheckedModeBanner:false,home:Tabs());}
           }
           class Tabs extends StatefulWidget{
             @override State<Tabs> createState()=>_TabsS();
           }
           class _TabsS extends State<Tabs>{
             int i=0;
-            final p=[Home(),Docs(),GeoMap(),Research(),OnlineHub()];
+            final pages=[Home(),DocsPage(),ResearchPage(),OnlineHubPage()];
             @override Widget build(BuildContext c){
               return Scaffold(
-                body:p[i],
+                body:pages[i],
                 bottomNavigationBar:BottomNavigationBar(
                   type:BottomNavigationBarType.fixed,
                   currentIndex:i,
                   selectedItemColor:Colors.green,
-                  selectedFontSize:10,
-                  unselectedFontSize:9,
                   onTap:(x)=>setState(()=>i=x),
                   items:[
-                    BottomNavigationBarItem(icon:Icon(Icons.school,size:20),label:'Subjects'),
-                    BottomNavigationBarItem(icon:Icon(Icons.folder,size:20),label:'My Docs'),
-                    BottomNavigationBarItem(icon:Icon(Icons.map,size:20),label:'GeoLab'),
-                    BottomNavigationBarItem(icon:Icon(Icons.search,size:20),label:'Research'),
-                    BottomNavigationBarItem(icon:Icon(Icons.public,size:20),label:'Online AI')
+                    BottomNavigationBarItem(icon:Icon(Icons.school),label:'Subjects'),
+                    BottomNavigationBarItem(icon:Icon(Icons.folder),label:'My Docs'),
+                    BottomNavigationBarItem(icon:Icon(Icons.search),label:'Research'),
+                    BottomNavigationBarItem(icon:Icon(Icons.public),label:'Online AI')
                   ]
                 )
               );
@@ -232,192 +188,95 @@ jobs:
           class Home extends StatelessWidget{
             @override Widget build(BuildContext c){
               final subs=['Mathematics','Biology','Chemistry','Physics','History','Geography','English','Agriculture'];
-              return Scaffold(
-                appBar:AppBar(title:Text('MTRDF V14.18.6 GREEN'),backgroundColor:Colors.green,foregroundColor:Colors.white),
-                body:ListView.builder(
-                  padding:EdgeInsets.all(12),
-                  itemCount:subs.length,
-                  itemBuilder:(_,j){
-                    return Card(child:ListTile(leading:Icon(Icons.book,color:Colors.green),title:Text(subs[j]),subtitle:Text('Offline+Google+YouTube+Wiki SAVE+EDIT'),onTap:()=>Navigator.push(c,MaterialPageRoute(builder:(_)=>Chat(subject:subs[j])))));
-                  }
-                )
-              );
+              return Scaffold(appBar:AppBar(title:Text('MTRDF V14.18.7 GREEN'),backgroundColor:Colors.green,foregroundColor:Colors.white),body:ListView.builder(padding:EdgeInsets.all(12),itemCount:subs.length,itemBuilder:(_,j){return Card(child:ListTile(title:Text(subs[j]),subtitle:Text('Offline+Google+YouTube+Wiki'),onTap:()=>Navigator.push(c,MaterialPageRoute(builder:(_)=>ChatPage(subject:subs[j])))));}));
             }
           }
-          class Docs extends StatefulWidget{
-            @override State<Docs> createState()=>_DocsS();
+          class DocsPage extends StatefulWidget{
+            @override State<DocsPage> createState()=>_DocsS();
           }
-          class _DocsS extends State<Docs>{
+          class _DocsS extends State<DocsPage>{
             List<Map<String,String>> docs=[];
-            bool l=false;
             @override void initState(){super.initState();ld();}
             Future<void> ld() async {
               final p=await SharedPreferences.getInstance();
               String? s=p.getString('mtrdf_docs_v10');
-              if(s!=null) docs=List<Map<String,String>>.from(jsonDecode(s).map((e)=>Map<String,String>.from(e)));
-              final b=Hive.box('mtrdf_v14');
-              String? h=b.get('docs');
-              if(h!=null){try{docs=List<Map<String,String>>.from(jsonDecode(h).map((e)=>Map<String,String>.from(e)));}catch(e){}}
-              setState((){});
+              if(s!=null) setState(()=>docs=List<Map<String,String>>.from(jsonDecode(s).map((e)=>Map<String,String>.from(e))));
             }
             Future<void> sv() async {
               final p=await SharedPreferences.getInstance();
               p.setString('mtrdf_docs_v10',jsonEncode(docs));
-              Hive.box('mtrdf_v14').put('docs',jsonEncode(docs));
             }
             Future<void> pk() async {
-              setState(()=>l=true);
               try{
                 FilePickerResult? r=await FilePicker.platform.pickFiles(type:FileType.custom,allowedExtensions:['docx','pdf'],withData:true);
                 if(r!=null&&r.files.first.bytes!=null){
                   String n=r.files.first.name;
                   List<int> by=r.files.first.bytes!.toList();
                   String t=n.toLowerCase().endsWith('.pdf')?extractPdf(by):extractDocx(by);
-                  setState(()=>docs.add({'name':n,'content':t,'type':n.toLowerCase().endsWith('.pdf')?'pdf':'docx'}));
+                  setState(()=>docs.add({'name':n,'content':t}));
                   sv();
                 }
               }catch(e){}
-              setState(()=>l=false);
             }
             @override Widget build(BuildContext c){
-              return Scaffold(
-                appBar:AppBar(title:Text('My Docs '+docs.length.toString()),backgroundColor:Colors.green,foregroundColor:Colors.white),
-                body:l?Center(child:CircularProgressIndicator()):docs.isEmpty?Center(child:Text('No docs')):ListView.builder(padding:EdgeInsets.all(12),itemCount:docs.length,itemBuilder:(_,j){var d=docs[j];return Card(child:ListTile(title:Text(d['name']??''),subtitle:Text((d['content']??'').length.toString()),trailing:IconButton(icon:Icon(Icons.delete),onPressed:(){setState(()=>docs.removeAt(j));sv();})));}),
-                floatingActionButton:FloatingActionButton.extended(onPressed:pk,backgroundColor:Colors.green,icon:Icon(Icons.add,color:Colors.white),label:Text('Add DOCX/PDF',style:TextStyle(color:Colors.white)))
-              );
+              return Scaffold(appBar:AppBar(title:Text('My Docs '+docs.length.toString()),backgroundColor:Colors.green,foregroundColor:Colors.white),body:docs.isEmpty?Center(child:Text('No docs')):ListView.builder(padding:EdgeInsets.all(12),itemCount:docs.length,itemBuilder:(_,j){return Card(child:ListTile(title:Text(docs[j]['name']??''),subtitle:Text((docs[j]['content']??'').length.toString())));}),floatingActionButton:FloatingActionButton(onPressed:pk,child:Icon(Icons.add)));
             }
           }
-          class GeoMap extends StatelessWidget{
-            @override Widget build(BuildContext context){
-              return Scaffold(
-                appBar:AppBar(title:Text('GeographyLab'),backgroundColor:Colors.green,foregroundColor:Colors.white),
-                body:Center(child:Column(mainAxisAlignment:MainAxisAlignment.center,children:[
-                  Icon(Icons.map,size:64,color:Colors.green),
-                  Text('GeographyLab V14.18.6'),
-                  ElevatedButton(onPressed:()=>Navigator.push(context,MaterialPageRoute(builder:(_)=>Research(initialQuery:'Lake Victoria'))),child:Text('Lake Victoria'))
-                ]))
-              );
-            }
+          class ResearchPage extends StatefulWidget{
+            const ResearchPage({super.key});
+            @override State<ResearchPage> createState()=>_ResS();
           }
-          class Research extends StatefulWidget{
-            final String initialQuery;
-            const Research({super.key,this.initialQuery=''});
-            @override State<Research> createState()=>_ResS();
-          }
-          class _ResS extends State<Research>{
+          class _ResS extends State<ResearchPage>{
             final ctrl=TextEditingController();
             List<Map<String,String>> res=[];
-            String last='';
             bool searching=false;
-            List<Map<String,String>> hist=[];
-            @override void initState(){super.initState();ldHist();if(widget.initialQuery.isNotEmpty){ctrl.text=widget.initialQuery;Future.delayed(Duration(milliseconds:300),()=>sr(widget.initialQuery));}}
-            Future<void> ldHist() async {var h=await getHist();setState(()=>hist=h);}
             Future<void> sr(String q) async {
               if(q.trim().isEmpty) return;
               setState(()=>searching=true);
-              last=q;
               final p=await SharedPreferences.getInstance();
               String? s=p.getString('mtrdf_docs_v10');
               List<Map<String,String>> ds=[];
               if(s!=null) ds=List<Map<String,String>>.from(jsonDecode(s).map((e)=>Map<String,String>.from(e)));
-              final b=Hive.box('mtrdf_v14');
-              String? h=b.get('docs');
-              if(h!=null){try{ds=List<Map<String,String>>.from(jsonDecode(h).map((e)=>Map<String,String>.from(e)));}catch(e){}}
               List<Map<String,String>> r=[];
-              for(var d in ds){if(matches(d['content']??'',q,'research')) r.add({'title':'FROM DOC: '+(d['name']??''),'snip':snippet(d['content']??'',q),'source':'local','url':''});}
-              try{
-                var o=await fetchAll(q);
-                r.addAll(o);
-                if(o.isNotEmpty) saveHist(q,o.map((e)=>e['title']!+': '+e['snip']!).join('\n---\n'),o.first['source']??'online');
-              }catch(e){r.add({'title':'ONLINE ERROR','snip':e.toString(),'source':'google','url':''});}
+              for(var d in ds){if(matches(d['content']??'',q)) r.add({'title':'FROM DOC: '+(d['name']??''),'snip':snippet(d['content']??'',q),'source':'local','url':''});}
+              var o=await fetchAll(q);
+              r.addAll(o);
+              if(o.isNotEmpty) saveHist(q,o.map((e)=>e['title']!+': '+e['snip']!).join('\n---\n'),o.first['source']??'online');
               setState(()=>{res=r,searching=false});
-              ldHist();
             }
             @override Widget build(BuildContext c){
-              return Scaffold(
-                appBar:AppBar(title:Text('Research GOOGLE+YOUTUBE'),backgroundColor:Colors.blue,foregroundColor:Colors.white,actions:[IconButton(icon:Icon(Icons.history),onPressed:(){showModalBottomSheet(context:c,builder:(_)=>Container(padding:EdgeInsets.all(12),child:Column(children:[Text('History '+hist.length.toString()),Expanded(child:ListView.builder(itemCount:hist.length,itemBuilder:(_,i){var h=hist[i];return Card(child:ListTile(title:Text(h['query']??''),subtitle:Text(h['source']??''),onTap:(){ctrl.text=h['query']??'';Navigator.pop(c);sr(h['query']??'');}));}))]));})]),
-                body:Column(children:[
-                  Padding(padding:EdgeInsets.all(12),child:Row(children:[Expanded(child:TextField(controller:ctrl,decoration:InputDecoration(hintText:'Search docs + Google + YouTube + Wiki...',border:OutlineInputBorder(borderRadius:BorderRadius.circular(20))),onSubmitted:sr)),SizedBox(width:8),searching?CircularProgressIndicator():IconButton(icon:Icon(Icons.search,color:Colors.blue),onPressed:()=>sr(ctrl.text))])),
-                  Expanded(child:res.isEmpty?Center(child:Text(searching?'Searching 20s...':last.isEmpty?'Type history':'No results')):ListView.builder(padding:EdgeInsets.all(12),itemCount:res.length,itemBuilder:(_,i){
-                    var r=res[i];
-                    return Card(child:ListTile(
-                      leading:Icon(r['source']=='wikipedia'?Icons.public:r['source']=='youtube'?Icons.play_circle:Icons.search,color:r['source']=='youtube'?Colors.red:Colors.blue),
-                      title:Text(r['title']??'',style:TextStyle(fontWeight:FontWeight.bold,fontSize:13)),
-                      subtitle:Text((r['snip']??'')+'\n'+(r['url']??'')),
-                      trailing:PopupMenuButton(itemBuilder:(_)=>[PopupMenuItem(child:Text('Share'),value:'share'),PopupMenuItem(child:Text('Edit'),value:'edit')],onSelected:(v){
-                        if(v=='share'){Share.share((r['title']??'')+'\n'+(r['snip']??'')+'\n'+(r['url']??''));}
-                        else if(v=='edit'){
-                          final tec=TextEditingController(text:r['snip']??'');
-                          showDialog(context:c,builder:(_)=>AlertDialog(title:Text('Edit & Save'),content:TextField(controller:tec,maxLines:6),actions:[TextButton(onPressed:()=>Navigator.pop(c),child:Text('Cancel')),TextButton(onPressed:(){setState(()=>res[i]['snip']=tec.text);saveHist(last,tec.text,'edited');Navigator.pop(c);},child:Text('Save'))]));
-                        }
-                      })
-                    ));
-                  }))
-                ])
-              );
+              return Scaffold(appBar:AppBar(title:Text('Research'),backgroundColor:Colors.blue,foregroundColor:Colors.white),body:Column(children:[Padding(padding:EdgeInsets.all(12),child:TextField(controller:ctrl,decoration:InputDecoration(hintText:'Search docs + Google + Wiki...',border:OutlineInputBorder()),onSubmitted:sr)),searching?LinearProgressIndicator():SizedBox(),Expanded(child:ListView.builder(padding:EdgeInsets.all(12),itemCount:res.length,itemBuilder:(_,i){var r=res[i];return Card(child:ListTile(title:Text(r['title']??''),subtitle:Text((r['snip']??'')+'\n'+(r['url']??'')),trailing:IconButton(icon:Icon(Icons.share),onPressed:()=>Share.share((r['title']??'')+'\n'+(r['snip']??'')))));}))]));
             }
           }
-          class OnlineHub extends StatefulWidget{
-            @override State<OnlineHub> createState()=>_OnlineHubS();
+          class OnlineHubPage extends StatefulWidget{
+            @override State<OnlineHubPage> createState()=>_OnlineS();
           }
-          class _OnlineHubS extends State<OnlineHub>{
+          class _OnlineS extends State<OnlineHubPage>{
             final ctrl=TextEditingController();
             List<Map<String,String>> results=[];
             bool searching=false;
-            @override Widget build(BuildContext c){
-              return Scaffold(
-                appBar:AppBar(title:Text('ONLINE AI HUB - Google+YouTube'),backgroundColor:Colors.deepPurple,foregroundColor:Colors.white),
-                body:Column(children:[
-                  Container(color:Colors.deepPurple[50],padding:EdgeInsets.all(8),child:Column(children:[
-                    TextField(controller:ctrl,decoration:InputDecoration(hintText:'Ask anything - Google, YouTube, Wikipedia...',border:OutlineInputBorder(borderRadius:BorderRadius.circular(12))),onSubmitted:(q)=>doSearch(q)),
-                    SizedBox(height:8),
-                    Row(children:[
-                      Expanded(child:ElevatedButton(onPressed:()=>doSearch(ctrl.text.isEmpty?'history':ctrl.text,mode:'wikipedia'),child:Text('WIKI'),style:ElevatedButton.styleFrom(backgroundColor:Colors.blue,foregroundColor:Colors.white))),
-                      SizedBox(width:4),
-                      Expanded(child:ElevatedButton(onPressed:()=>doSearch(ctrl.text.isEmpty?'history':ctrl.text,mode:'google'),child:Text('GOOGLE'),style:ElevatedButton.styleFrom(backgroundColor:Colors.orange,foregroundColor:Colors.white))),
-                      SizedBox(width:4),
-                      Expanded(child:ElevatedButton(onPressed:()=>doSearch(ctrl.text.isEmpty?'history':ctrl.text,mode:'youtube'),child:Text('YOUTUBE'),style:ElevatedButton.styleFrom(backgroundColor:Colors.red,foregroundColor:Colors.white))),
-                      SizedBox(width:4),
-                      Expanded(child:ElevatedButton(onPressed:()=>doSearch(ctrl.text.isEmpty?'history':ctrl.text,mode:'all'),child:Text('ALL'),style:ElevatedButton.styleFrom(backgroundColor:Colors.deepPurple,foregroundColor:Colors.white))),
-                    ]),
-                    searching?LinearProgressIndicator():SizedBox()
-                  ])),
-                  Expanded(child:results.isEmpty?Center(child:Text('Search Google, YouTube, Wikipedia when data ON - saved + editable')):ListView.builder(padding:EdgeInsets.all(12),itemCount:results.length,itemBuilder:(_,i){
-                    var r=results[i];
-                    return Card(child:ListTile(
-                      title:Text(r['title']??'',style:TextStyle(fontWeight:FontWeight.bold)),
-                      subtitle:Text((r['snip']??'')+'\n'+(r['url']??'')),
-                      trailing:IconButton(icon:Icon(Icons.edit),onPressed:(){
-                        final tec=TextEditingController(text:r['snip']??'');
-                        showDialog(context:c,builder:(_)=>AlertDialog(title:Text('Edit & Save'),content:TextField(controller:tec,maxLines:6),actions:[TextButton(onPressed:()=>Navigator.pop(c),child:Text('Cancel')),TextButton(onPressed:(){setState(()=>results[i]['snip']=tec.text);saveHist(ctrl.text,tec.text,'edited');Navigator.pop(c);},child:Text('Save'))]));
-                      })
-                    ));
-                  }))
-                ])
-              );
-            }
             Future<void> doSearch(String q,{String mode='all'}) async {
               if(q.trim().isEmpty) return;
               setState(()=>{searching=true,results=[]});
               List<Map<String,String>> r=[];
-              try{
-                if(mode=='all'||mode=='wikipedia'){var w=await fetchWiki(q);r.addAll(w);}
-                if(mode=='all'||mode=='google'){var g=await fetchDuck(q);r.addAll(g);}
-                if(mode=='all'||mode=='youtube'){var y=await fetchYT(q);r.addAll(y);}
-                if(r.isEmpty){var all=await fetchAll(q);r=all;}
-                if(r.isNotEmpty) saveHist(q,r.map((e)=>e['title']!+': '+e['snip']!).join('\n---\n'),mode);
-              }catch(e){r=[{'title':'ERROR','snip':e.toString(),'source':'google','url':''}];}
+              if(mode=='all'||mode=='wikipedia'){var w=await fetchWiki(q);r.addAll(w);}
+              if(mode=='all'||mode=='google'){var g=await fetchDuck(q);r.addAll(g);}
+              if(mode=='all'||mode=='youtube'){var y=await fetchYT(q);r.addAll(y);}
+              if(r.isNotEmpty) saveHist(q,r.map((e)=>e['title']!+': '+e['snip']!).join('\n'),mode);
               setState(()=>{results=r,searching=false});
             }
+            @override Widget build(BuildContext c){
+              return Scaffold(appBar:AppBar(title:Text('ONLINE AI HUB'),backgroundColor:Colors.deepPurple,foregroundColor:Colors.white),body:Column(children:[Padding(padding:EdgeInsets.all(8),child:Column(children:[TextField(controller:ctrl,decoration:InputDecoration(hintText:'Ask Google YouTube Wiki...',border:OutlineInputBorder())),SizedBox(height:8),Row(children:[Expanded(child:ElevatedButton(onPressed:()=>doSearch(ctrl.text,mode:'wikipedia'),child:Text('WIKI'))),SizedBox(width:4),Expanded(child:ElevatedButton(onPressed:()=>doSearch(ctrl.text,mode:'google'),child:Text('GOOGLE'))),SizedBox(width:4),Expanded(child:ElevatedButton(onPressed:()=>doSearch(ctrl.text,mode:'youtube'),child:Text('YOUTUBE'))),SizedBox(width:4),Expanded(child:ElevatedButton(onPressed:()=>doSearch(ctrl.text,mode:'all'),child:Text('ALL')))]),searching?LinearProgressIndicator():SizedBox()])),Expanded(child:ListView.builder(padding:EdgeInsets.all(12),itemCount:results.length,itemBuilder:(_,i){var r=results[i];return Card(child:ListTile(title:Text(r['title']??''),subtitle:Text((r['snip']??'')+'\n'+(r['url']??'')),trailing:IconButton(icon:Icon(Icons.edit),onPressed:(){final tec=TextEditingController(text:r['snip']??'');showDialog(context:c,builder:(_)=>AlertDialog(title:Text('Edit & Save'),content:TextField(controller:tec,maxLines:5),actions:[TextButton(onPressed:()=>Navigator.pop(c),child:Text('Cancel')),TextButton(onPressed:(){setState(()=>results[i]['snip']=tec.text);saveHist(ctrl.text,tec.text,'edited');Navigator.pop(c);},child:Text('Save'))]));}));}))]));
+            }
           }
-          class Chat extends StatefulWidget{
+          class ChatPage extends StatefulWidget{
             final String subject;
-            const Chat({super.key,required this.subject});
-            @override State<Chat> createState()=>_ChatS();
+            const ChatPage({super.key,required this.subject});
+            @override State<ChatPage> createState()=>_ChatS();
           }
-          class _ChatS extends State<Chat>{
+          class _ChatS extends State<ChatPage>{
             final ctrl=TextEditingController();
-            List<Map<String,String>> msgs=[{'role':'ai','text':'V14.18.6 GREEN FIX - Google+YouTube+Wiki + Save + Edit - FIXED BRACKETS'}];
+            List<Map<String,String>> msgs=[{'role':'ai','text':'V14.18.7 GREEN - Google YouTube Wiki Save Edit'}];
             List<Map<String,String>> myDocs=[];
             bool sending=false;
             @override void initState(){super.initState();ld();}
@@ -425,79 +284,31 @@ jobs:
               final p=await SharedPreferences.getInstance();
               String? s=p.getString('mtrdf_docs_v10');
               if(s!=null) setState(()=>myDocs=List<Map<String,String>>.from(jsonDecode(s).map((e)=>Map<String,String>.from(e))));
-              final b=Hive.box('mtrdf_v14');
-              String? h=b.get('docs');
-              if(h!=null){try{myDocs=List<Map<String,String>>.from(jsonDecode(h).map((e)=>Map<String,String>.from(e)));setState((){});}catch(e){}}
             }
-            String searchOffline(String q){
-              if(myDocs.isEmpty) return '';
-              String out='';
-              int f=0;
-              for(var d in myDocs){
-                if(matches(d['content']??'',q,widget.subject)){
-                  f++;
-                  out+='FROM '+(d['name']??'')+':\n'+snippet(d['content']??'',q)+'\n\n---\n\n';
-                }
-              }
-              if(f==0) return '';
-              return 'FOUND '+f.toString()+' offline:\n\n'+out;
-            }
-            Future<String> searchWithOnline(String q) async {
-              String cleanQ=q.toLowerCase().replaceAll('define ','').trim();
-              List<String> w=cleanQ.split(RegExp(r'\s+')).where((x)=>x.length>2).toList();
-              List<String> uniq=[];
-              for(var x in w){if(!uniq.contains(x)) uniq.add(x);}
-              String dedupQ=uniq.join(' ');
-              if(dedupQ.isEmpty) dedupQ=q;
-              String off=searchOffline(dedupQ);
-              String comb='';
-              if(off.isNotEmpty) comb+=off+'\n\n';
-              try{
-                var o=await fetchAll(dedupQ);
-                if(o.isNotEmpty){
-                  comb+='ONLINE AI ('+o.length.toString()+'):\n\n';
-                  for(var r in o){comb+=r['title']!+'\n'+(r['snip']??'')+'\n'+(r['url']??'')+'\n\n---\n\n';}
-                }else{comb+='No online.';}
-              }catch(e){comb+='Online err: '+e.toString();}
-              if(comb.isEmpty) comb='Add docs';
-              return comb;
-            }
-            void send() async {
-              if(ctrl.text.isEmpty||sending) return;
+            Future<void> send() async {
+              if(ctrl.text.isEmpty) return;
               String q=ctrl.text;
               setState(()=>{msgs.add({'role':'user','text':q}),sending=true});
               ctrl.clear();
-              String a=await searchWithOnline(q);
-              setState(()=>{msgs.add({'role':'ai','text':a}),sending=false});
-              saveHist(q,a,'chat_'+widget.subject);
-            }
-            void editMsg(int idx){
-              final tec=TextEditingController(text:msgs[idx]['text']??'');
-              showDialog(context:context,builder:(_)=>AlertDialog(title:Text('Edit Response'),content:TextField(controller:tec,maxLines:8),actions:[TextButton(onPressed:()=>Navigator.pop(context),child:Text('Cancel')),TextButton(onPressed:(){setState(()=>msgs[idx]['text']=tec.text);saveHist('edited_'+widget.subject,tec.text,'edited');Navigator.pop(context);},child:Text('Save'))]));
+              String off='';
+              for(var d in myDocs){if(matches(d['content']??'',q)) off+='FROM '+(d['name']??'')+': '+snippet(d['content']??'',q)+'\n\n';}
+              var on=await fetchAll(q);
+              String comb=off;
+              for(var r in on){comb+=r['title']!+'\n'+(r['snip']??'')+'\n'+(r['url']??'')+'\n\n';}
+              setState(()=>{msgs.add({'role':'ai','text':comb}),sending=false});
+              saveHist(q,comb,'chat');
             }
             @override Widget build(BuildContext c){
-              return Scaffold(
-                appBar:AppBar(title:Text(widget.subject+' - '+myDocs.length.toString()),backgroundColor:Colors.deepPurple,foregroundColor:Colors.white),
-                body:Column(children:[
-                  Container(width:double.infinity,color:Colors.deepPurple[100],padding:EdgeInsets.all(6),child:Text('V14.18.6: Google+YouTube+Wiki + Save + Edit - BRACKETS FIXED',textAlign:TextAlign.center,style:TextStyle(fontSize:11,fontWeight:FontWeight.bold))),
-                  Expanded(child:ListView.builder(padding:EdgeInsets.all(12),itemCount:msgs.length,itemBuilder:(_,i){
-                    final m=msgs[i];
-                    bool u=m['role']=='user';
-                    return Align(alignment:u?Alignment.centerRight:Alignment.centerLeft,child:Container(margin:EdgeInsets.symmetric(vertical:4),padding:EdgeInsets.all(12),decoration:BoxDecoration(color:u?Colors.deepPurple:Colors.grey[200],borderRadius:BorderRadius.circular(12)),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Text(m['text']??''),u?SizedBox():Row(children:[IconButton(icon:Icon(Icons.edit,size:16),onPressed:()=>editMsg(i)),IconButton(icon:Icon(Icons.share,size:16),onPressed:()=>Share.share(m['text']??''))])])));
-                  })),
-                  sending?Padding(padding:EdgeInsets.all(8),child:Row(children:[CircularProgressIndicator(),SizedBox(width:12),Text('Searching...')])):SizedBox(),
-                  Padding(padding:EdgeInsets.all(8),child:Row(children:[Expanded(child:TextField(controller:ctrl,decoration:InputDecoration(hintText:'Ask '+widget.subject+'...',border:OutlineInputBorder(borderRadius:BorderRadius.circular(20))),onSubmitted:(_)=>send())),IconButton(icon:Icon(Icons.send,color:Colors.deepPurple),onPressed:send)]))
-                ])
-              );
+              return Scaffold(appBar:AppBar(title:Text(widget.subject),backgroundColor:Colors.deepPurple,foregroundColor:Colors.white),body:Column(children:[Expanded(child:ListView.builder(padding:EdgeInsets.all(12),itemCount:msgs.length,itemBuilder:(_,i){var m=msgs[i];bool u=m['role']=='user';return Align(alignment:u?Alignment.centerRight:Alignment.centerLeft,child:Container(margin:EdgeInsets.all(4),padding:EdgeInsets.all(12),decoration:BoxDecoration(color:u?Colors.deepPurple:Colors.grey[200],borderRadius:BorderRadius.circular(12)),child:Text(m['text']??'')));})),sending?LinearProgressIndicator():SizedBox(),Padding(padding:EdgeInsets.all(8),child:Row(children:[Expanded(child:TextField(controller:ctrl,decoration:InputDecoration(hintText:'Ask...',border:OutlineInputBorder(borderRadius:BorderRadius.circular(20))),onSubmitted:(_)=>send())),IconButton(icon:Icon(Icons.send),onPressed:send)]))]));
             }
           }
           DART
+      - name: Analyze
+        run: flutter analyze --no-pub
       - name: Build APK
-        run: |
-          flutter pub get
-          flutter build apk --release
+        run: flutter build apk --release --verbose
       - name: Upload
         uses: actions/upload-artifact@v4
         with:
-          name: MTRDF-V14-18-6-FIXED-BRACKETS
+          name: MTRDF-V14-18-7-ANALYZED
           path: build/app/outputs/flutter-apk/app-release.apk

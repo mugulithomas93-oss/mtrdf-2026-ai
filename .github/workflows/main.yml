@@ -28,24 +28,24 @@ jobs:
         run: |
           cat > pubspec.yaml <<'YAML'
           name: mtrdf_2026_ai
-          version: 14.24.1+81
+          version: 14.24.2+82
           environment:
             sdk: '>=3.0.0 <4.0.0'
           dependencies:
             flutter:
               sdk: flutter
             shared_preferences: ^2.2.2
-            file_picker: ^10.1.9
+            file_picker: ^10.3.10
             archive: ^3.6.1
-            syncfusion_flutter_pdf: ^28.2.7
+            syncfusion_flutter_pdf: ^28.2.12
             hive_flutter: ^1.1.0
-            http: ^1.2.2
+            http: ^1.6.0
             share_plus: ^12.0.2
-            url_launcher: ^6.2.5
+            url_launcher: ^6.3.3
           flutter:
             uses-material-design: true
           YAML
-      - name: Write main.dart
+      - name: Write main.dart FIXED
         run: |
           cat > lib/main.dart <<'DART'
           import 'dart:convert';
@@ -150,8 +150,7 @@ jobs:
             List<String> followups=[
               'What are challenges of ' + fixed + '?',
               'How does ' + fixed + ' relate to Uganda?',
-              'Explain ' + fixed + ' for S1 level',
-              'Give examples of ' + fixed
+              'Explain ' + fixed + ' for S1 level'
             ];
             return {'results':all,'summary':summary,'followups':followups};
           }
@@ -182,7 +181,7 @@ jobs:
             @override Widget build(BuildContext c){
               final subs=['Mathematics','Biology','Chemistry','Physics','History','Geography','English','Agriculture'];
               return Scaffold(
-                appBar: AppBar(title:Text('MTRDF V14.24.1 ULTIMATE'),backgroundColor:Colors.deepPurple,foregroundColor:Colors.white),
+                appBar: AppBar(title:Text('MTRDF V14.24.2 FIXED'),backgroundColor:Colors.deepPurple,foregroundColor:Colors.white),
                 body: ListView.builder(padding:EdgeInsets.all(12),itemCount:subs.length,itemBuilder:(_,j){
                   return Card(child:ListTile(title:Text(subs[j]),subtitle:Text('AI Research PRO'),onTap:()=>Navigator.push(c,MaterialPageRoute(builder:(_)=>ChatUltimate(subject:subs[j])))));
                 })
@@ -222,9 +221,18 @@ jobs:
               var sources=results.where((e)=>e['source']!='MTRDF Curriculum').toList();
               var curriculum=results.where((e)=>e['source']!.contains('Curriculum')).toList();
               return Scaffold(
-                appBar: AppBar(title:Text('Research PRO'),backgroundColor:Colors.deepPurple,foregroundColor:Colors.white),
+                appBar: AppBar(title:Text('Research PRO - FIXED'),backgroundColor:Colors.deepPurple,foregroundColor:Colors.white),
                 body: Column(children:[
-                  Padding(padding:EdgeInsets.all(12), child: TextField(controller: ctrl, decoration: InputDecoration(hintText:'Ask like ChatGPT research...',border:OutlineInputBorder(prefixIcon:Icon(Icons.search),suffixIcon:IconButton(icon:Icon(Icons.send),onPressed:(){doResearch(ctrl.text);}))), onSubmitted:(v){doResearch(v);})),
+                  Padding(padding:EdgeInsets.all(12), child: TextField(
+                    controller: ctrl,
+                    decoration: InputDecoration(
+                      hintText: 'Ask like ChatGPT research...',
+                      border: OutlineInputBorder(),
+                      prefixIcon: Icon(Icons.search),
+                      suffixIcon: IconButton(icon: Icon(Icons.send), onPressed: (){ doResearch(ctrl.text); })
+                    ),
+                    onSubmitted: (v){ doResearch(v); }
+                  )),
                   searching? LinearProgressIndicator() : SizedBox(),
                   Container(color:Colors.grey[100], child: Row(children:[
                     Expanded(child: InkWell(onTap:(){setState((){selectedTab=0;});}, child: Container(padding:EdgeInsets.all(10), child: Text('Answer',textAlign:TextAlign.center)))),
@@ -233,7 +241,7 @@ jobs:
                   Expanded(child: selectedTab==0? ListView(padding:EdgeInsets.all(12), children:[
                     if(curriculum.isNotEmpty) Card(color:Colors.yellow[100], child: Padding(padding:EdgeInsets.all(12), child: Text(curriculum[0]['snip']??'',style:TextStyle(fontSize:13)))),
                     Card(child: Padding(padding:EdgeInsets.all(12), child: Text(data['summary'].toString().isEmpty?'Search to get AI summary':data['summary'].toString(),style:TextStyle(fontSize:13)))),
-                   ...results.take(4).map((r){ return Card(child: ListTile(title:Text((r['cite']??'') + ' ' + (r['title']??''),style:TextStyle(fontSize:12,fontWeight:FontWeight.bold)), subtitle:Text(r['snip']??'',style:TextStyle(fontSize:11)))); }).toList()
+                  ...results.take(4).map((r){ return Card(child: ListTile(title:Text((r['cite']??'') + ' ' + (r['title']??''),style:TextStyle(fontSize:12,fontWeight:FontWeight.bold)), subtitle:Text(r['snip']??'',style:TextStyle(fontSize:11)))); }).toList()
                   ]) : ListView.builder(padding:EdgeInsets.all(12),itemCount:sources.length,itemBuilder:(_,i){
                     var r=sources[i]; return Card(child: ListTile(title:Text(r['title']??'',style:TextStyle(fontSize:12)), subtitle:Text(r['snip']??'',style:TextStyle(fontSize:11)), trailing: IconButton(icon:Icon(Icons.open_in_new), onPressed:() async { if((r['url']??'').isNotEmpty){ final uri=Uri.parse(r['url']!); if(await canLaunchUrl(uri)) await launchUrl(uri,mode:LaunchMode.externalApplication); } })));
                   }))
@@ -254,7 +262,11 @@ jobs:
                 appBar: AppBar(title:Text('Online AI PRO'),backgroundColor:Colors.deepPurple,foregroundColor:Colors.white),
                 body: Column(children:[
                   Padding(padding:EdgeInsets.all(8), child: Column(children:[
-                    TextField(controller: ctrl, decoration: InputDecoration(hintText:'Deep research...',border:OutlineInputBorder()), onSubmitted:(v){ doSearch(v); }),
+                    TextField(
+                      controller: ctrl,
+                      decoration: InputDecoration(hintText: 'Deep research...', border: OutlineInputBorder(), prefixIcon: Icon(Icons.search)),
+                      onSubmitted: (v){ doSearch(v); }
+                    ),
                     Row(children:[ Expanded(child:ElevatedButton(onPressed:(){ doSearch(ctrl.text); }, child:Text('DEEP RESEARCH'))), SizedBox(width:8), ElevatedButton(onPressed:(){ Share.share(results.map((e)=> (e['cite']??'') + ' ' + (e['title']??'')).join('\n')); }, child:Text('EXPORT')) ]),
                     searching? LinearProgressIndicator(): Text(results.length.toString() + ' sources',style:TextStyle(fontSize:11))
                   ])),
@@ -268,7 +280,7 @@ jobs:
           class ChatUltimate extends StatefulWidget { final String subject; const ChatUltimate({super.key,required this.subject}); @override State<ChatUltimate> createState()=>_ChatUlt(); }
           class _ChatUlt extends State<ChatUltimate> {
             final ctrl=TextEditingController(); List<Map<String,dynamic>> msgs=[]; bool sending=false;
-            @override void initState(){ super.initState(); msgs=[{'role':'ai','summary':'V14.24.1 ULTIMATE - ' + widget.subject + ' Research PRO','results':[]}]; }
+            @override void initState(){ super.initState(); msgs=[{'role':'ai','summary':'V14.24.2 FIXED - ' + widget.subject + ' Research PRO','results':[]}]; }
             Future<void> send() async {
               if(ctrl.text.isEmpty) return; String q=ctrl.text;
               setState((){ msgs.add({'role':'user','text':q}); sending=true; }); ctrl.clear();
@@ -286,12 +298,16 @@ jobs:
                     String summary=m['summary']??'';
                     return Card(child: Padding(padding:EdgeInsets.all(12), child: Column(crossAxisAlignment:CrossAxisAlignment.start, children:[
                       Text(summary,style:TextStyle(fontSize:13)),
-                     ...res.take(2).map((r){ return ListTile(title:Text((r['cite']??'') + ' ' + (r['title']??''),style:TextStyle(fontSize:11,fontWeight:FontWeight.bold)), subtitle:Text(r['snip']??'',style:TextStyle(fontSize:10))); }).toList()
+                    ...res.take(2).map((r){ return ListTile(title:Text((r['cite']??'') + ' ' + (r['title']??''),style:TextStyle(fontSize:11,fontWeight:FontWeight.bold)), subtitle:Text(r['snip']??'',style:TextStyle(fontSize:10))); }).toList()
                     ])));
                   })),
                   sending? LinearProgressIndicator(): SizedBox(),
                   Padding(padding:EdgeInsets.all(8), child: Row(children:[
-                    Expanded(child: TextField(controller:ctrl, decoration:InputDecoration(hintText:'Ask ' + widget.subject + '...',border:OutlineInputBorder(borderRadius:BorderRadius.circular(20))), onSubmitted:(_)=>send())),
+                    Expanded(child: TextField(
+                      controller:ctrl,
+                      decoration: InputDecoration(hintText: 'Ask ' + widget.subject + '...', border: OutlineInputBorder(borderRadius: BorderRadius.circular(20)), prefixIcon: Icon(Icons.chat)),
+                      onSubmitted: (_)=>send()
+                    )),
                     IconButton(icon:Icon(Icons.send,color:Colors.deepPurple), onPressed:send)
                   ]))
                 ])
@@ -306,5 +322,5 @@ jobs:
       - name: Upload
         uses: actions/upload-artifact@v4
         with:
-          name: MTRDF-V14-24-1-ULTIMATE-FIXED-YAML
+          name: MTRDF-V14-24-2-FIXED-InputDecoration
           path: build/app/outputs/flutter-apk/app-release.apk

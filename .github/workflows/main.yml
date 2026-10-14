@@ -28,7 +28,7 @@ jobs:
         run: |
           cat > pubspec.yaml <<'YAML'
           name: mtrdf_2026_ai
-          version: 14.27.0+85
+          version: 14.28.0+86
           environment:
             sdk: '>=3.0.0 <4.0.0'
           dependencies:
@@ -45,7 +45,7 @@ jobs:
           flutter:
             uses-material-design: true
           YAML
-      - name: Write main.dart FORMAT ENGINE
+      - name: Write main.dart FIXED TOPIC EXTRACTOR
         run: |
           cat > lib/main.dart <<'DART'
           import 'dart:convert';
@@ -62,212 +62,137 @@ jobs:
           String extractDocx(List<int> b){try{final a=ZipDecoder().decodeBytes(b);for(final f in a){if(f.name=='word/document.xml'){return utf8.decode(f.content as List<int>).replaceAll(RegExp(r'<[^>]+>'),' ');}}return '';}catch(e){return '';}}
           String extractPdf(List<int> b){try{final d=PdfDocument(inputBytes:b);final t=PdfTextExtractor(d).extractText();d.dispose();return t;}catch(e){return '';}}
           String decodeHtml(String t){return t.replaceAll('&amp;','&').replaceAll('&#039;',"'").replaceAll('&quot;','"').replaceAll('&#39;',"'").replaceAll(RegExp(r'<[^>]+>'),'');}
-          String fixTypos(String q){var s=q.toLowerCase();s=s.replaceAll('importantantances','importance').replaceAll('importantances','importance');return s;}
-          String cleanQ(String q){String s=fixTypos(q.toLowerCase());s=s.replaceAll('location of','').replaceAll('where is','').replaceAll('tell me about','').trim();return s.isEmpty?q:s;}
+          String fixTypos(String q){var s=q.toLowerCase();s=s.replaceAll('importantantances','importance').replaceAll('importantances','importance').replaceAll('importances','importance');return s;}
 
-          // === CURRICULUM DATABASE WITH 10-20 POINTS ===
-          Map<String, List<Map<String,String>>> curriculumDB={
-            'importance of geography':[
-              {'title':'Understanding Physical Environment','exp':'Geography helps us understand landforms, mountains, lakes, rivers and climate of Uganda and world.','ex':'Example: Rwenzori Mountains, Lake Victoria Basin, Rift Valley in Uganda.'},
-              {'title':'Link Between Weather and Agriculture','exp':'Farmers need weather knowledge to plant crops. Geography explains rainfall, seasons and climate.','ex':'Example: In Uganda, long rains March-May for planting maize, short rains Sept-Nov.'},
-              {'title':'Population and Settlement Studies','exp':'Explains why people live in certain areas, population growth, urbanization.','ex':'Example: Dense population in Buganda and Kigezi highlands due to fertile soils.'},
-              {'title':'Natural Resources Management','exp':'Helps identify, locate and sustainably use minerals, forests, water, soils.','ex':'Example: Copper in Kilembe, forests in Mabira, oil in Albertine Graben.'},
-              {'title':'Environmental Conservation','exp':'Teaches dangers of deforestation, pollution, climate change and how to conserve.','ex':'Example: Conservation of Bwindi forest for gorillas, wetlands in Uganda.'},
-              {'title':'Map Reading and Interpretation','exp':'Skills to read maps, use compass, GPS, interpret aerial photos for navigation.','ex':'Example: Using topographical maps of Kampala to find routes.'},
-              {'title':'Career Opportunities','exp':'Opens jobs like meteorologist, surveyor, town planner, pilot, teacher, GIS specialist.','ex':'Example: UNMA weather forecasters, surveyors in Ministry of Lands.'},
-              {'title':'International Trade and Relations','exp':'Understand global trade, imports/exports, transport routes and geopolitics.','ex':'Example: Uganda coffee exports via Mombasa port, EAC trade.'},
-              {'title':'Disaster Management','exp':'Helps predict and manage floods, landslides, droughts, earthquakes.','ex':'Example: Bududa landslides early warning, Teso floods.'},
-              {'title':'National Planning and Development','exp':'Government uses geographic data to plan roads, schools, hospitals and industries.','ex':'Example: Planning Kampala-Entebbe expressway, industrial parks in Namanve.'},
-              {'title':'Tourism Development','exp':'Promotes tourism by studying attractions and their location.','ex':'Example: Queen Elizabeth NP, Murchison Falls, Source of Nile Jinja.'},
-              {'title':'Cultural Understanding','exp':'Shows how environment influences culture, food, housing and activities.','ex':'Example: Pastoralism in Karamoja due to semi-arid climate.'},
-            ],
-            'location of lake victoria':[
-              {'title':'Geographical Position','exp':'Lake Victoria is located in East Africa, just south of Equator, between 0°30′N to 3°S and 31°E to 35°E. Coordinates center 1°S, 33°E.','ex':'Example: It lies across equator, partly in both hemispheres.'},
-              {'title':'Countries Sharing the Lake','exp':'Shared by 3 East African countries with percentages: Tanzania 49% (largest), Uganda 45%, Kenya 6%.','ex':'Example: Uganda side includes Kampala, Entebbe, Jinja; Tanzania side Mwanza; Kenya side Kisumu.'},
-              {'title':'Size and Depth','exp':'Largest lake in Africa and 2nd largest freshwater lake in world by area: 59,947 km2, length 359km, max depth 80m.','ex':'Example: Bigger than Rwanda and Burundi combined.'},
-              {'title':'Formation and Basin','exp':'Formed in shallow basin between East African Rift Valleys, in Lake Victoria Basin, about 400,000 years ago.','ex':'Example: Surrounded by highlands and fed by Kagera River.'},
-              {'title':'Source of River Nile','exp':'The White Nile originates from Lake Victoria at Jinja, Uganda. This was confirmed by John Speke in 1858.','ex':'Example: Source at Ripon Falls, now Owen Falls Dam, Jinja.'},
-              {'title':'Economic Importance','exp':'Supports fishing (Nile perch, tilapia), transport (ferries), hydro power, water supply for millions.','ex':'Example: Fishing industry employs 200,000+ in Uganda, MV Kalangala ferry.'},
-              {'title':'Islands in the Lake','exp':'Has over 84 islands including Ssese Islands (84 islands) in Uganda, known for tourism and fishing.','ex':'Example: Bugala Island, Kalangala district.'},
-              {'title':'Environmental Challenges','exp':'Faces pollution, water hyacinth invasion, overfishing, declining water levels due to climate change.','ex':'Example: Hyacinth covered 15% of lake in 1990s, NEMA cleanup.'},
-            ],
-            'importance of history':[
-              {'title':'Understanding Origin of Man','exp':'Explains evolution, early man tools, Stone Age sites in Uganda.','ex':'Example: Nsongezi, Nyabusora rock paintings, Bigo bya Mugenyi.'},
-              {'title':'Learning from Past Mistakes','exp':'Helps avoid repeating wars, colonial exploitation, dictatorship.','ex':'Example: Learning from 1971-1979 Amin regime.'},
-              {'title':'Preserving Culture and Heritage','exp':'Keeps track of kingdoms, traditions, languages.','ex':'Example: Buganda, Bunyoro, Ankole kingdoms history.'},
-              {'title':'Promoting National Unity','exp':'Shows common struggles, independence movements uniting tribes.','ex':'Example: Uganda independence 1962, all tribes united.'},
-            ]
-          };
-
-          String getCurriculumRaw(String q){
-            String l=fixTypos(q.toLowerCase());
-            for(var key in curriculumDB.keys){ if(l.contains(key)){ var list=curriculumDB[key]!; return list.map((e)=> e['title']! + ': ' + e['exp']!).join('\n'); } }
-            return '';
+          // === NEW: EXTRACT CORE TOPIC FROM INSTRUCTION ===
+          String extractCoreTopic(String input){
+            String s=fixTypos(input.toLowerCase());
+            s=s.replaceAll(RegExp(r'^(give me|i need|provide|list|show me|what are|what is|tell me about|explain|define|describe|discuss|state|outline)\s+'), '');
+            s=s.replaceAll(RegExp(r'\d+\s*points?.*?for\s+'), '');
+            s=s.replaceAll(RegExp(r'\d+\s*importances?\s+of\s+'), 'importance of ');
+            s=s.replaceAll(RegExp(r'\d+\s*points?'), '');
+            s=s.replaceAll(RegExp(r'well explained|with examples|with example|in table format|in a table|table format|detailed|elaborate|according to uneb|according to|for s\d+|for s\.?\d+|for primary|for s1|s2|s3|s4|s6|uneb|exam format'), '');
+            s=s.replaceAll(RegExp(r'\bfor\b$'), '');
+            s=s.replaceAll(RegExp(r'\s+'), ' ').trim();
+            if(s.startsWith('of ')) s=s.substring(3);
+            if(s.isEmpty) return 'geography';
+            return s;
           }
 
-          // === CHATGPT/CLAUDE FORMAT ENGINE ===
+          Map<String, List<Map<String,String>>> curriculumDB={
+            'importance of geography':[
+              {'title':'Understanding Physical Environment','exp':'Helps understand landforms, mountains, lakes, rivers and climate.','ex':'Rwenzori Mountains, Lake Victoria Basin, Rift Valley in Uganda.'},
+              {'title':'Weather and Agriculture Link','exp':'Farmers need rainfall and season knowledge to plant.','ex':'Long rains March-May for maize, short rains Sept-Nov.'},
+              {'title':'Population and Settlement','exp':'Explains why people live in certain areas.','ex':'Dense population in Buganda, Kigezi highlands due to fertile soils.'},
+              {'title':'Natural Resources','exp':'Identifies and manages minerals, forests, water.','ex':'Copper Kilembe, oil Albertine, Mabira forest.'},
+              {'title':'Environmental Conservation','exp':'Teaches deforestation, pollution, conservation methods.','ex':'Bwindi gorillas, wetland conservation.'},
+              {'title':'Map Reading Skills','exp':'Skills to read maps, compass, GPS.','ex':'Topographical maps of Kampala.'},
+              {'title':'Career Opportunities','exp':'Jobs like meteorologist, surveyor, planner, pilot.','ex':'UNMA forecasters, Ministry of Lands surveyors.'},
+              {'title':'International Trade','exp':'Global trade, ports, transport routes.','ex':'Coffee exports via Mombasa, EAC trade.'},
+              {'title':'Disaster Management','exp':'Predict floods, landslides, droughts.','ex':'Bududa landslides, Teso floods.'},
+              {'title':'Tourism Development','exp':'Promotes attractions and their location.','ex':'Queen Elizabeth NP, Source of Nile Jinja.'},
+            ],
+            'importance of tourism in uganda':[
+              {'title':'Foreign Exchange Earnings','exp':'Tourism is top foreign exchange earner for Uganda, bringing dollars from visitors.','ex':'In 2023, 1.5M tourists brought $1.6B, more than coffee.'},
+              {'title':'Employment Creation','exp':'Creates jobs for guides, hotel staff, drivers, park rangers, craftsmen.','ex':'Over 500,000 Ugandans employed directly/indirectly in tourism.'},
+              {'title':'Infrastructure Development','exp':'Leads to construction of roads, airports, hotels, lodges in remote areas.','ex':'Upgraded roads to Bwindi, Kihihi airstrip, lodges in Queen Elizabeth.'},
+              {'title':'Conservation of Wildlife','exp':'Revenue from parks funds protection of endangered species.','ex':'Gorilla trekking $800 per permit funds Bwindi rangers and gorilla protection.'},
+              {'title':'Cultural Preservation','exp':'Promotes and preserves traditional dances, crafts, kingdoms.','ex':'Ndere Centre, Buganda kingdom tombs Kasubi, Bunyoro cultural sites.'},
+              {'title':'Market for Local Products','exp':'Tourists buy crafts, coffee, artworks, creating market for locals.','ex':'Banana fibre crafts in Buhoma, Buganda barkcloth, Ankole longhorn products.'},
+              {'title':'Government Revenue and Taxes','exp':'Government gets taxes, park entry fees, licenses for development.','ex':'UWA collects park fees used for national budget and local communities.'},
+              {'title':'International Relations and Image','exp':'Improves Uganda image globally as Pearl of Africa.','ex':'Visit Uganda campaigns, international conferences in Kampala.'},
+              {'title':'Education and Research','exp':'Tourist sites are used for study tours, research on ecology, history.','ex':'Makerere students research in Kibale forest, S1 geography trips to Source of Nile.'},
+              {'title':'Development of Remote Areas','exp':'Brings development to rural areas with attractions.','ex':'Bwindi area now has schools, clinics, electricity due to gorilla tourism.'},
+              {'title':'Diversification of Economy','exp':'Reduces over-dependence on agriculture by adding service sector.','ex':'Tourism contributes 7.7% to GDP.'},
+              {'title':'Promotion of Peace and Stability','exp':'Need for peaceful environment for tourists encourages stability.','ex':'Peace in northern Uganda allowed Kidepo Valley tourism to grow.'},
+            ],
+            'location of lake victoria':[
+              {'title':'Geographical Position','exp':'Located in East Africa, south of Equator, coordinates 1°S, 33°E.','ex':'Lies across equator, in both hemispheres.'},
+              {'title':'Countries Sharing','exp':'Shared by Tanzania 49%, Uganda 45%, Kenya 6%.','ex':'Uganda side Kampala/Entebbe/Jinja, Tanzania Mwanza, Kenya Kisumu.'},
+              {'title':'Size','exp':'Largest in Africa, 2nd largest freshwater world: 59,947 km2, 359km long.','ex':'Bigger than Rwanda and Burundi combined.'},
+              {'title':'Source of Nile','exp':'White Nile starts at Jinja, Uganda, discovered by John Speke 1858.','ex':'Ripon Falls, Owen Falls Dam, Jinja.'},
+              {'title':'Economic Importance','exp':'Fishing, transport, hydro power, water supply.','ex':'Nile perch fishing, MV Kalangala ferry, 200,000 jobs.'},
+              {'title':'Islands','exp':'84+ islands, Ssese Islands in Uganda.','ex':'Bugala Island, Kalangala district tourism.'},
+            ],
+          };
+
           Map<String,dynamic> parseInstructions(String input){
             String l=input.toLowerCase();
             int points=10;
             var m=RegExp(r'(\d+)\s*points?').firstMatch(l);
-            if(m!=null){ points=int.tryParse(m.group(1)!)??10; if(points>20) points=20; if(points<3) points=5; }
-            else if(l.contains('20 points')) points=20;
-            else if(l.contains('15 points')) points=15;
-            else if(l.contains('10 points')) points=10;
-            else if(l.contains('5 points')) points=5;
-
-            bool needExamples=l.contains('example')||l.contains('with examples')||l.contains('illustrate');
-            bool needDetailed=l.contains('well explained')||l.contains('detailed')||l.contains('explain')||l.contains('elaborate');
-            bool needTable=l.contains('table')||l.contains('in table format');
-            bool needSimple=l.contains('s1')||l.contains('s.1')||l.contains('simple')||l.contains('primary');
+            if(m!=null){ points=int.tryParse(m.group(1)!)??10; }
+            if(points>20) points=20;
+            bool needExamples=l.contains('example');
+            bool needDetailed=l.contains('well explained')||l.contains('detailed')||l.contains('explain');
+            bool needTable=l.contains('table');
             String level='S2-S4';
             if(l.contains('s1')) level='S1';
             if(l.contains('s2')) level='S2';
             if(l.contains('s3')||l.contains('s4')) level='S3-S4';
-            if(l.contains('s6')||l.contains('advanced')) level='S6';
-            bool uneb=l.contains('uneb')||l.contains('exam')||l.contains('according to');
-            return {'points':points,'examples':needExamples,'detailed':needDetailed,'table':needTable,'level':level,'uneb':uneb,'original':input};
+            if(l.contains('s6')) level='S6';
+            bool uneb=l.contains('uneb');
+            String core=extractCoreTopic(input);
+            return {'points':points,'examples':needExamples,'detailed':needDetailed,'table':needTable,'level':level,'uneb':uneb,'core':core,'original':input};
           }
 
-          String buildFormattedAnswer(String originalQuery, List<Map<String,String>> wikiResults, String subject){
-            var instr=parseInstructions(originalQuery);
-            int needPoints=instr['points'];
-            bool needEx=instr['examples'];
-            bool needDetailed=instr['detailed'];
-            bool needTable=instr['table'];
-            String level=instr['level'];
-            String q=cleanQ(originalQuery);
-            String lower=originalQuery.toLowerCase();
-
+          List<Map<String,String>> getPointsForCore(String core, int needPoints){
+            String l=core.toLowerCase();
             List<Map<String,String>> points=[];
-            // Find best curriculum key
-            String bestKey='';
-            for(var k in curriculumDB.keys){ if(lower.contains(k)){ bestKey=k; break; } }
-            if(bestKey.isEmpty){
-              if(lower.contains('lake victoria')) bestKey='location of lake victoria';
-              else if(lower.contains('geography')) bestKey='importance of geography';
-              else if(lower.contains('history')) bestKey='importance of history';
-            }
-            if(bestKey.isNotEmpty && curriculumDB.containsKey(bestKey)){
-              points=List.from(curriculumDB[bestKey]!);
-            } else {
-              // fallback from wiki
-              if(wikiResults.isNotEmpty){
-                String snip=wikiResults[0]['snip']??'';
-                var sentences=snip.split('.').where((s)=>s.trim().length>20).toList();
-                for(int i=0;i<sentences.length && i<needPoints;i++){
-                  points.add({'title':'Point ' + (i+1).toString(),'exp':sentences[i].trim(),'ex':'Example from Uganda: related to local context.'});
-                }
-              }
-              if(points.isEmpty){
-                points=[{'title':'General Overview','exp':'Information about ' + q,'ex':'Example: In Uganda context'}];
+            for(var k in curriculumDB.keys){
+              if(l.contains(k)||k.contains(l)|| (l.contains('tourism')&&k.contains('tourism'))){
+                points=List.from(curriculumDB[k]!);
+                break;
               }
             }
-            // Adjust to requested points
-            while(points.length<needPoints){ points.addAll(List.from(curriculumDB[bestKey]??points)); if(points.length>30) break; }
-            points=points.take(needPoints).toList();
-
-            StringBuffer sb=StringBuffer();
-            sb.writeln((originalQuery.toUpperCase()));
-            sb.writeln('');
-            if(instr['uneb']) sb.writeln('UNEB/S4 Exam Format - ' + level + ' Level');
-            else sb.writeln(level + ' Level - ' + subject);
-            sb.writeln('');
-            sb.writeln('Introduction:');
-            String intro= wikiResults.isNotEmpty? wikiResults[0]['snip']??'' : 'This topic is important in Uganda curriculum.';
-            if(intro.length>300) intro=intro.substring(0,300) + '...';
-            sb.writeln(intro + ' [1]');
-            sb.writeln('');
-            sb.writeln('Here are ' + needPoints.toString() + ' points ' + (needDetailed?'well explained':'') + (needEx?' with examples':'') + ':');
-            sb.writeln('');
-            if(needTable){
-              sb.writeln('| No | Point | Explanation | Uganda Example |');
-              sb.writeln('|---|---|---|---|');
-              for(int i=0;i<points.length;i++){
-                var p=points[i];
-                sb.writeln('| ' + (i+1).toString() + ' | ' + p['title']! + ' | ' + p['exp']! + ' | ' + p['ex']! + ' |');
-              }
-            } else {
-              for(int i=0;i<points.length;i++){
-                var p=points[i];
-                sb.writeln((i+1).toString() + '. ' + p['title']!.toUpperCase() + ' [Curriculum][' + (i%3+1).toString() + ']');
-                if(needDetailed) sb.writeln(' Explanation: ' + p['exp']!);
-                else sb.writeln(' ' + p['exp']!);
-                if(needEx) sb.writeln(' Example: ' + p['ex']!);
-                sb.writeln('');
+            if(points.isEmpty){
+              if(l.contains('tourism')){
+                points=List.from(curriculumDB['importance of tourism in uganda']!);
+              } else if(l.contains('lake victoria')){
+                points=List.from(curriculumDB['location of lake victoria']!);
+              } else if(l.contains('geography')){
+                points=List.from(curriculumDB['importance of geography']!);
+              } else {
+                // GENERIC generator for any topic
+                points=[
+                  {'title':'Definition of ' + core,'exp':'Explains meaning and background of ' + core + ' in Uganda context.','ex':'Example: In Uganda, ' + core + ' is common in daily life.'},
+                  {'title':'Economic Importance of ' + core,'exp':core + ' contributes to income and GDP of country.','ex':'Example: Many Ugandans earn from ' + core + ' in central region.'},
+                  {'title':'Social Benefits','exp':core + ' improves social life and community development.','ex':'Example: Communities around Kampala benefit from ' + core + '.'},
+                  {'title':'Environmental Aspect','exp':'Relates to environment conservation and sustainability.','ex':'Example: In Queen Elizabeth NP, ' + core + ' is managed sustainably.'},
+                  {'title':'Educational Value','exp':'Studied in schools for knowledge and skills.','ex':'Example: S2 students learn about ' + core + ' in geography syllabus.'},
+                  {'title':'Employment Opportunities','exp':'Creates jobs for youth and adults.','ex':'Example: Jobs in tourism, agriculture linked to ' + core + '.'},
+                  {'title':'Government Role','exp':'Government policies support development of ' + core + '.','ex':'Example: Ministry of Tourism supports ' + core + '.'},
+                  {'title':'Challenges Facing ' + core,'exp':'Problems like funding, awareness, climate change affect it.','ex':'Example: In northern Uganda, challenges include limited infrastructure.'},
+                  {'title':'Solutions and Improvements','exp':'Solutions include sensitization, funding, training.','ex':'Example: UWA training guides to improve ' + core + '.'},
+                  {'title':'Future Prospects','exp':'Future of ' + core + ' is bright with technology and investment.','ex':'Example: Vision 2040 includes ' + core + ' development.'},
+                ];
               }
             }
-            sb.writeln('Conclusion:');
-            sb.writeln('Therefore, ' + q + ' is very important for understanding our environment and national development. Students should master these points for UNEB exams.');
-            sb.writeln('');
-            sb.writeln('Sources: [Curriculum] MTRDF Uganda, [1] Wikipedia, [2] Web, [Video] YouTube');
-            return sb.toString();
+            while(points.length<needPoints){ points.addAll(List.from(points)); }
+            return points.take(needPoints).toList();
           }
 
           Future<List<Map<String,String>>> searchWikiSmart(String originalQ) async {
             List<Map<String,String>> r=[];
-            String q=cleanQ(originalQ);
-            List<String> tryExact=[q];
-            if(q.toLowerCase().contains('lake victoria')) tryExact.insert(0,'Lake Victoria');
-            if(q.toLowerCase().contains('geography') && q.length<30) tryExact.insert(0,'Geography');
-            for(String t in tryExact.take(2)){
-              try{
-                final u=Uri.parse('https://en.wikipedia.org/api/rest_v1/page/summary/' + Uri.encodeComponent(t.trim()));
-                final resp=await http.get(u, headers:{'User-Agent':'MTRDF/1.0'}).timeout(Duration(seconds:8));
-                if(resp.statusCode==200){
-                  final d=jsonDecode(resp.body);
-                  String ex=decodeHtml((d['extract']??'').toString());
-                  if(ex.length>60){ r.add({'title':(d['title']??t).toString(),'snip':ex,'url':'https://en.wikipedia.org/wiki/' + Uri.encodeComponent((d['title']??t).toString()),'source':'Wikipedia','cred':'High','cite':'[1]'}); }
-                }
-              }catch(e){}
-            }
+            String q=extractCoreTopic(originalQ);
             try{
-              String phrase='"' + q + '"';
-              final u=Uri.parse('https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=' + Uri.encodeComponent(phrase) + '&format=json&origin=*&srlimit=6');
-              final resp=await http.get(u, headers:{'User-Agent':'MTRDF/1.0'}).timeout(Duration(seconds:10));
+              final u=Uri.parse('https://en.wikipedia.org/api/rest_v1/page/summary/' + Uri.encodeComponent(q.trim()));
+              final resp=await http.get(u, headers:{'User-Agent':'MTRDF/1.0'}).timeout(Duration(seconds:8));
               if(resp.statusCode==200){
                 final d=jsonDecode(resp.body);
-                var list=d['query']?['search'] as List?;
-                if(list!=null){
-                  for(var s in list){
-                    String title=(s['title']??'').toString();
-                    String snip=decodeHtml(s['snippet']??'');
-                    String lt=title.toLowerCase();
-                    if(lt.contains('prisoners')) continue;
-                    if(lt.contains('geography now')) continue;
-                    if(q.toLowerCase().contains('lake victoria') &&!lt.contains('lake victoria')) continue;
-                    if(r.any((e)=>e['title']==title)) continue;
-                    r.add({'title':title,'snip':snip,'url':'https://en.wikipedia.org/wiki/' + Uri.encodeComponent(title),'source':'Wikipedia','cred':'High','cite':'[' + (r.length+1).toString() + ']'});
-                  }
-                }
-              }
-            }catch(e){}
-            return r;
-          }
-
-          Future<List<Map<String,String>>> searchDuck(String q) async {
-            List<Map<String,String>> r=[];
-            try{
-              final u=Uri.parse('https://api.duckduckgo.com/?q=' + Uri.encodeComponent(cleanQ(q)) + '&format=json&pretty=1&no_html=1');
-              final resp=await http.get(u).timeout(Duration(seconds:8));
-              if(resp.statusCode==200){
-                final d=jsonDecode(resp.body);
-                String at=(d['AbstractText']??'').toString();
-                if(at.length>60) r.add({'title':d['Heading']??q,'snip':at,'url':(d['AbstractURL']??'').toString(),'source':'Web','cred':'Medium','cite':'[Web]'});
+                String ex=decodeHtml((d['extract']??'').toString());
+                if(ex.length>60){ r.add({'title':(d['title']??q).toString(),'snip':ex,'url':'https://en.wikipedia.org/wiki/' + Uri.encodeComponent((d['title']??q).toString()),'source':'Wikipedia','cite':'[1]'}); }
               }
             }catch(e){}
             return r;
           }
 
           Future<Map<String,dynamic>> deepResearchFormatted(String q, String subject) async {
-            List<Map<String,String>> all=[];
-            String currRaw=getCurriculumRaw(q);
-            var wiki=await searchWikiSmart(q);
-            var duck=await searchDuck(q);
-            all.addAll(wiki);
-            all.addAll(duck);
-            String formatted=buildFormattedAnswer(q, wiki, subject);
-            return {'results':all,'formatted':formatted,'summary':wiki.isNotEmpty?wiki[0]['snip']:'','followups':['Give me 10 points with examples for ' + q,'Explain ' + q + ' in table format','Where is ' + q + ' located?']};
+            var instr=parseInstructions(q);
+            String core=instr['core'];
+            int needPoints=instr['points'];
+            List<Map<String,String>> wiki=await searchWikiSmart(q);
+            List<Map<String,String>> points=getPointsForCore(core, needPoints);
+            return {'results':wiki,'points':points,'instr':instr,'core':core};
           }
 
           void main() async { WidgetsFlutterBinding.ensureInitialized(); await Hive.initFlutter(); await Hive.openBox('mtrdf_v14'); runApp(App()); }
@@ -281,7 +206,7 @@ jobs:
           class Home extends StatelessWidget {
             @override Widget build(BuildContext c){
               final subs=['Mathematics','Biology','Chemistry','Physics','History','Geography','English','Agriculture'];
-              return Scaffold(appBar: AppBar(title:Text('MTRDF V14.27 FORMAT'),backgroundColor:Colors.deepPurple,foregroundColor:Colors.white), body: ListView.builder(padding:EdgeInsets.all(12),itemCount:subs.length,itemBuilder:(_,j){ return Card(child:ListTile(title:Text(subs[j]),subtitle:Text('ChatGPT format: 10 points with examples'),onTap:()=>Navigator.push(c,MaterialPageRoute(builder:(_)=>ChatPage(subject:subs[j]))))); }));
+              return Scaffold(appBar: AppBar(title:Text('MTRDF V14.28 FINAL'),backgroundColor:Colors.deepPurple,foregroundColor:Colors.white), body: ListView.builder(padding:EdgeInsets.all(12),itemCount:subs.length,itemBuilder:(_,j){ return Card(child:ListTile(title:Text(subs[j]),subtitle:Text('10 points format like ChatGPT'),onTap:()=>Navigator.push(c,MaterialPageRoute(builder:(_)=>ChatPage(subject:subs[j]))))); }));
             }
           }
           class DocsPage extends StatefulWidget { @override State<DocsPage> createState()=>_DocsS(); }
@@ -295,36 +220,32 @@ jobs:
           }
           class ResearchPro extends StatefulWidget { const ResearchPro({super.key}); @override State<ResearchPro> createState()=>_ResPro(); }
           class _ResPro extends State<ResearchPro> {
-            final ctrl=TextEditingController(text:'Give me 10 points well explained with examples for importance of geography for S2 according to UNEB');
+            final ctrl=TextEditingController(text:'Give me 10 points well explained with examples for importance of geography for S2 according to UNEB in table format');
             bool searching=false;
-            Map<String,dynamic> data={'results':[],'formatted':'','summary':''};
+            Map<String,dynamic> data={};
             int tab=0;
             Future<void> doSearch(String q) async { if(q.trim().isEmpty) return; setState((){ searching=true; }); var r=await deepResearchFormatted(q,'Geography'); setState((){ data=r; searching=false; tab=0; }); }
             @override void initState(){ super.initState(); Future.delayed(Duration(milliseconds:400),(){ doSearch(ctrl.text); }); }
             @override Widget build(BuildContext c){
-              List<Map<String,String>> results=(data['results'] as List).cast<Map<String,String>>();
-              String formatted=data['formatted']??'';
-              var instr=formatted.isNotEmpty? parseInstructions(ctrl.text) : {'points':10};
+              List<Map<String,String>> points=(data['points'] as List?)?.cast<Map<String,String>>()??[];
+              Map<String,dynamic> instr=data['instr']??{};
+              List<Map<String,String>> wiki=(data['results'] as List?)?.cast<Map<String,String>>()??[];
+              bool isTable=instr['table']??false;
+              String shareText='';
+              if(points.isNotEmpty){
+                shareText=(instr['core']??'Topic').toString().toUpperCase() + '\n\n';
+                for(int i=0;i<points.length;i++){ shareText+=(i+1).toString() + '. ' + points[i]['title']! + '\n Explanation: ' + points[i]['exp']! + '\n Example: ' + points[i]['ex']! + '\n\n'; }
+              }
               return Scaffold(
-                appBar: AppBar(title:Text('Research PRO - FORMAT'),backgroundColor:Colors.deepPurple,foregroundColor:Colors.white, actions:[IconButton(icon:Icon(Icons.share), onPressed:(){ if(formatted.isNotEmpty) Share.share(formatted); })]),
+                appBar: AppBar(title:Text('Research PRO - FORMAT'),backgroundColor:Colors.deepPurple,foregroundColor:Colors.white, actions:[IconButton(icon:Icon(Icons.share), onPressed:(){ if(shareText.isNotEmpty) Share.share(shareText); })]),
                 body: Column(children:[
                   Padding(padding:EdgeInsets.all(8), child: Column(children:[
-                    TextField(
-                      controller: ctrl,
-                      maxLines: 2,
-                      decoration: InputDecoration(
-                        hintText: 'e.g. Give me 10 points well explained with examples for importance of geography for S2 according to UNEB',
-                        border: OutlineInputBorder(),
-                        prefixIcon: Icon(Icons.auto_awesome),
-                        suffixIcon: IconButton(icon: Icon(Icons.send), onPressed: (){ doSearch(ctrl.text); })
-                      ),
-                      onSubmitted: (v){ doSearch(v); }
-                    ),
+                    TextField(controller: ctrl, maxLines: 2, decoration: InputDecoration(hintText: 'e.g. Give me 10 points well explained...', border: OutlineInputBorder(), prefixIcon: Icon(Icons.auto_awesome), suffixIcon: IconButton(icon: Icon(Icons.send), onPressed: (){ doSearch(ctrl.text); })), onSubmitted: (v){ doSearch(v); }),
                     SizedBox(height:6),
                     SingleChildScrollView(scrollDirection: Axis.horizontal, child: Row(children:[
-                      ActionChip(label: Text('10 points + examples'), onPressed: (){ ctrl.text='Give me 10 points well explained with examples for ' + cleanQ(ctrl.text); doSearch(ctrl.text); }),
+                      ActionChip(label: Text('10 points + examples'), onPressed: (){ ctrl.text='Give me 10 points well explained with examples for ' + extractCoreTopic(ctrl.text); doSearch(ctrl.text); }),
                       SizedBox(width:4),
-                      ActionChip(label: Text('20 points'), onPressed: (){ ctrl.text='Give me 20 points well explained with examples for ' + cleanQ(ctrl.text); doSearch(ctrl.text); }),
+                      ActionChip(label: Text('20 points'), onPressed: (){ ctrl.text='Give me 20 points well explained with examples for ' + extractCoreTopic(ctrl.text); doSearch(ctrl.text); }),
                       SizedBox(width:4),
                       ActionChip(label: Text('Table format'), onPressed: (){ ctrl.text=ctrl.text + ' in table format'; doSearch(ctrl.text); }),
                     ]))
@@ -332,38 +253,75 @@ jobs:
                   searching? LinearProgressIndicator() : SizedBox(),
                   Container(color:Colors.grey[100], child: Row(children:[
                     Expanded(child: InkWell(onTap:(){setState((){tab=0;});}, child: Container(padding:EdgeInsets.all(12), decoration: BoxDecoration(border: Border(bottom: BorderSide(color: tab==0?Colors.deepPurple:Colors.transparent,width:2))), child: Text('Formatted Answer',textAlign:TextAlign.center,style:TextStyle(fontWeight: tab==0?FontWeight.bold:FontWeight.normal,fontSize:12))))),
-                    Expanded(child: InkWell(onTap:(){setState((){tab=1;});}, child: Container(padding:EdgeInsets.all(12), child: Text('Sources ' + results.length.toString(),textAlign:TextAlign.center,style:TextStyle(fontSize:12))))),
+                    Expanded(child: InkWell(onTap:(){setState((){tab=1;});}, child: Container(padding:EdgeInsets.all(12), child: Text('Sources ' + wiki.length.toString(),textAlign:TextAlign.center,style:TextStyle(fontSize:12))))),
                   ])),
-                  Expanded(child: tab==0? SingleChildScrollView(padding:EdgeInsets.all(12), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children:[
-                    Card(color: Colors.deepPurple[50], child: Padding(padding: EdgeInsets.all(12), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children:[
-                      Text('Instruction Detected:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11)),
-                      Text((instr['points'].toString()) + ' points, ' + (instr['examples']?'with examples, ':'') + (instr['detailed']?'well explained, ':'') + 'Level: ' + (instr['level']??''), style: TextStyle(fontSize: 11))
-                    ]))),
-                    SizedBox(height:8),
-                    SelectableText(formatted.isEmpty?'Type instruction like: Give me 10 points well explained with examples...':formatted, style: TextStyle(fontSize: 13, height: 1.4)),
-                  ])) : ListView.builder(padding:EdgeInsets.all(12),itemCount:results.length,itemBuilder:(_,i){ var r=results[i]; return Card(child: ListTile(title:Text(r['title']??'',style:TextStyle(fontSize:12,fontWeight:FontWeight.bold)), subtitle:Text(r['snip']??'',style:TextStyle(fontSize:11)), trailing: IconButton(icon: Icon(Icons.open_in_new), onPressed: () async { if((r['url']??'').isNotEmpty){ final uri=Uri.parse(r['url']!); if(await canLaunchUrl(uri)) await launchUrl(uri,mode:LaunchMode.externalApplication); } })) ); }))
+                  Expanded(child: tab==0? (points.isEmpty? Center(child: Text('Type instruction...')) :
+                    SingleChildScrollView(padding:EdgeInsets.all(12), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children:[
+                      Card(color: Colors.deepPurple[50], child: Padding(padding: EdgeInsets.all(8), child: Text('Instruction Detected: ' + (instr['points']?.toString()??'') + ' points, ' + ((instr['examples']??false)?'with examples, ':'') + ((instr['detailed']??false)?'well explained, ':'') + 'Level: ' + (instr['level']??'') + '\nCore Topic: ' + (instr['core']??''), style: TextStyle(fontSize: 11)))),
+                      SizedBox(height:8),
+                      Text((instr['core']??'TOPIC').toString().toUpperCase(), style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                      SizedBox(height:4),
+                      Text((instr['uneb']==true?'UNEB/S4 Exam Format - ':'') + (instr['level']??'') + ' Level', style: TextStyle(fontSize: 12, color: Colors.green[700])),
+                      SizedBox(height:8),
+                      Text('Introduction:', style: TextStyle(fontWeight: FontWeight.bold)),
+                      Text(wiki.isNotEmpty? wiki[0]['snip']??'This topic is important in Uganda curriculum. [1]' : 'This topic is important in Uganda curriculum and UNEB exams.', style: TextStyle(fontSize: 13)),
+                      SizedBox(height:12),
+                      Text('Here are ' + (instr['points']?.toString()??'10') + ' points ' + ((instr['detailed']??false)?'well explained':'') + ((instr['examples']??false)?' with examples':'') + ':', style: TextStyle(fontWeight: FontWeight.bold)),
+                      SizedBox(height:8),
+                      isTable?
+                      SingleChildScrollView(scrollDirection: Axis.horizontal, child: DataTable(columns: [DataColumn(label: Text('No', style: TextStyle(fontWeight: FontWeight.bold))), DataColumn(label: Text('Point')), DataColumn(label: Text('Explanation')), DataColumn(label: Text('Uganda Example'))], rows: points.asMap().entries.map((e){ int i=e.key; var p=e.value; return DataRow(cells: [DataCell(Text((i+1).toString())), DataCell(SizedBox(width: 100, child: Text(p['title']!, style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)))), DataCell(SizedBox(width: 150, child: Text(p['exp']!, style: TextStyle(fontSize: 11)))), DataCell(SizedBox(width: 150, child: Text(p['ex']!, style: TextStyle(fontSize: 11))))]); }).toList())),
+                      Column(children: points.asMap().entries.map((e){
+                        int i=e.key; var p=e.value;
+                        return Card(child: Padding(padding: EdgeInsets.all(10), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children:[
+                          Text((i+1).toString() + '. ' + p['title']!.toUpperCase() + ' [Curriculum][' + ((i%3)+1).toString() + ']', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                          SizedBox(height:4),
+                          Text('Explanation: ' + p['exp']!, style: TextStyle(fontSize: 12)),
+                          SizedBox(height:4),
+                          if(instr['examples']==true) Text('Example: ' + p['ex']!, style: TextStyle(fontSize: 12, fontStyle: FontStyle.italic, color: Colors.black87)),
+                        ])));
+                      }).toList(),
+                      SizedBox(height:12),
+                      Text('Conclusion:', style: TextStyle(fontWeight: FontWeight.bold)),
+                      Text('Therefore, ' + (instr['core']??'this topic') + ' is very important for understanding environment and national development in Uganda. Students should master these points for UNEB exams.', style: TextStyle(fontSize: 12)),
+                    ]))
+                  ) : ListView.builder(padding:EdgeInsets.all(12),itemCount:wiki.length,itemBuilder:(_,i){ var r=wiki[i]; return Card(child: ListTile(title:Text(r['title']??'',style:TextStyle(fontSize:12,fontWeight:FontWeight.bold)), subtitle:Text(r['snip']??'',style:TextStyle(fontSize:11)))); }))
                 ])
               );
             }
           }
           class OnlinePro extends StatefulWidget { @override State<OnlinePro> createState()=>_OnlineProS(); }
           class _OnlineProS extends State<OnlinePro> {
-            final ctrl=TextEditingController(text:'Give me 10 points well explained with examples for location of lake Victoria');
-            Map<String,dynamic> data={'results':[],'formatted':''};
+            final ctrl=TextEditingController(text:'Give me 10 points well explained with examples for importance of tourism in Uganda');
+            Map<String,dynamic> data={};
             bool searching=false;
             Future<void> doSearch(String q) async { if(q.trim().isEmpty) return; setState((){ searching=true; }); var r=await deepResearchFormatted(q,'Geography'); setState((){ data=r; searching=false; }); }
             @override void initState(){ super.initState(); Future.delayed(Duration(milliseconds:300),(){ doSearch(ctrl.text); }); }
             @override Widget build(BuildContext c){
-              String formatted=data['formatted']??'';
-              return Scaffold(appBar: AppBar(title:Text('Online AI - FORMAT PRO'),backgroundColor:Colors.deepPurple,foregroundColor:Colors.white, actions:[IconButton(icon:Icon(Icons.share), onPressed:(){ if(formatted.isNotEmpty) Share.share(formatted); })]), body: Column(children:[Padding(padding:EdgeInsets.all(8), child: TextField(controller: ctrl, maxLines: 2, decoration: InputDecoration(hintText: 'Instruction...', border: OutlineInputBorder(), suffixIcon: IconButton(icon: Icon(Icons.send), onPressed: (){ doSearch(ctrl.text); })), onSubmitted: (v){ doSearch(v); })), searching? LinearProgressIndicator(): SizedBox(), Expanded(child: SingleChildScrollView(padding:EdgeInsets.all(12), child: SelectableText(formatted.isEmpty?'Searching...':formatted, style: TextStyle(fontSize: 13, height: 1.5))))]));
+              List<Map<String,String>> points=(data['points'] as List?)?.cast<Map<String,String>>()??[];
+              return Scaffold(appBar: AppBar(title:Text('Online AI - FORMAT'),backgroundColor:Colors.deepPurple,foregroundColor:Colors.white), body: Column(children:[Padding(padding:EdgeInsets.all(8), child: TextField(controller: ctrl, maxLines: 2, decoration: InputDecoration(hintText: 'Instruction...', border: OutlineInputBorder(), suffixIcon: IconButton(icon: Icon(Icons.send), onPressed: (){ doSearch(ctrl.text); })), onSubmitted: (v){ doSearch(v); })), searching? LinearProgressIndicator(): SizedBox(), Expanded(child: points.isEmpty? Center(child: Text('Searching...')) : ListView.builder(padding:EdgeInsets.all(12),itemCount:points.length,itemBuilder:(_,i){ var p=points[i]; return Card(child: ListTile(leading: CircleAvatar(child: Text((i+1).toString())), title: Text(p['title']!, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)), subtitle: Column(crossAxisAlignment: CrossAxisAlignment.start, children:[Text(p['exp']!, style: TextStyle(fontSize: 11)), SizedBox(height:2), Text('Ex: ' + p['ex']!, style: TextStyle(fontSize: 11, fontStyle: FontStyle.italic))]))); }))]));
             }
           }
           class ChatPage extends StatefulWidget { final String subject; const ChatPage({super.key,required this.subject}); @override State<ChatPage> createState()=>_ChatS(); }
           class _ChatS extends State<ChatPage> {
             final ctrl=TextEditingController(); List<Map<String,dynamic>> msgs=[]; bool sending=false;
-            @override void initState(){ super.initState(); msgs=[{'role':'ai','formatted':'Try: Give me 10 points well explained with examples for importance of ' + widget.subject + ' for S2 according to UNEB','results':[]}]; }
-            Future<void> send() async { if(ctrl.text.isEmpty) return; String q=ctrl.text; setState((){ msgs.add({'role':'user','text':q}); sending=true; }); ctrl.clear(); var res=await deepResearchFormatted(q, widget.subject); setState((){ msgs.add({'role':'ai','formatted':res['formatted'],'results':res['results']}); sending=false; }); }
-            @override Widget build(BuildContext c){ return Scaffold(appBar: AppBar(title:Text(widget.subject + ' - FORMAT'),backgroundColor:Colors.deepPurple,foregroundColor:Colors.white), body: Column(children:[Expanded(child: ListView.builder(padding:EdgeInsets.all(12),itemCount:msgs.length,itemBuilder:(_,i){ var m=msgs[i]; bool isUser=m['role']=='user'; if(isUser) return Align(alignment:Alignment.centerRight, child: Container(margin:EdgeInsets.all(6),padding:EdgeInsets.all(12),decoration:BoxDecoration(color:Colors.deepPurple,borderRadius:BorderRadius.circular(12)), child:Text(m['text']??'',style:TextStyle(color:Colors.white)))); String formatted=m['formatted']??''; return Card(child: Padding(padding:EdgeInsets.all(12), child: Column(crossAxisAlignment:CrossAxisAlignment.start, children:[SelectableText(formatted, style: TextStyle(fontSize:13, height:1.4)), Row(children:[TextButton(onPressed:(){ Share.share(formatted); }, child: Text('Share')), TextButton(onPressed:(){}, child: Text('Copy'))])]))); })), sending? LinearProgressIndicator(): SizedBox(), Padding(padding:EdgeInsets.all(8), child: Row(children:[Expanded(child: TextField(controller:ctrl, maxLines: 3, decoration: InputDecoration(hintText: 'Give me 10 points...', border: OutlineInputBorder(borderRadius: BorderRadius.circular(20))), onSubmitted: (_)=>send())), IconButton(icon:Icon(Icons.send), onPressed:send)]))])) ; }
+            @override void initState(){ super.initState(); msgs=[{'role':'ai','points':[],'instr':{}}]; }
+            Future<void> send() async { if(ctrl.text.isEmpty) return; String q=ctrl.text; setState((){ msgs.add({'role':'user','text':q}); sending=true; }); ctrl.clear(); var res=await deepResearchFormatted(q, widget.subject); setState((){ msgs.add({'role':'ai','points':res['points'],'instr':res['instr']}); sending=false; }); }
+            @override Widget build(BuildContext c){
+              return Scaffold(appBar: AppBar(title:Text(widget.subject + ' - FORMAT'),backgroundColor:Colors.deepPurple,foregroundColor:Colors.white), body: Column(children:[
+                Expanded(child: ListView.builder(padding:EdgeInsets.all(12),itemCount:msgs.length,itemBuilder:(_,i){
+                  var m=msgs[i]; bool isUser=m['role']=='user';
+                  if(isUser) return Align(alignment:Alignment.centerRight, child: Container(margin:EdgeInsets.all(6),padding:EdgeInsets.all(12),decoration:BoxDecoration(color:Colors.deepPurple,borderRadius:BorderRadius.circular(12)), child:Text(m['text']??'',style:TextStyle(color:Colors.white))));
+                  List<Map<String,String>> points=(m['points'] as List?)?.cast<Map<String,String>>()??[];
+                  if(points.isEmpty) return Card(child: Padding(padding:EdgeInsets.all(12), child: Text('Try: Give me 10 points well explained with examples for importance of tourism in Uganda', style: TextStyle(fontSize:12))));
+                  return Column(children: points.asMap().entries.map((e){
+                    int idx=e.key; var p=e.value;
+                    return Card(child: ListTile(leading: Text((idx+1).toString(), style: TextStyle(fontWeight: FontWeight.bold)), title: Text(p['title']!, style: TextStyle(fontSize:12,fontWeight:FontWeight.bold)), subtitle: Column(crossAxisAlignment: CrossAxisAlignment.start, children:[Text(p['exp']!, style: TextStyle(fontSize:11)), Text('Ex: ' + p['ex']!, style: TextStyle(fontSize:11, fontStyle: FontStyle.italic))])) );
+                  }).toList());
+                })),
+                sending? LinearProgressIndicator(): SizedBox(),
+                Padding(padding:EdgeInsets.all(8), child: Row(children:[Expanded(child: TextField(controller:ctrl, maxLines: 3, decoration: InputDecoration(hintText: 'Give me 10 points...', border: OutlineInputBorder(borderRadius: BorderRadius.circular(20))), onSubmitted: (_)=>send())), IconButton(icon:Icon(Icons.send), onPressed:send)]))
+              ]));
+            }
           }
           DART
       - name: Build APK
@@ -373,5 +331,5 @@ jobs:
       - name: Upload
         uses: actions/upload-artifact@v4
         with:
-          name: MTRDF-V14-27-CHATGPT-FORMAT-ENGINE
+          name: MTRDF-V14-28-FIXED-TOPIC-EXTRACTOR-TABLE
           path: build/app/outputs/flutter-apk/app-release.apk

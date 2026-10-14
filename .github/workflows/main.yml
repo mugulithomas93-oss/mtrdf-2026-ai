@@ -28,7 +28,7 @@ jobs:
         run: |
           cat > pubspec.yaml <<'YAML'
           name: mtrdf_2026_ai
-          version: 14.28.0+86
+          version: 14.29.0+87
           environment:
             sdk: '>=3.0.0 <4.0.0'
           dependencies:
@@ -45,7 +45,7 @@ jobs:
           flutter:
             uses-material-design: true
           YAML
-      - name: Write main.dart FIXED TOPIC EXTRACTOR
+      - name: Write main.dart FIXED DOLLAR AND TABLE
         run: |
           cat > lib/main.dart <<'DART'
           import 'dart:convert';
@@ -62,9 +62,8 @@ jobs:
           String extractDocx(List<int> b){try{final a=ZipDecoder().decodeBytes(b);for(final f in a){if(f.name=='word/document.xml'){return utf8.decode(f.content as List<int>).replaceAll(RegExp(r'<[^>]+>'),' ');}}return '';}catch(e){return '';}}
           String extractPdf(List<int> b){try{final d=PdfDocument(inputBytes:b);final t=PdfTextExtractor(d).extractText();d.dispose();return t;}catch(e){return '';}}
           String decodeHtml(String t){return t.replaceAll('&amp;','&').replaceAll('&#039;',"'").replaceAll('&quot;','"').replaceAll('&#39;',"'").replaceAll(RegExp(r'<[^>]+>'),'');}
-          String fixTypos(String q){var s=q.toLowerCase();s=s.replaceAll('importantantances','importance').replaceAll('importantances','importance').replaceAll('importances','importance');return s;}
+          String fixTypos(String q){var s=q.toLowerCase();s=s.replaceAll('importantantances','importance').replaceAll('importantances','importance');return s;}
 
-          // === NEW: EXTRACT CORE TOPIC FROM INSTRUCTION ===
           String extractCoreTopic(String input){
             String s=fixTypos(input.toLowerCase());
             s=s.replaceAll(RegExp(r'^(give me|i need|provide|list|show me|what are|what is|tell me about|explain|define|describe|discuss|state|outline)\s+'), '');
@@ -72,7 +71,6 @@ jobs:
             s=s.replaceAll(RegExp(r'\d+\s*importances?\s+of\s+'), 'importance of ');
             s=s.replaceAll(RegExp(r'\d+\s*points?'), '');
             s=s.replaceAll(RegExp(r'well explained|with examples|with example|in table format|in a table|table format|detailed|elaborate|according to uneb|according to|for s\d+|for s\.?\d+|for primary|for s1|s2|s3|s4|s6|uneb|exam format'), '');
-            s=s.replaceAll(RegExp(r'\bfor\b$'), '');
             s=s.replaceAll(RegExp(r'\s+'), ' ').trim();
             if(s.startsWith('of ')) s=s.substring(3);
             if(s.isEmpty) return 'geography';
@@ -81,38 +79,38 @@ jobs:
 
           Map<String, List<Map<String,String>>> curriculumDB={
             'importance of geography':[
-              {'title':'Understanding Physical Environment','exp':'Helps understand landforms, mountains, lakes, rivers and climate.','ex':'Rwenzori Mountains, Lake Victoria Basin, Rift Valley in Uganda.'},
-              {'title':'Weather and Agriculture Link','exp':'Farmers need rainfall and season knowledge to plant.','ex':'Long rains March-May for maize, short rains Sept-Nov.'},
-              {'title':'Population and Settlement','exp':'Explains why people live in certain areas.','ex':'Dense population in Buganda, Kigezi highlands due to fertile soils.'},
-              {'title':'Natural Resources','exp':'Identifies and manages minerals, forests, water.','ex':'Copper Kilembe, oil Albertine, Mabira forest.'},
-              {'title':'Environmental Conservation','exp':'Teaches deforestation, pollution, conservation methods.','ex':'Bwindi gorillas, wetland conservation.'},
-              {'title':'Map Reading Skills','exp':'Skills to read maps, compass, GPS.','ex':'Topographical maps of Kampala.'},
-              {'title':'Career Opportunities','exp':'Jobs like meteorologist, surveyor, planner, pilot.','ex':'UNMA forecasters, Ministry of Lands surveyors.'},
-              {'title':'International Trade','exp':'Global trade, ports, transport routes.','ex':'Coffee exports via Mombasa, EAC trade.'},
-              {'title':'Disaster Management','exp':'Predict floods, landslides, droughts.','ex':'Bududa landslides, Teso floods.'},
-              {'title':'Tourism Development','exp':'Promotes attractions and their location.','ex':'Queen Elizabeth NP, Source of Nile Jinja.'},
+              {'title':'Understanding Physical Environment','exp':'Helps understand landforms, mountains, lakes, rivers and climate.','ex':'Rwenzori Mountains, Lake Victoria Basin, Rift Valley.'},
+              {'title':'Weather and Agriculture Link','exp':'Farmers need rainfall knowledge to plant.','ex':'Long rains March-May for maize.'},
+              {'title':'Population and Settlement','exp':'Explains why people live in certain areas.','ex':'Dense in Buganda, Kigezi highlands fertile soils.'},
+              {'title':'Natural Resources','exp':'Identifies minerals, forests, water.','ex':'Copper Kilembe, oil Albertine, Mabira forest.'},
+              {'title':'Environmental Conservation','exp':'Teaches deforestation, pollution, conservation.','ex':'Bwindi gorillas, wetlands.'},
+              {'title':'Map Reading Skills','exp':'Read maps, compass, GPS.','ex':'Topo maps of Kampala.'},
+              {'title':'Career Opportunities','exp':'Jobs like meteorologist, surveyor, planner.','ex':'UNMA forecasters, Lands surveyors.'},
+              {'title':'International Trade','exp':'Global trade, ports, routes.','ex':'Coffee via Mombasa, EAC trade.'},
+              {'title':'Disaster Management','exp':'Predict floods, landslides.','ex':'Bududa landslides.'},
+              {'title':'Tourism Development','exp':'Promotes attractions.','ex':'Queen Elizabeth NP, Source of Nile.'},
             ],
             'importance of tourism in uganda':[
-              {'title':'Foreign Exchange Earnings','exp':'Tourism is top foreign exchange earner for Uganda, bringing dollars from visitors.','ex':'In 2023, 1.5M tourists brought $1.6B, more than coffee.'},
-              {'title':'Employment Creation','exp':'Creates jobs for guides, hotel staff, drivers, park rangers, craftsmen.','ex':'Over 500,000 Ugandans employed directly/indirectly in tourism.'},
-              {'title':'Infrastructure Development','exp':'Leads to construction of roads, airports, hotels, lodges in remote areas.','ex':'Upgraded roads to Bwindi, Kihihi airstrip, lodges in Queen Elizabeth.'},
-              {'title':'Conservation of Wildlife','exp':'Revenue from parks funds protection of endangered species.','ex':'Gorilla trekking $800 per permit funds Bwindi rangers and gorilla protection.'},
-              {'title':'Cultural Preservation','exp':'Promotes and preserves traditional dances, crafts, kingdoms.','ex':'Ndere Centre, Buganda kingdom tombs Kasubi, Bunyoro cultural sites.'},
-              {'title':'Market for Local Products','exp':'Tourists buy crafts, coffee, artworks, creating market for locals.','ex':'Banana fibre crafts in Buhoma, Buganda barkcloth, Ankole longhorn products.'},
-              {'title':'Government Revenue and Taxes','exp':'Government gets taxes, park entry fees, licenses for development.','ex':'UWA collects park fees used for national budget and local communities.'},
-              {'title':'International Relations and Image','exp':'Improves Uganda image globally as Pearl of Africa.','ex':'Visit Uganda campaigns, international conferences in Kampala.'},
-              {'title':'Education and Research','exp':'Tourist sites are used for study tours, research on ecology, history.','ex':'Makerere students research in Kibale forest, S1 geography trips to Source of Nile.'},
-              {'title':'Development of Remote Areas','exp':'Brings development to rural areas with attractions.','ex':'Bwindi area now has schools, clinics, electricity due to gorilla tourism.'},
-              {'title':'Diversification of Economy','exp':'Reduces over-dependence on agriculture by adding service sector.','ex':'Tourism contributes 7.7% to GDP.'},
-              {'title':'Promotion of Peace and Stability','exp':'Need for peaceful environment for tourists encourages stability.','ex':'Peace in northern Uganda allowed Kidepo Valley tourism to grow.'},
+              {'title':'Foreign Exchange Earnings','exp':'Top foreign exchange earner, brings dollars.','ex':'In 2023, 1.5M tourists brought 1.6B USD, more than coffee.'},
+              {'title':'Employment Creation','exp':'Creates jobs for guides, hotel staff, drivers, rangers.','ex':'Over 500,000 Ugandans employed in tourism.'},
+              {'title':'Infrastructure Development','exp':'Leads to roads, airports, hotels, lodges in remote areas.','ex':'Upgraded roads to Bwindi, Kihihi airstrip.'},
+              {'title':'Conservation of Wildlife','exp':'Revenue funds protection of endangered species.','ex':'Gorilla trekking 800 USD per permit funds Bwindi rangers.'},
+              {'title':'Cultural Preservation','exp':'Promotes traditional dances, crafts, kingdoms.','ex':'Ndere Centre, Buganda Kasubi tombs.'},
+              {'title':'Market for Local Products','exp':'Tourists buy crafts, coffee, artworks.','ex':'Banana fibre crafts Buhoma, barkcloth.'},
+              {'title':'Government Revenue','exp':'Taxes, park entry fees, licenses.','ex':'UWA collects fees for national budget.'},
+              {'title':'International Relations','exp':'Improves Uganda image as Pearl of Africa.','ex':'Visit Uganda campaigns.'},
+              {'title':'Education and Research','exp':'Sites used for study tours, research.','ex':'Makerere research Kibale forest, S1 trips Source of Nile.'},
+              {'title':'Development of Remote Areas','exp':'Brings development to rural areas.','ex':'Bwindi area now has schools, clinics due to gorilla tourism.'},
+              {'title':'Diversification of Economy','exp':'Reduces over-dependence on agriculture.','ex':'Tourism contributes 7.7 percent to GDP.'},
+              {'title':'Promotion of Peace','exp':'Peaceful environment needed for tourists.','ex':'Peace in north allowed Kidepo tourism.'},
             ],
             'location of lake victoria':[
-              {'title':'Geographical Position','exp':'Located in East Africa, south of Equator, coordinates 1°S, 33°E.','ex':'Lies across equator, in both hemispheres.'},
-              {'title':'Countries Sharing','exp':'Shared by Tanzania 49%, Uganda 45%, Kenya 6%.','ex':'Uganda side Kampala/Entebbe/Jinja, Tanzania Mwanza, Kenya Kisumu.'},
+              {'title':'Geographical Position','exp':'Located in East Africa, south of Equator, coordinates 1S, 33E.','ex':'Lies across equator, both hemispheres.'},
+              {'title':'Countries Sharing','exp':'Shared by Tanzania 49 percent, Uganda 45 percent, Kenya 6 percent.','ex':'Uganda Kampala Entebbe Jinja, Tanzania Mwanza, Kenya Kisumu.'},
               {'title':'Size','exp':'Largest in Africa, 2nd largest freshwater world: 59,947 km2, 359km long.','ex':'Bigger than Rwanda and Burundi combined.'},
-              {'title':'Source of Nile','exp':'White Nile starts at Jinja, Uganda, discovered by John Speke 1858.','ex':'Ripon Falls, Owen Falls Dam, Jinja.'},
-              {'title':'Economic Importance','exp':'Fishing, transport, hydro power, water supply.','ex':'Nile perch fishing, MV Kalangala ferry, 200,000 jobs.'},
-              {'title':'Islands','exp':'84+ islands, Ssese Islands in Uganda.','ex':'Bugala Island, Kalangala district tourism.'},
+              {'title':'Source of Nile','exp':'White Nile starts at Jinja, discovered by John Speke 1858.','ex':'Ripon Falls, Owen Falls Dam, Jinja.'},
+              {'title':'Economic Importance','exp':'Fishing, transport, hydro power, water supply.','ex':'Nile perch fishing, MV Kalangala ferry, 200k jobs.'},
+              {'title':'Islands','exp':'84 plus islands, Ssese Islands in Uganda.','ex':'Bugala Island, Kalangala district tourism.'},
             ],
           };
 
@@ -152,18 +150,17 @@ jobs:
               } else if(l.contains('geography')){
                 points=List.from(curriculumDB['importance of geography']!);
               } else {
-                // GENERIC generator for any topic
                 points=[
-                  {'title':'Definition of ' + core,'exp':'Explains meaning and background of ' + core + ' in Uganda context.','ex':'Example: In Uganda, ' + core + ' is common in daily life.'},
-                  {'title':'Economic Importance of ' + core,'exp':core + ' contributes to income and GDP of country.','ex':'Example: Many Ugandans earn from ' + core + ' in central region.'},
-                  {'title':'Social Benefits','exp':core + ' improves social life and community development.','ex':'Example: Communities around Kampala benefit from ' + core + '.'},
-                  {'title':'Environmental Aspect','exp':'Relates to environment conservation and sustainability.','ex':'Example: In Queen Elizabeth NP, ' + core + ' is managed sustainably.'},
-                  {'title':'Educational Value','exp':'Studied in schools for knowledge and skills.','ex':'Example: S2 students learn about ' + core + ' in geography syllabus.'},
-                  {'title':'Employment Opportunities','exp':'Creates jobs for youth and adults.','ex':'Example: Jobs in tourism, agriculture linked to ' + core + '.'},
-                  {'title':'Government Role','exp':'Government policies support development of ' + core + '.','ex':'Example: Ministry of Tourism supports ' + core + '.'},
-                  {'title':'Challenges Facing ' + core,'exp':'Problems like funding, awareness, climate change affect it.','ex':'Example: In northern Uganda, challenges include limited infrastructure.'},
-                  {'title':'Solutions and Improvements','exp':'Solutions include sensitization, funding, training.','ex':'Example: UWA training guides to improve ' + core + '.'},
-                  {'title':'Future Prospects','exp':'Future of ' + core + ' is bright with technology and investment.','ex':'Example: Vision 2040 includes ' + core + ' development.'},
+                  {'title':'Definition of ' + core,'exp':'Explains meaning and background of ' + core + ' in Uganda context.','ex':'In Uganda, ' + core + ' is common.'},
+                  {'title':'Economic Importance','exp':core + ' contributes to income and GDP.','ex':'Many earn from ' + core + ' in central region.'},
+                  {'title':'Social Benefits','exp':core + ' improves social life.','ex':'Communities around Kampala benefit.'},
+                  {'title':'Environmental Aspect','exp':'Relates to environment conservation.','ex':'In Queen Elizabeth NP, managed sustainably.'},
+                  {'title':'Educational Value','exp':'Studied in schools.','ex':'S2 students learn about ' + core + '.'},
+                  {'title':'Employment','exp':'Creates jobs.','ex':'Jobs linked to ' + core + '.'},
+                  {'title':'Government Role','exp':'Government policies support it.','ex':'Ministry supports ' + core + '.'},
+                  {'title':'Challenges','exp':'Problems like funding, awareness.','ex':'Challenges include limited infrastructure.'},
+                  {'title':'Solutions','exp':'Solutions include training, funding.','ex':'UWA training guides to improve.'},
+                  {'title':'Future Prospects','exp':'Future bright with technology.','ex':'Vision 2040 includes ' + core + '.'},
                 ];
               }
             }
@@ -206,7 +203,7 @@ jobs:
           class Home extends StatelessWidget {
             @override Widget build(BuildContext c){
               final subs=['Mathematics','Biology','Chemistry','Physics','History','Geography','English','Agriculture'];
-              return Scaffold(appBar: AppBar(title:Text('MTRDF V14.28 FINAL'),backgroundColor:Colors.deepPurple,foregroundColor:Colors.white), body: ListView.builder(padding:EdgeInsets.all(12),itemCount:subs.length,itemBuilder:(_,j){ return Card(child:ListTile(title:Text(subs[j]),subtitle:Text('10 points format like ChatGPT'),onTap:()=>Navigator.push(c,MaterialPageRoute(builder:(_)=>ChatPage(subject:subs[j]))))); }));
+              return Scaffold(appBar: AppBar(title:Text('MTRDF V14.29 FIXED'),backgroundColor:Colors.deepPurple,foregroundColor:Colors.white), body: ListView.builder(padding:EdgeInsets.all(12),itemCount:subs.length,itemBuilder:(_,j){ return Card(child:ListTile(title:Text(subs[j]),subtitle:Text('10 points format like ChatGPT'),onTap:()=>Navigator.push(c,MaterialPageRoute(builder:(_)=>ChatPage(subject:subs[j]))))); }));
             }
           }
           class DocsPage extends StatefulWidget { @override State<DocsPage> createState()=>_DocsS(); }
@@ -261,28 +258,29 @@ jobs:
                       SizedBox(height:8),
                       Text((instr['core']??'TOPIC').toString().toUpperCase(), style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
                       SizedBox(height:4),
-                      Text((instr['uneb']==true?'UNEB/S4 Exam Format - ':'') + (instr['level']??'') + ' Level', style: TextStyle(fontSize: 12, color: Colors.green[700])),
+                      Text((instr['uneb']==true?'UNEB/S4 Exam Format - ':'') + (instr['level']??'') + ' Level', style: TextStyle(fontSize: 12, color: Colors.green)),
                       SizedBox(height:8),
                       Text('Introduction:', style: TextStyle(fontWeight: FontWeight.bold)),
                       Text(wiki.isNotEmpty? wiki[0]['snip']??'This topic is important in Uganda curriculum. [1]' : 'This topic is important in Uganda curriculum and UNEB exams.', style: TextStyle(fontSize: 13)),
                       SizedBox(height:12),
-                      Text('Here are ' + (instr['points']?.toString()??'10') + ' points ' + ((instr['detailed']??false)?'well explained':'') + ((instr['examples']??false)?' with examples':'') + ':', style: TextStyle(fontWeight: FontWeight.bold)),
+                      Text('Here are ' + (instr['points']?.toString()??'10') + ' points:', style: TextStyle(fontWeight: FontWeight.bold)),
                       SizedBox(height:8),
-                      isTable?
-                      SingleChildScrollView(scrollDirection: Axis.horizontal, child: DataTable(columns: [DataColumn(label: Text('No', style: TextStyle(fontWeight: FontWeight.bold))), DataColumn(label: Text('Point')), DataColumn(label: Text('Explanation')), DataColumn(label: Text('Uganda Example'))], rows: points.asMap().entries.map((e){ int i=e.key; var p=e.value; return DataRow(cells: [DataCell(Text((i+1).toString())), DataCell(SizedBox(width: 100, child: Text(p['title']!, style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)))), DataCell(SizedBox(width: 150, child: Text(p['exp']!, style: TextStyle(fontSize: 11)))), DataCell(SizedBox(width: 150, child: Text(p['ex']!, style: TextStyle(fontSize: 11))))]); }).toList())),
-                      Column(children: points.asMap().entries.map((e){
-                        int i=e.key; var p=e.value;
-                        return Card(child: Padding(padding: EdgeInsets.all(10), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children:[
-                          Text((i+1).toString() + '. ' + p['title']!.toUpperCase() + ' [Curriculum][' + ((i%3)+1).toString() + ']', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
-                          SizedBox(height:4),
-                          Text('Explanation: ' + p['exp']!, style: TextStyle(fontSize: 12)),
-                          SizedBox(height:4),
-                          if(instr['examples']==true) Text('Example: ' + p['ex']!, style: TextStyle(fontSize: 12, fontStyle: FontStyle.italic, color: Colors.black87)),
-                        ])));
-                      }).toList(),
+                      if(isTable)
+                        SingleChildScrollView(scrollDirection: Axis.horizontal, child: DataTable(columns: [DataColumn(label: Text('No', style: TextStyle(fontWeight: FontWeight.bold))), DataColumn(label: Text('Point')), DataColumn(label: Text('Explanation')), DataColumn(label: Text('Example'))], rows: points.asMap().entries.map((e){ int i=e.key; var p=e.value; return DataRow(cells: [DataCell(Text((i+1).toString())), DataCell(SizedBox(width: 90, child: Text(p['title']!, style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)))), DataCell(SizedBox(width: 130, child: Text(p['exp']!, style: TextStyle(fontSize: 11)))), DataCell(SizedBox(width: 130, child: Text(p['ex']!, style: TextStyle(fontSize: 11))))]); }).toList())),
+                      if(!isTable)
+                        Column(children: points.asMap().entries.map((e){
+                          int i=e.key; var p=e.value;
+                          return Card(child: Padding(padding: EdgeInsets.all(10), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children:[
+                            Text((i+1).toString() + '. ' + p['title']!.toUpperCase(), style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                            SizedBox(height:4),
+                            Text('Explanation: ' + p['exp']!, style: TextStyle(fontSize: 12)),
+                            SizedBox(height:4),
+                            if(instr['examples']==true) Text('Example: ' + p['ex']!, style: TextStyle(fontSize: 12, fontStyle: FontStyle.italic)),
+                          ])));
+                        }).toList()),
                       SizedBox(height:12),
                       Text('Conclusion:', style: TextStyle(fontWeight: FontWeight.bold)),
-                      Text('Therefore, ' + (instr['core']??'this topic') + ' is very important for understanding environment and national development in Uganda. Students should master these points for UNEB exams.', style: TextStyle(fontSize: 12)),
+                      Text('Therefore, ' + (instr['core']??'this topic') + ' is very important for Uganda development. Students should master these points for UNEB.', style: TextStyle(fontSize: 12)),
                     ]))
                   ) : ListView.builder(padding:EdgeInsets.all(12),itemCount:wiki.length,itemBuilder:(_,i){ var r=wiki[i]; return Card(child: ListTile(title:Text(r['title']??'',style:TextStyle(fontSize:12,fontWeight:FontWeight.bold)), subtitle:Text(r['snip']??'',style:TextStyle(fontSize:11)))); }))
                 ])
@@ -331,5 +329,5 @@ jobs:
       - name: Upload
         uses: actions/upload-artifact@v4
         with:
-          name: MTRDF-V14-28-FIXED-TOPIC-EXTRACTOR-TABLE
+          name: MTRDF-V14-29-FIXED-DOLLAR-TABLE
           path: build/app/outputs/flutter-apk/app-release.apk

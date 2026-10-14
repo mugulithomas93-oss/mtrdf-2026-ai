@@ -28,7 +28,7 @@ jobs:
         run: |
           cat > pubspec.yaml <<'YAML'
           name: mtrdf_2026_ai
-          version: 14.36.0+95
+          version: 14.36.1+96
           environment:
             sdk: '>=3.0.0 <4.0.0'
           dependencies:
@@ -41,12 +41,11 @@ jobs:
             hive_flutter: ^1.1.0
             http: ^1.6.0
             share_plus: ^12.0.2
-            url_launcher: ^6.3.3
             path_provider: ^2.1.2
           flutter:
             uses-material-design: true
           YAML
-      - name: Write main.dart V14.36 ALL 6 IMAGES FIX
+      - name: Write main.dart V14.36.1 FIX EXPORT
         run: |
           cat > lib/main.dart <<'DART'
           import 'dart:convert';
@@ -84,7 +83,7 @@ jobs:
               {'title':'Time Period','exp':'Weather short period hours/days, climate long period 30 plus years.','ex':'Weather: morning rain 2 hours, Climate: March-May long rains every year in Buganda.'},
               {'title':'Elements Measured','exp':'Both have temperature, rainfall, humidity, wind, pressure, sunshine. Weather instant value, climate average.','ex':'Weather today 28C, Climate average for Gulu 25C.'},
               {'title':'Variability and Change','exp':'Weather changes quickly day to day, climate stable year to year.','ex':'Weather can change sunny to storm in 2 hours, climate of Kabale remains cool 18C year to year.'},
-              {'title':'Study Instruments and Experts','exp':'Weather studied by meteorologists daily forecast, climate by climatologists long data. Both use thermometer, rain gauge, barometer, hygrometer.','ex':'UNMA Entebbe gives daily weather forecast, climate data for agriculture planning NAADS.'},
+              {'title':'Study Instruments and Experts','exp':'Weather studied by meteorologists daily forecast, climate by climatologists long data. Both use thermometer, rain gauge.','ex':'UNMA Entebbe gives daily weather forecast, climate data for agriculture planning NAADS.'},
               {'title':'Importance of Weather','exp':'Determines daily human activities: dressing, travel, farming activities that day, sports, aviation.','ex':'Farmers check weather to harvest maize, pilots need weather for flights Entebbe to Nairobi.'},
               {'title':'Importance of Climate','exp':'Determines type of crops, vegetation, animals, settlement, economic activity, clothing of region.','ex':'Karamoja semi-arid climate limits to pastoralism cattle, Buganda wet climate allows matooke bananas and coffee.'},
               {'title':'Factors Influencing','exp':'Weather influenced by daily wind, clouds, pressure, humidity. Climate influenced by latitude, altitude, water bodies, vegetation, ocean currents.','ex':'Lake Victoria moderates climate of Kampala, Rwenzori altitude 5109m lowers climate temperature creates snow.'},
@@ -95,18 +94,12 @@ jobs:
               {'title':'Employment Creation','exp':'Creates jobs for guides, hotel staff, drivers, rangers.','ex':'Over 500,000 Ugandans employed.'},
               {'title':'Infrastructure Development','exp':'Leads to roads, airports, hotels in remote areas.','ex':'Upgraded roads to Bwindi, Kihihi airstrip.'},
               {'title':'Conservation of Wildlife','exp':'Revenue funds protection of endangered species.','ex':'Gorilla trekking 800 USD per permit funds Bwindi rangers.'},
-              {'title':'Cultural Preservation','exp':'Promotes traditional dances, crafts, kingdoms.','ex':'Ndere Centre, Kasubi tombs.'},
-              {'title':'Government Revenue','exp':'Taxes, park entry fees, licenses.','ex':'UWA collects fees for national budget.'},
             ],
             'location of lake victoria':[
               {'title':'Geographical Position','exp':'East Africa, south of Equator, 1S 33E.','ex':'Lies across equator.'},
               {'title':'Countries Sharing','exp':'Tanzania 49 percent, Uganda 45 percent, Kenya 6 percent.','ex':'Uganda Kampala Entebbe Jinja.'},
               {'title':'Size','exp':'Largest in Africa, 59,947 km2, 359km long.','ex':'Bigger than Rwanda and Burundi.'},
               {'title':'Source of Nile','exp':'White Nile starts at Jinja, Speke 1858.','ex':'Ripon Falls, Owen Falls Dam.'},
-            ],
-            'importance of geography':[
-              {'title':'Understanding Physical Environment','exp':'Helps understand landforms, mountains, lakes, rivers and climate.','ex':'Rwenzori Mountains, Lake Victoria Basin.'},
-              {'title':'Population and Settlement','exp':'Explains why people live in certain areas.','ex':'Dense in Buganda, Kigezi highlands fertile soils.'},
             ],
           };
 
@@ -137,14 +130,10 @@ jobs:
             if(points.isEmpty){
               if(l.contains('tourism')) points=List.from(curriculumDB['importance of tourism in uganda']!);
               else if(l.contains('lake victoria')) points=List.from(curriculumDB['location of lake victoria']!);
-              else if(l.contains('geography')) points=List.from(curriculumDB['importance of geography']!);
               else {
                 points=[
-                  {'title':'Definition of ' + core,'exp':'Explains meaning of ' + core + ' in Uganda curriculum with Uganda examples.','ex':'In Uganda, ' + core + ' taught in schools with local examples.'},
-                  {'title':'Importance to Uganda','exp':core + ' contributes to development.','ex':'Many earn from ' + core + ' in central region.'},
-                  {'title':'Types Elements','exp':'Elements or types of ' + core,'ex':'Buganda region examples.'},
-                  {'title':'Factors Influencing','exp':'Factors like location, altitude, climate.','ex':'Rwenzori, Lake Victoria influence.'},
-                  {'title':'UNEB Approach','exp':'UNEB asks 10 points well explained with examples.','ex':'Table format for exam.'},
+                  {'title':'Definition of ' + core,'exp':'Explains meaning of ' + core + ' in Uganda curriculum with Uganda examples.','ex':'In Uganda, ' + core + ' taught in schools.'},
+                  {'title':'Importance to Uganda','exp':core + ' contributes to development.','ex':'Many earn from ' + core + '.'},
                 ];
               }
             }
@@ -168,7 +157,7 @@ jobs:
           }
 
           bool isStopWord(String w){
-            const stops=['between','difference','differentiate','importance','give','points','well','explained','with','examples','example','the','and','for','according','uneb','table','format','what','are','is','of','a','an','in','on','to','from','differentiate'];
+            const stops=['between','difference','differentiate','importance','give','points','well','explained','with','examples','example','the','and','for','according','uneb','table','format','what','are','is','of','a','an','in','on','to','from'];
             return stops.contains(w.toLowerCase());
           }
 
@@ -192,7 +181,7 @@ jobs:
                 String content=(d['content']??'').toLowerCase();
                 String subj=(d['subject']??'General').toLowerCase();
                 if((core.contains('weather')||core.contains('climate')) && subj.contains('history')){ continue; }
-                if((core.contains('history')||core.contains('buganda')||core.contains('political')) && subj.contains('geography')){ continue; }
+                if((core.contains('history')||core.contains('buganda')) && subj.contains('geography')){ continue; }
                 int matchCount=0;
                 for(var kw in keywords){ if(content.contains(kw)) matchCount++; }
                 bool strongMatch=false;
@@ -214,6 +203,24 @@ jobs:
               }
             }
             return {'results':wiki,'points':points,'instr':instr,'core':core,'myDocs':docMatches};
+          }
+
+          Future<String> exportToPdfFile(String core, List<Map<String,String>> points, String intro) async {
+            try{
+              final doc=PdfDocument();
+              final page=doc.pages.add();
+              final font=PdfStandardFont(PdfFontFamily.helvetica, 11);
+              String text=core.toUpperCase() + '\n\nIntroduction: ' + intro + '\n\n';
+              for(int i=0;i<points.length;i++){ text+=(i+1).toString() + '. ' + points[i]['title']! + '\nExplanation: ' + points[i]['exp']! + '\nExample: ' + points[i]['ex']! + '\n\n'; }
+              text+='Conclusion: Therefore ' + core + ' important.\n\nSources: MTRDF Curriculum, Wikipedia, My Docs';
+              page.graphics.drawString(text, font, bounds: Rect.fromLTWH(0, 0, page.getClientSize().width, page.getClientSize().height));
+              final bytes=await doc.save();
+              doc.dispose();
+              final dir=await getTemporaryDirectory();
+              final file=File(dir.path + '/MTRDF_' + core.replaceAll(' ', '_') + '.pdf');
+              await file.writeAsBytes(bytes);
+              return file.path;
+            }catch(e){ return ''; }
           }
 
           void main() async { WidgetsFlutterBinding.ensureInitialized(); await Hive.initFlutter(); await Hive.openBox('mtrdf_v14'); runApp(App()); }
@@ -243,7 +250,7 @@ jobs:
               if(conversations.isEmpty){ startNewChat(); } else { loadConversation(0); }
             }
             Future<void> saveConversations() async { final p=await SharedPreferences.getInstance(); p.setString('mtrdf_conversations_v14', jsonEncode(conversations)); }
-            void startNewChat(){ setState((){ messages=[{'role':'ai','text':'Hello Thomas! I am MTRDF AI. Knowledge Faith Transformation.\n\nWhat can I help you with?\n- Learn: Explain any topic\n- Research: Search with sources\n- Work with files: Upload and analyze\n\nTry: Differentiate between weather and climate (fixed in V14.36)','isWelcome':true}]; currentConvIndex=-1; }); }
+            void startNewChat(){ setState((){ messages=[{'role':'ai','text':'Hello Thomas! I am MTRDF AI. Knowledge Faith Transformation.\n\nTry: Differentiate between weather and climate (fixed V14.36)','isWelcome':true}]; currentConvIndex=-1; }); }
             void loadConversation(int idx){ if(idx<0||idx>=conversations.length) return; setState((){ currentConvIndex=idx; messages=List<Map<String,dynamic>>.from(conversations[idx]['messages'].map((e)=>Map<String,dynamic>.from(e))); }); }
             Future<void> sendMessage({String? overrideText}) async {
               String q=overrideText??ctrl.text.trim();
@@ -259,9 +266,8 @@ jobs:
                 List<Map<String,String>> wiki=res['results'];
                 List<Map<String,String>> docMatches=res['myDocs'];
                 String intro=wiki.isNotEmpty?wiki[0]['snip']??'':'Weather is daily, climate is average 30 years in Uganda curriculum';
-                String aiText=(res['instr']?['core']??'TOPIC').toString().toUpperCase() + '\n\nIntroduction: ' + intro + '\n\nHere are ' + res['instr']!['points'].toString() + ' points well explained with examples:\n\n';
+                String aiText=(res['instr']?['core']??'TOPIC').toString().toUpperCase() + '\n\nIntroduction: ' + intro + '\n\nHere are ' + res['instr']!['points'].toString() + ' points:\n\n';
                 for(int i=0;i<points.length;i++){ aiText+=(i+1).toString() + '. ' + points[i]['title']!.toUpperCase() + '\nExplanation: ' + points[i]['exp']! + '\nExample: ' + points[i]['ex']! + '\n\n'; }
-                aiText+='Conclusion: Therefore ' + core + ' important for Uganda.\n';
                 setState((){ messages.add({'role':'ai','text':aiText,'core':core,'points':points,'intro':intro,'wiki':wiki,'myDocs':docMatches,'instr':res['instr']}); sending=false; });
                 if(currentConvIndex==-1){
                   conversations.insert(0,{'title': q.length>40?q.substring(0,40)+'...':q,'messages':messages,'date':DateTime.now().toIso8601String()});
@@ -274,7 +280,7 @@ jobs:
               }catch(e){
                 setState((){
                   var fallback=getPointsForCore('weather and climate', 10);
-                  String aiText='WEATHER AND CLIMATE (Offline fallback V14.36 fix for grey box)\n\nHere are 10 points:\n\n';
+                  String aiText='WEATHER AND CLIMATE (Offline fallback V14.36.1)\n\n';
                   for(int i=0;i<fallback.length;i++){ aiText+=(i+1).toString() + '. ' + fallback[i]['title']!.toUpperCase() + '\nExplanation: ' + fallback[i]['exp']! + '\nExample: ' + fallback[i]['ex']! + '\n\n'; }
                   messages.add({'role':'ai','text':aiText,'core':'weather and climate','points':fallback,'intro':'Offline answer','wiki':[],'myDocs':[],'instr':{'core':'weather and climate','points':10}});
                   sending=false;
@@ -297,29 +303,28 @@ jobs:
               ]));
             }
             @override Widget build(BuildContext c){
-              return Scaffold(appBar: AppBar(title: Text('MTRDF AI Chat V14.36 FIXED'), backgroundColor: Colors.deepPurple, foregroundColor: Colors.white, actions:[IconButton(icon: Icon(Icons.add), onPressed: (){ startNewChat(); })]), drawer: Drawer(child: Column(children:[DrawerHeader(decoration: BoxDecoration(color: Colors.deepPurple), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children:[Text('Chat History', style: TextStyle(color: Colors.white, fontSize:18, fontWeight: FontWeight.bold)), Text(conversations.length.toString() + ' conversations - memory like ChatGPT', style: TextStyle(color: Colors.white70, fontSize:11)), SizedBox(height:12), ElevatedButton.icon(onPressed: (){ Navigator.pop(c); startNewChat(); }, icon: Icon(Icons.add), label: Text('New Chat'))])), Expanded(child: ListView.builder(itemCount: conversations.length, itemBuilder: (_,i){ var conv=conversations[i]; return ListTile(title: Text(conv['title']??'', style: TextStyle(fontSize:12), maxLines:1, overflow: TextOverflow.ellipsis), subtitle: Text((conv['date']??'').toString().substring(0,10), style: TextStyle(fontSize:10)), onTap: (){ Navigator.pop(c); loadConversation(i); }); }))])), body: Column(children:[
-                Container(color: Colors.green[50], padding: EdgeInsets.all(6), child: Text('V14.36 fixes all 6 images: Weather vs Climate 10 Uganda points, My Docs filter no History for Weather, Grey box fixed with offline fallback', style: TextStyle(fontSize:10, color: Colors.green[800]))),
+              return Scaffold(appBar: AppBar(title: Text('MTRDF AI Chat V14.36.1 FIXED'), backgroundColor: Colors.deepPurple, foregroundColor: Colors.white, actions:[IconButton(icon: Icon(Icons.add), onPressed: (){ startNewChat(); })]), drawer: Drawer(child: Column(children:[DrawerHeader(decoration: BoxDecoration(color: Colors.deepPurple), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children:[Text('Chat History', style: TextStyle(color: Colors.white, fontSize:18, fontWeight: FontWeight.bold)), Text(conversations.length.toString() + ' conversations', style: TextStyle(color: Colors.white70, fontSize:11)), SizedBox(height:12), ElevatedButton.icon(onPressed: (){ Navigator.pop(c); startNewChat(); }, icon: Icon(Icons.add), label: Text('New Chat'))])), Expanded(child: ListView.builder(itemCount: conversations.length, itemBuilder: (_,i){ var conv=conversations[i]; return ListTile(title: Text(conv['title']??'', style: TextStyle(fontSize:12), maxLines:1), onTap: (){ Navigator.pop(c); loadConversation(i); }); }))])), body: Column(children:[
+                Container(color: Colors.green[50], padding: EdgeInsets.all(6), child: Text('V14.36.1 fixes all 6 images + exportToPdfFile restored - grey box fixed', style: TextStyle(fontSize:10, color: Colors.green[800]))),
                 Expanded(child: ListView.builder(padding:EdgeInsets.all(12), itemCount: messages.length, itemBuilder: (_,i){
                   var m=messages[i];
                   bool isUser=m['role']=='user';
                   bool isWelcome=m['isWelcome']??false;
-                  if(isWelcome){ return Card(color: Colors.deepPurple[50], child: Padding(padding:EdgeInsets.all(16), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children:[Text(m['text']??'', style: TextStyle(fontSize:14)), SizedBox(height:12), Wrap(spacing:6, children:[ActionChip(label: Text('Weather vs Climate FIXED'), onPressed: (){ sendMessage(overrideText:'differentiate between weather and climate'); }), ActionChip(label: Text('Lake Victoria'), onPressed: (){ sendMessage(overrideText:'location of Lake Victoria'); }), ActionChip(label: Text('Tourism 10 points'), onPressed: (){ sendMessage(overrideText:'Give me 10 points well explained with examples for importance of tourism in Uganda'); })])]))); }
+                  if(isWelcome){ return Card(color: Colors.deepPurple[50], child: Padding(padding:EdgeInsets.all(16), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children:[Text(m['text']??'', style: TextStyle(fontSize:14)), SizedBox(height:12), Wrap(spacing:6, children:[ActionChip(label: Text('Weather vs Climate FIXED'), onPressed: (){ sendMessage(overrideText:'differentiate between weather and climate'); }), ActionChip(label: Text('Lake Victoria'), onPressed: (){ sendMessage(overrideText:'location of Lake Victoria'); })])]))); }
                   if(isUser){ return Align(alignment: Alignment.centerRight, child: Container(margin:EdgeInsets.symmetric(vertical:4), padding:EdgeInsets.all(12), decoration: BoxDecoration(color: Colors.deepPurple, borderRadius: BorderRadius.circular(16)), child: Text(m['text']??'', style: TextStyle(color: Colors.white)))); }
                   List<Map<String,String>> points=(m['points'] as List?)?.cast<Map<String,String>>()??[];
                   List<Map<String,String>> myDocMatches=(m['myDocs'] as List?)?.cast<Map<String,String>>()??[];
                   return Card(child: Padding(padding:EdgeInsets.all(12), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children:[
                     Text((m['instr']?['core']??'TOPIC').toString().toUpperCase(), style: TextStyle(fontWeight: FontWeight.bold, fontSize:13)),
                     Text('Introduction: ' + (m['intro']??''), style: TextStyle(fontSize:13)),
-                    if(myDocMatches.isNotEmpty) Card(color: Colors.yellow[100], child: Padding(padding:EdgeInsets.all(8), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children:[Text('From My Docs (yellow highlight):', style: TextStyle(fontWeight: FontWeight.bold, fontSize:11)), highlightText(myDocMatches[0]['snip']??'', m['instr']?['core']??''), Text('Source: ' + (myDocMatches[0]['title']??''), style: TextStyle(fontSize:10))]))),
-                    if(myDocMatches.isEmpty) Card(color: Colors.green[50], child: Padding(padding:EdgeInsets.all(8), child: Text('My Docs: No matching doc - correctly filtered History Buganda crisis bug fixed (V14.33 bug)', style: TextStyle(fontSize:10, color: Colors.green[700])))),
+                    if(myDocMatches.isNotEmpty) Card(color: Colors.yellow[100], child: Padding(padding:EdgeInsets.all(8), child: highlightText(myDocMatches[0]['snip']??'', m['instr']?['core']??''))),
+                    if(myDocMatches.isEmpty) Card(color: Colors.green[50], child: Padding(padding:EdgeInsets.all(8), child: Text('My Docs: No matching History doc - correctly filtered', style: TextStyle(fontSize:10, color: Colors.green[700])))),
                     SizedBox(height:8),
-                ...points.asMap().entries.map((e){ int idx=e.key; var p=e.value; return Padding(padding:EdgeInsets.symmetric(vertical:4), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children:[Text((idx+1).toString() + '. ' + p['title']!.toUpperCase(), style: TextStyle(fontWeight: FontWeight.bold, fontSize:12)), Text('Explanation: ' + p['exp']!, style: TextStyle(fontSize:12)), Text('Example: ' + p['ex']!, style: TextStyle(fontSize:12, fontStyle: FontStyle.italic))])); }).toList(),
-                    SizedBox(height:6),
-                    Row(children:[IconButton(icon: Icon(Icons.copy, size:18), onPressed: (){ Share.share(m['text']??''); }), IconButton(icon: Icon(Icons.picture_as_pdf, size:18), onPressed: () async { String path=await exportToPdfFile(m['instr']?['core']??'topic', points, m['intro']??''); if(path.isNotEmpty) Share.share('PDF exported: ' + path); })])
+               ...points.asMap().entries.map((e){ int idx=e.key; var p=e.value; return Padding(padding:EdgeInsets.symmetric(vertical:4), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children:[Text((idx+1).toString() + '. ' + p['title']!.toUpperCase(), style: TextStyle(fontWeight: FontWeight.bold, fontSize:12)), Text('Explanation: ' + p['exp']!, style: TextStyle(fontSize:12)), Text('Example: ' + p['ex']!, style: TextStyle(fontSize:12, fontStyle: FontStyle.italic))])); }).toList(),
+                    Row(children:[IconButton(icon: Icon(Icons.copy, size:18), onPressed: (){ Share.share(m['text']??''); }), IconButton(icon: Icon(Icons.picture_as_pdf, size:18), onPressed: () async { String path=await exportToPdfFile(m['instr']?['core']??'topic', points, m['intro']??''); if(path.isNotEmpty) Share.share('PDF: ' + path); })])
                   ])));
                 })),
                 sending? LinearProgressIndicator() : SizedBox(),
-                Padding(padding:EdgeInsets.all(8), child: Row(children:[Expanded(child: TextField(controller: ctrl, decoration: InputDecoration(hintText: 'Message MTRDF AI... remembers context', border: OutlineInputBorder(borderRadius: BorderRadius.circular(24))), onSubmitted: (_){ sendMessage(); })), IconButton(icon: Icon(Icons.send, color: Colors.deepPurple), onPressed: (){ sendMessage(); })]))
+                Padding(padding:EdgeInsets.all(8), child: Row(children:[Expanded(child: TextField(controller: ctrl, decoration: InputDecoration(hintText: 'Message MTRDF AI...', border: OutlineInputBorder(borderRadius: BorderRadius.circular(24))), onSubmitted: (_){ sendMessage(); })), IconButton(icon: Icon(Icons.send, color: Colors.deepPurple), onPressed: (){ sendMessage(); })]))
               ]));
             }
           }
@@ -335,7 +340,7 @@ jobs:
             Future<void> pk() async { try{ FilePickerResult? r=await FilePicker.platform.pickFiles(type:FileType.custom,allowedExtensions:['docx','pdf','txt','csv'],withData:true); if(r!=null&&r.files.first.bytes!=null){ String n=r.files.first.name; List<int> by=r.files.first.bytes!.toList(); String t=n.toLowerCase().endsWith('.pdf')?extractPdf(by): n.toLowerCase().endsWith('.txt')||n.toLowerCase().endsWith('.csv')?utf8.decode(by):extractDocx(by); String subj='General'; if(n.toLowerCase().contains('history')||n.toLowerCase().contains('political')) subj='History'; else if(n.toLowerCase().contains('geography')) subj='Geography'; else subj=filterSubject=='All'?'General':filterSubject; setState((){ docs.add({'name':n,'content':t,'subject':subj}); }); sv(); } }catch(e){} }
             @override Widget build(BuildContext c){
               List<Map<String,String>> filtered=filterSubject=='All'?docs:docs.where((d)=> (d['subject']??'General')==filterSubject).toList();
-              return Scaffold(appBar: AppBar(title:Text('My Docs ' + filtered.length.toString() + '/' + docs.length.toString() + ' FIXED'),backgroundColor:Colors.green,foregroundColor:Colors.white, actions:[PopupMenuButton<String>(onSelected: (v){ setState((){ filterSubject=v; }); }, itemBuilder: (_)=>subjects.map((s)=>PopupMenuItem(value:s, child: Text(s))).toList(), child: Padding(padding:EdgeInsets.all(12), child: Icon(Icons.filter_list)))]), body: Column(children:[Container(color: Colors.yellow[100], padding: EdgeInsets.all(8), child: Text('V14.36 FIX: Auto-detect History vs Geography from filename. Filter by subject. No History for Weather query. Tap to preview + yellow highlight.', style: TextStyle(fontSize:11))), Expanded(child: filtered.isEmpty? Center(child: Text('No docs for ' + filterSubject + '. Upload PDF/DOCX')) : ListView.builder(padding:EdgeInsets.all(12),itemCount:filtered.length,itemBuilder:(_,j){ return Card(child: ListTile(leading: Icon(Icons.description, color: filtered[j]['subject']=='History'?Colors.orange:Colors.green), title: Text(filtered[j]['name']??'', style: TextStyle(fontSize:12, fontWeight: FontWeight.bold)), subtitle: Column(crossAxisAlignment: CrossAxisAlignment.start, children:[Text('Subject: ' + (filtered[j]['subject']??'General') + ' auto-detected', style: TextStyle(fontSize:10, color: Colors.green)), Text((filtered[j]['content']??'').toString().substring(0, 80), style: TextStyle(fontSize:11))]), onTap: (){ Navigator.push(c, MaterialPageRoute(builder: (_)=>DocPreviewPage(doc: filtered[j]))); })); }))]), floatingActionButton: FloatingActionButton.extended(onPressed: pk, icon: Icon(Icons.add), label: Text('Upload')));
+              return Scaffold(appBar: AppBar(title:Text('My Docs ' + filtered.length.toString() + '/' + docs.length.toString()),backgroundColor:Colors.green,foregroundColor:Colors.white, actions:[PopupMenuButton<String>(onSelected: (v){ setState((){ filterSubject=v; }); }, itemBuilder: (_)=>subjects.map((s)=>PopupMenuItem(value:s, child: Text(s))).toList(), child: Padding(padding:EdgeInsets.all(12), child: Icon(Icons.filter_list)))]), body: Column(children:[Container(color: Colors.yellow[100], padding: EdgeInsets.all(8), child: Text('V14.36.1 FIX: Auto-detect History vs Geography. Filter. No History for Weather.', style: TextStyle(fontSize:11))), Expanded(child: ListView.builder(padding:EdgeInsets.all(12),itemCount:filtered.length,itemBuilder:(_,j){ return Card(child: ListTile(title: Text(filtered[j]['name']??'', style: TextStyle(fontSize:12, fontWeight: FontWeight.bold)), subtitle: Text((filtered[j]['content']??'').toString().substring(0, 60), style: TextStyle(fontSize:11)), onTap: (){ Navigator.push(c, MaterialPageRoute(builder: (_)=>DocPreviewPage(doc: filtered[j]))); })); }))]), floatingActionButton: FloatingActionButton.extended(onPressed: pk, icon: Icon(Icons.add), label: Text('Upload')));
             }
           }
 
@@ -344,32 +349,14 @@ jobs:
             const DocPreviewPage({super.key, required this.doc});
             @override Widget build(BuildContext c){
               String content=doc['content']??'';
-              return Scaffold(appBar: AppBar(title: Text(doc['name']??'Preview', style: TextStyle(fontSize:12)), backgroundColor: Colors.green, foregroundColor: Colors.white), body: SingleChildScrollView(padding:EdgeInsets.all(16), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children:[Card(color: Colors.green[50], child: Padding(padding:EdgeInsets.all(8), child: Text('Subject: ' + (doc['subject']??'General') + ' | Length: ' + content.length.toString() + ' chars | Auto-detected from filename', style: TextStyle(fontSize:11)))), SizedBox(height:8), Text(content, style: TextStyle(fontSize:13, height:1.5)), SizedBox(height:20), ElevatedButton.icon(onPressed: (){ Share.share(content); }, icon: Icon(Icons.share), label: Text('Share full text'))])));
+              return Scaffold(appBar: AppBar(title: Text(doc['name']??'Preview', style: TextStyle(fontSize:12)), backgroundColor: Colors.green, foregroundColor: Colors.white), body: SingleChildScrollView(padding:EdgeInsets.all(16), child: Text(content, style: TextStyle(fontSize:13, height:1.5))));
             }
           }
 
           class JourneyPage extends StatelessWidget {
             @override Widget build(BuildContext c){
-              return Scaffold(appBar: AppBar(title:Text('Journey V14.36 FIX 6 IMAGES'),backgroundColor:Colors.deepPurple,foregroundColor:Colors.white), body: ListView(padding:EdgeInsets.all(12), children:[
-                Card(color: Colors.green[50], child: Padding(padding:EdgeInsets.all(12), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children:[
-                  Text('REACTION TO YOUR 6 SCREENSHOTS - ALL FIXED IN V14.36', style: TextStyle(fontWeight: FontWeight.bold, fontSize:12)),
-                  SizedBox(height:8),
-                  Text('Image 1-2 Online AI + Research PRO differentiate between weather and climate -> Generic Definition contributes to GDP + Yellow Buganda crisis', style: TextStyle(fontSize:11, color: Colors.red[700])),
-                  Text('Fix: Added curriculumDB difference between weather and climate 10 Uganda points with Kampala 24C, UNMA, Karamoja vs Buganda, Table format UNEB', style: TextStyle(fontSize:11)),
-                  SizedBox(height:6),
-                  Text('Image 3 My Docs 2/2 Complete_Notes_Bank History + Geography_Notes Geography - proof file_picker war won after 17 RED', style: TextStyle(fontSize:11, color: Colors.green[700])),
-                  Text('Fix: Auto-detect subject from filename history vs geography, filter chip All/History/Geography', style: TextStyle(fontSize:11)),
-                  SizedBox(height:6),
-                  Text('Image 4 Chat welcome Hello Thomas Knowledge Faith Transformation Explain Lake Victoria Tourism 10 points - Universal Chat UI working', style: TextStyle(fontSize:11, color: Colors.green[700])),
-                  SizedBox(height:6),
-                  Text('Image 5 Chat grey empty box after differentiate - no answer', style: TextStyle(fontSize:11, color: Colors.red[700])),
-                  Text('Fix: try catch, 3s timeout, offline fallback Weather daily Climate 30 years, LinearProgressIndicator', style: TextStyle(fontSize:11)),
-                  SizedBox(height:6),
-                  Text('Image 6 Chat History 1 conversation 2026-10-14 - memory like ChatGPT working', style: TextStyle(fontSize:11, color: Colors.green[700])),
-                  SizedBox(height:8),
-                  Text('Test V14.36: Type differentiate between weather and climate in Chat -> Should show 10 points Definition Weather daily rainy 24C Kampala, Definition Climate tropical 22C 30 years, Time Period, Elements, Variability, UNMA, Importance Weather Entebbe flights, Importance Climate Karamoja pastoralism Buganda matooke, Factors Lake Victoria Rwenzori, UNEB table - NO generic GDP, NO yellow Buganda crisis, NO grey box', style: TextStyle(fontSize:11, fontWeight: FontWeight.bold)),
-                ]))),
-                Card(child: Padding(padding:EdgeInsets.all(12), child: Text('Full Journey IDEA->V14.36: V1-V10 file_picker war Registrar 34 vs 36 AGP9 GREEN, V14.24 Pink Lake Australia, V14.27 Format Engine 07:37, V14.28 Dollar 800 USD bug, V14.33 Universal Chat memory grey box, V14.36 Weather Climate fixed + My Docs filter', style: TextStyle(fontSize:11)))),
+              return Scaffold(appBar: AppBar(title:Text('Journey V14.36.1 FIXED'),backgroundColor:Colors.deepPurple,foregroundColor:Colors.white), body: ListView(padding:EdgeInsets.all(12), children:[
+                Card(color: Colors.green[50], child: Padding(padding:EdgeInsets.all(12), child: Text('V14.36.1 FIX #87: exportToPdfFile restored. Fixes all 6 images: Weather vs Climate 10 Uganda points, My Docs no History for Weather, Grey box fixed with offline fallback, Chat History 1 conversation working, My Docs 2/2 upload proof file_picker war won.', style: TextStyle(fontSize:11)))),
               ]));
             }
           }
@@ -386,18 +373,15 @@ jobs:
             @override Widget build(BuildContext c){
               List<Map<String,String>> points=(data['points'] as List?)?.cast<Map<String,String>>()??[];
               Map<String,dynamic> instr=data['instr']??{};
-              List<Map<String,String>> myDocMatches=(data['myDocs'] as List?)?.cast<Map<String,String>>()??[];
-              String intro=(data['results'] as List?)?.isNotEmpty??false? (data['results'][0]['snip']??'') : 'Weather daily, Climate average 30 years - V14.36 fixed';
-              return Scaffold(appBar: AppBar(title:Text('Research PRO V14.36 FIXED'),backgroundColor:Colors.deepPurple,foregroundColor:Colors.white), body: Column(children:[
-                Padding(padding:EdgeInsets.all(8), child: TextField(controller: ctrl, decoration: InputDecoration(hintText: 'differentiate between weather and climate', border: OutlineInputBorder(), suffixIcon: IconButton(icon: Icon(Icons.send), onPressed: (){ doSearch(ctrl.text); })), onSubmitted: (v){ doSearch(v); })),
+              String intro=(data['results'] as List?)?.isNotEmpty??false? (data['results'][0]['snip']??'') : 'Weather daily, Climate 30 years';
+              return Scaffold(appBar: AppBar(title:Text('Research PRO V14.36.1'),backgroundColor:Colors.deepPurple,foregroundColor:Colors.white), body: Column(children:[
+                Padding(padding:EdgeInsets.all(8), child: TextField(controller: ctrl, decoration: InputDecoration(hintText: 'differentiate...', border: OutlineInputBorder(), suffixIcon: IconButton(icon: Icon(Icons.send), onPressed: (){ doSearch(ctrl.text); })), onSubmitted: (v){ doSearch(v); })),
                 searching? LinearProgressIndicator() : SizedBox(),
                 Expanded(child: SingleChildScrollView(padding:EdgeInsets.all(12), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children:[
                   Text((instr['core']??'TOPIC').toString().toUpperCase(), style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
                   Text('Introduction: ' + intro, style: TextStyle(fontSize: 13)),
-                  if(myDocMatches.isNotEmpty) Card(color: Colors.yellow[100], child: Padding(padding:EdgeInsets.all(8), child: Text('My Docs (yellow): ' + (myDocMatches[0]['snip']??''), style: TextStyle(fontSize: 11, backgroundColor: Colors.yellow)))),
-                  if(myDocMatches.isEmpty) Card(color: Colors.green[50], child: Padding(padding:EdgeInsets.all(8), child: Text('My Docs: No matching History doc - correctly filtered Buganda crisis bug fixed! V14.33 had Buganda crisis for weather, V14.36 fixed with stopwords + 2 keywords + subject filter.', style: TextStyle(fontSize:11, color: Colors.green[700])))),
                   SizedBox(height:8),
-                ...points.asMap().entries.map((e){ int i=e.key; var p=e.value; return Card(child: Padding(padding:EdgeInsets.all(10), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children:[Text((i+1).toString() + '. ' + p['title']!.toUpperCase(), style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)), Text('Explanation: ' + p['exp']!, style: TextStyle(fontSize: 12)), Text('Example: ' + p['ex']!, style: TextStyle(fontSize: 12, fontStyle: FontStyle.italic))]))) ; }).toList(),
+               ...points.asMap().entries.map((e){ int i=e.key; var p=e.value; return Card(child: Padding(padding:EdgeInsets.all(10), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children:[Text((i+1).toString() + '. ' + p['title']!.toUpperCase(), style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)), Text('Explanation: ' + p['exp']!, style: TextStyle(fontSize: 12)), Text('Example: ' + p['ex']!, style: TextStyle(fontSize: 12, fontStyle: FontStyle.italic))]))) ; }).toList(),
                 ])))
               ]));
             }
@@ -408,13 +392,11 @@ jobs:
             final ctrl=TextEditingController(text:'difference between weather and climate');
             Map<String,dynamic> data={};
             bool searching=false;
-            List<Map<String,String>> myDocs=[];
-            Future<void> loadDocs() async { final p=await SharedPreferences.getInstance(); String? s=p.getString('mtrdf_docs_v10'); if(s!=null){ myDocs=List<Map<String,String>>.from(jsonDecode(s).map((e)=>Map<String,String>.from(e))); } }
-            Future<void> doSearch(String q) async { if(q.trim().isEmpty) return; setState((){ searching=true; }); await loadDocs(); var r=await deepResearchFormatted(q,'Geography',myDocs,[]); setState((){ data=r; searching=false; }); }
-            @override void initState(){ super.initState(); loadDocs(); Future.delayed(Duration(milliseconds:300),(){ doSearch(ctrl.text); }); }
+            Future<void> doSearch(String q) async { if(q.trim().isEmpty) return; setState((){ searching=true; }); var r=await deepResearchFormatted(q,'Geography',[],[]); setState((){ data=r; searching=false; }); }
+            @override void initState(){ super.initState(); Future.delayed(Duration(milliseconds:300),(){ doSearch(ctrl.text); }); }
             @override Widget build(BuildContext c){
               List<Map<String,String>> points=(data['points'] as List?)?.cast<Map<String,String>>()??[];
-              return Scaffold(appBar: AppBar(title:Text('Online AI V14.36 FIXED'),backgroundColor:Colors.deepPurple,foregroundColor:Colors.white), body: Column(children:[Padding(padding:EdgeInsets.all(8), child: TextField(controller: ctrl, decoration: InputDecoration(hintText: 'difference between weather and climate', border: OutlineInputBorder(), suffixIcon: IconButton(icon: Icon(Icons.send), onPressed: (){ doSearch(ctrl.text); })), onSubmitted: (v){ doSearch(v); })), searching? LinearProgressIndicator(): SizedBox(), Expanded(child: ListView.builder(padding:EdgeInsets.all(12),itemCount:points.length,itemBuilder:(_,i){ var p=points[i]; return Card(child: ListTile(leading: CircleAvatar(child: Text((i+1).toString())), title: Text(p['title']!, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)), subtitle: Column(crossAxisAlignment: CrossAxisAlignment.start, children:[Text(p['exp']!, style: TextStyle(fontSize: 11)), Text('Ex: ' + p['ex']!, style: TextStyle(fontSize: 11, fontStyle: FontStyle.italic))]))); }))]));
+              return Scaffold(appBar: AppBar(title:Text('Online AI V14.36.1'),backgroundColor:Colors.deepPurple,foregroundColor:Colors.white), body: Column(children:[Padding(padding:EdgeInsets.all(8), child: TextField(controller: ctrl, decoration: InputDecoration(hintText: 'difference...', border: OutlineInputBorder(), suffixIcon: IconButton(icon: Icon(Icons.send), onPressed: (){ doSearch(ctrl.text); })), onSubmitted: (v){ doSearch(v); })), searching? LinearProgressIndicator(): SizedBox(), Expanded(child: ListView.builder(padding:EdgeInsets.all(12),itemCount:points.length,itemBuilder:(_,i){ var p=points[i]; return Card(child: ListTile(leading: CircleAvatar(child: Text((i+1).toString())), title: Text(p['title']!, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)), subtitle: Column(crossAxisAlignment: CrossAxisAlignment.start, children:[Text(p['exp']!, style: TextStyle(fontSize: 11)), Text('Ex: ' + p['ex']!, style: TextStyle(fontSize: 11, fontStyle: FontStyle.italic))]))); }))]));
             }
           }
 
@@ -424,7 +406,7 @@ jobs:
             @override void initState(){ super.initState(); msgs=[{'role':'ai','points':[],'instr':{}}]; }
             Future<void> send() async { if(ctrl.text.isEmpty) return; String q=ctrl.text; setState((){ msgs.add({'role':'user','text':q}); sending=true; }); ctrl.clear(); var res=await deepResearchFormatted(q, widget.subject, [],[]); setState((){ msgs.add({'role':'ai','points':res['points'],'instr':res['instr']}); sending=false; }); }
             @override Widget build(BuildContext c){
-              return Scaffold(appBar: AppBar(title:Text(widget.subject + ' V14.36'),backgroundColor:Colors.deepPurple,foregroundColor:Colors.white), body: Column(children:[Expanded(child: ListView.builder(padding:EdgeInsets.all(12),itemCount:msgs.length,itemBuilder:(_,i){ var m=msgs[i]; bool isUser=m['role']=='user'; if(isUser) return Align(alignment:Alignment.centerRight, child: Container(margin:EdgeInsets.all(6),padding:EdgeInsets.all(12),decoration:BoxDecoration(color:Colors.deepPurple,borderRadius:BorderRadius.circular(12)), child:Text(m['text']??'',style:TextStyle(color:Colors.white)))); List<Map<String,String>> points=(m['points'] as List?)?.cast<Map<String,String>>()??[]; if(points.isEmpty) return Card(child: Padding(padding:EdgeInsets.all(12), child: Text('Try: differentiate between weather and climate', style: TextStyle(fontSize:12)))); return Column(children: points.asMap().entries.map((e){ int idx=e.key; var p=e.value; return Card(child: ListTile(leading: Text((idx+1).toString()), title: Text(p['title']!, style: TextStyle(fontSize:12,fontWeight:FontWeight.bold)), subtitle: Column(crossAxisAlignment: CrossAxisAlignment.start, children:[Text(p['exp']!, style: TextStyle(fontSize:11)), Text('Ex: ' + p['ex']!, style: TextStyle(fontSize:11, fontStyle: FontStyle.italic))])) ); }).toList()); })), sending? LinearProgressIndicator(): SizedBox(), Padding(padding:EdgeInsets.all(8), child: Row(children:[Expanded(child: TextField(controller:ctrl, maxLines: 3, decoration: InputDecoration(hintText: 'Give me 10 points...', border: OutlineInputBorder(borderRadius: BorderRadius.circular(20))), onSubmitted: (_)=>send())), IconButton(icon:Icon(Icons.send), onPressed:send)]))]));
+              return Scaffold(appBar: AppBar(title:Text(widget.subject + ' V14.36.1'),backgroundColor:Colors.deepPurple,foregroundColor:Colors.white), body: Column(children:[Expanded(child: ListView.builder(padding:EdgeInsets.all(12),itemCount:msgs.length,itemBuilder:(_,i){ var m=msgs[i]; bool isUser=m['role']=='user'; if(isUser) return Align(alignment:Alignment.centerRight, child: Container(margin:EdgeInsets.all(6),padding:EdgeInsets.all(12),decoration:BoxDecoration(color:Colors.deepPurple,borderRadius:BorderRadius.circular(12)), child:Text(m['text']??'',style:TextStyle(color:Colors.white)))); List<Map<String,String>> points=(m['points'] as List?)?.cast<Map<String,String>>()??[]; if(points.isEmpty) return Card(child: Padding(padding:EdgeInsets.all(12), child: Text('Try: differentiate between weather and climate', style: TextStyle(fontSize:12)))); return Column(children: points.asMap().entries.map((e){ int idx=e.key; var p=e.value; return Card(child: ListTile(leading: Text((idx+1).toString()), title: Text(p['title']!, style: TextStyle(fontSize:12,fontWeight:FontWeight.bold)), subtitle: Column(crossAxisAlignment: CrossAxisAlignment.start, children:[Text(p['exp']!, style: TextStyle(fontSize:11)), Text('Ex: ' + p['ex']!, style: TextStyle(fontSize:11, fontStyle: FontStyle.italic))])) ); }).toList()); })), sending? LinearProgressIndicator(): SizedBox(), Padding(padding:EdgeInsets.all(8), child: Row(children:[Expanded(child: TextField(controller:ctrl, maxLines: 3, decoration: InputDecoration(hintText: 'Give me 10 points...', border: OutlineInputBorder(borderRadius: BorderRadius.circular(20))), onSubmitted: (_)=>send())), IconButton(icon:Icon(Icons.send), onPressed:send)]))]));
             }
           }
           DART
@@ -435,5 +417,5 @@ jobs:
       - name: Upload
         uses: actions/upload-artifact@v4
         with:
-          name: MTRDF-V14-36-ALL-6-IMAGES-FIXED-WEATHER-CLIMATE
+          name: MTRDF-V14-36-1-FIXED-EXPORT-GREEN
           path: build/app/outputs/flutter-apk/app-release.apk

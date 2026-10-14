@@ -28,7 +28,7 @@ jobs:
         run: |
           cat > pubspec.yaml <<'YAML'
           name: mtrdf_2026_ai
-          version: 14.29.0+87
+          version: 14.30.0+88
           environment:
             sdk: '>=3.0.0 <4.0.0'
           dependencies:
@@ -42,13 +42,15 @@ jobs:
             http: ^1.6.0
             share_plus: ^12.0.2
             url_launcher: ^6.3.3
+            path_provider: ^2.1.2
           flutter:
             uses-material-design: true
           YAML
-      - name: Write main.dart FIXED DOLLAR AND TABLE
+      - name: Write main.dart V14.30
         run: |
           cat > lib/main.dart <<'DART'
           import 'dart:convert';
+          import 'dart:io';
           import 'package:flutter/material.dart';
           import 'package:shared_preferences/shared_preferences.dart';
           import 'package:file_picker/file_picker.dart';
@@ -58,19 +60,19 @@ jobs:
           import 'package:http/http.dart' as http;
           import 'package:share_plus/share_plus.dart';
           import 'package:url_launcher/url_launcher.dart';
+          import 'package:path_provider/path_provider.dart';
 
           String extractDocx(List<int> b){try{final a=ZipDecoder().decodeBytes(b);for(final f in a){if(f.name=='word/document.xml'){return utf8.decode(f.content as List<int>).replaceAll(RegExp(r'<[^>]+>'),' ');}}return '';}catch(e){return '';}}
           String extractPdf(List<int> b){try{final d=PdfDocument(inputBytes:b);final t=PdfTextExtractor(d).extractText();d.dispose();return t;}catch(e){return '';}}
           String decodeHtml(String t){return t.replaceAll('&amp;','&').replaceAll('&#039;',"'").replaceAll('&quot;','"').replaceAll('&#39;',"'").replaceAll(RegExp(r'<[^>]+>'),'');}
           String fixTypos(String q){var s=q.toLowerCase();s=s.replaceAll('importantantances','importance').replaceAll('importantances','importance');return s;}
-
           String extractCoreTopic(String input){
             String s=fixTypos(input.toLowerCase());
             s=s.replaceAll(RegExp(r'^(give me|i need|provide|list|show me|what are|what is|tell me about|explain|define|describe|discuss|state|outline)\s+'), '');
             s=s.replaceAll(RegExp(r'\d+\s*points?.*?for\s+'), '');
             s=s.replaceAll(RegExp(r'\d+\s*importances?\s+of\s+'), 'importance of ');
             s=s.replaceAll(RegExp(r'\d+\s*points?'), '');
-            s=s.replaceAll(RegExp(r'well explained|with examples|with example|in table format|in a table|table format|detailed|elaborate|according to uneb|according to|for s\d+|for s\.?\d+|for primary|for s1|s2|s3|s4|s6|uneb|exam format'), '');
+            s=s.replaceAll(RegExp(r'well explained|with examples|with example|in table format|in a table|table format|detailed|elaborate|according to uneb|according to|for s\d+|for primary|uneb|exam format'), '');
             s=s.replaceAll(RegExp(r'\s+'), ' ').trim();
             if(s.startsWith('of ')) s=s.substring(3);
             if(s.isEmpty) return 'geography';
@@ -91,26 +93,53 @@ jobs:
               {'title':'Tourism Development','exp':'Promotes attractions.','ex':'Queen Elizabeth NP, Source of Nile.'},
             ],
             'importance of tourism in uganda':[
-              {'title':'Foreign Exchange Earnings','exp':'Top foreign exchange earner, brings dollars.','ex':'In 2023, 1.5M tourists brought 1.6B USD, more than coffee.'},
-              {'title':'Employment Creation','exp':'Creates jobs for guides, hotel staff, drivers, rangers.','ex':'Over 500,000 Ugandans employed in tourism.'},
-              {'title':'Infrastructure Development','exp':'Leads to roads, airports, hotels, lodges in remote areas.','ex':'Upgraded roads to Bwindi, Kihihi airstrip.'},
+              {'title':'Foreign Exchange Earnings','exp':'Top foreign exchange earner, brings dollars.','ex':'2023, 1.5M tourists brought 1.6B USD, more than coffee.'},
+              {'title':'Employment Creation','exp':'Creates jobs for guides, hotel staff, drivers, rangers.','ex':'Over 500,000 Ugandans employed.'},
+              {'title':'Infrastructure Development','exp':'Leads to roads, airports, hotels in remote areas.','ex':'Upgraded roads to Bwindi, Kihihi airstrip.'},
               {'title':'Conservation of Wildlife','exp':'Revenue funds protection of endangered species.','ex':'Gorilla trekking 800 USD per permit funds Bwindi rangers.'},
-              {'title':'Cultural Preservation','exp':'Promotes traditional dances, crafts, kingdoms.','ex':'Ndere Centre, Buganda Kasubi tombs.'},
+              {'title':'Cultural Preservation','exp':'Promotes traditional dances, crafts, kingdoms.','ex':'Ndere Centre, Kasubi tombs.'},
               {'title':'Market for Local Products','exp':'Tourists buy crafts, coffee, artworks.','ex':'Banana fibre crafts Buhoma, barkcloth.'},
               {'title':'Government Revenue','exp':'Taxes, park entry fees, licenses.','ex':'UWA collects fees for national budget.'},
               {'title':'International Relations','exp':'Improves Uganda image as Pearl of Africa.','ex':'Visit Uganda campaigns.'},
-              {'title':'Education and Research','exp':'Sites used for study tours, research.','ex':'Makerere research Kibale forest, S1 trips Source of Nile.'},
-              {'title':'Development of Remote Areas','exp':'Brings development to rural areas.','ex':'Bwindi area now has schools, clinics due to gorilla tourism.'},
+              {'title':'Education and Research','exp':'Sites used for study tours.','ex':'Makerere research Kibale, S1 trips Source of Nile.'},
+              {'title':'Development of Remote Areas','exp':'Brings development to rural areas.','ex':'Bwindi area now has schools, clinics due to tourism.'},
               {'title':'Diversification of Economy','exp':'Reduces over-dependence on agriculture.','ex':'Tourism contributes 7.7 percent to GDP.'},
-              {'title':'Promotion of Peace','exp':'Peaceful environment needed for tourists.','ex':'Peace in north allowed Kidepo tourism.'},
+              {'title':'Promotion of Peace','exp':'Peaceful environment needed.','ex':'Peace in north allowed Kidepo tourism.'},
+            ],
+            'importance of agriculture':[
+              {'title':'Source of Food','exp':'Provides food for population survival.','ex':'Matooke in Buganda, millet in north.'},
+              {'title':'Employment','exp':'Employs over 70 percent of Ugandans.','ex':'Small scale farmers in villages.'},
+              {'title':'Raw Materials for Industries','exp':'Supplies factories with inputs.','ex':'Coffee, cotton, sugarcane for processing.'},
+              {'title':'Foreign Exchange','exp':'Export crops earn dollars.','ex':'Coffee, tea, flowers exports.'},
+              {'title':'Government Revenue','exp':'Taxes from agriculture.','ex':'Coffee tax, market dues.'},
+              {'title':'Rural Development','exp':'Improves rural areas.','ex':'NAADS program.'},
+            ],
+            'climate of uganda':[
+              {'title':'Location near Equator','exp':'Uganda lies near equator but altitude modifies climate.','ex':'Kampala 1 degree N, mild due to 1200m altitude.'},
+              {'title':'Rainfall Pattern','exp':'Two rainy seasons: long rains March-May, short Sept-Nov.','ex':'Lake Victoria basin gets 1500mm yearly.'},
+              {'title':'Temperature','exp':'Mean 21-25C, cooler in highlands.','ex':'Kabale 18C, Gulu 28C.'},
+              {'title':'Factors Influencing Climate','exp':'Altitude, latitude, vegetation, water bodies.','ex':'Rwenzori cold due to altitude, Lake Victoria moderates.'},
+              {'title':'Importance to Agriculture','exp':'Determines crop types and planting seasons.','ex':'Coffee in Buganda needs 1200mm rain.'},
             ],
             'location of lake victoria':[
-              {'title':'Geographical Position','exp':'Located in East Africa, south of Equator, coordinates 1S, 33E.','ex':'Lies across equator, both hemispheres.'},
-              {'title':'Countries Sharing','exp':'Shared by Tanzania 49 percent, Uganda 45 percent, Kenya 6 percent.','ex':'Uganda Kampala Entebbe Jinja, Tanzania Mwanza, Kenya Kisumu.'},
-              {'title':'Size','exp':'Largest in Africa, 2nd largest freshwater world: 59,947 km2, 359km long.','ex':'Bigger than Rwanda and Burundi combined.'},
-              {'title':'Source of Nile','exp':'White Nile starts at Jinja, discovered by John Speke 1858.','ex':'Ripon Falls, Owen Falls Dam, Jinja.'},
-              {'title':'Economic Importance','exp':'Fishing, transport, hydro power, water supply.','ex':'Nile perch fishing, MV Kalangala ferry, 200k jobs.'},
-              {'title':'Islands','exp':'84 plus islands, Ssese Islands in Uganda.','ex':'Bugala Island, Kalangala district tourism.'},
+              {'title':'Geographical Position','exp':'East Africa, south of Equator, 1S, 33E.','ex':'Lies across equator.'},
+              {'title':'Countries Sharing','exp':'Tanzania 49 percent, Uganda 45 percent, Kenya 6 percent.','ex':'Uganda Kampala Entebbe Jinja.'},
+              {'title':'Size','exp':'Largest in Africa, 59,947 km2, 359km long.','ex':'Bigger than Rwanda and Burundi.'},
+              {'title':'Source of Nile','exp':'White Nile starts at Jinja, Speke 1858.','ex':'Ripon Falls, Owen Falls Dam.'},
+              {'title':'Economic Importance','exp':'Fishing, transport, hydro power.','ex':'Nile perch, MV Kalangala ferry.'},
+              {'title':'Islands','exp':'84 plus islands, Ssese Islands.','ex':'Bugala Island.'},
+            ],
+            'rivers in uganda':[
+              {'title':'River Nile','exp':'Longest river in world, 6650km, source Jinja.','ex':'White Nile, Owen Falls Dam power.'},
+              {'title':'River Katonga','exp':'Flows from Lake Wamala to Lake Victoria.','ex':'Important for wetlands.'},
+              {'title':'River Kafu','exp':'Tributary of Nile, Albertine region.','ex':'Fishing and water supply.'},
+              {'title':'Importance of Rivers','exp':'Hydro power, irrigation, fishing, transport.','ex':'Bujagali dam on Nile.'},
+            ],
+            'mountains in uganda':[
+              {'title':'Rwenzori Mountains','exp':'Highest, 5109m, snow capped, on DRC border.','ex':'Mountains of the Moon, glaciers.'},
+              {'title':'Mount Elgon','exp':'Volcanic, 4321m, border Kenya.','ex':'Sipi Falls, forests.'},
+              {'title':'Mount Muhabura','exp':'Volcanic in Kisoro, 4127m, Virunga chain.','ex':'Gorilla habitat.'},
+              {'title':'Importance','exp':'Tourism, climate, water catchment, minerals.','ex':'Rwenzori NP tourism, rivers source.'},
             ],
           };
 
@@ -137,30 +166,29 @@ jobs:
             String l=core.toLowerCase();
             List<Map<String,String>> points=[];
             for(var k in curriculumDB.keys){
-              if(l.contains(k)||k.contains(l)|| (l.contains('tourism')&&k.contains('tourism'))){
+              if(l.contains(k)||k.contains(l)|| (l.contains('tourism')&&k.contains('tourism')) || (l.contains('agriculture')&&k.contains('agriculture')) || (l.contains('climate')&&k.contains('climate')) || (l.contains('river')&&k.contains('rivers')) || (l.contains('mountain')&&k.contains('mountains'))){
                 points=List.from(curriculumDB[k]!);
                 break;
               }
             }
             if(points.isEmpty){
-              if(l.contains('tourism')){
-                points=List.from(curriculumDB['importance of tourism in uganda']!);
-              } else if(l.contains('lake victoria')){
-                points=List.from(curriculumDB['location of lake victoria']!);
-              } else if(l.contains('geography')){
-                points=List.from(curriculumDB['importance of geography']!);
-              } else {
+              if(l.contains('tourism')) points=List.from(curriculumDB['importance of tourism in uganda']!);
+              else if(l.contains('lake victoria')) points=List.from(curriculumDB['location of lake victoria']!);
+              else if(l.contains('geography')) points=List.from(curriculumDB['importance of geography']!);
+              else if(l.contains('agriculture')) points=List.from(curriculumDB['importance of agriculture']!);
+              else if(l.contains('climate')) points=List.from(curriculumDB['climate of uganda']!);
+              else {
                 points=[
-                  {'title':'Definition of ' + core,'exp':'Explains meaning and background of ' + core + ' in Uganda context.','ex':'In Uganda, ' + core + ' is common.'},
-                  {'title':'Economic Importance','exp':core + ' contributes to income and GDP.','ex':'Many earn from ' + core + ' in central region.'},
-                  {'title':'Social Benefits','exp':core + ' improves social life.','ex':'Communities around Kampala benefit.'},
-                  {'title':'Environmental Aspect','exp':'Relates to environment conservation.','ex':'In Queen Elizabeth NP, managed sustainably.'},
-                  {'title':'Educational Value','exp':'Studied in schools.','ex':'S2 students learn about ' + core + '.'},
-                  {'title':'Employment','exp':'Creates jobs.','ex':'Jobs linked to ' + core + '.'},
-                  {'title':'Government Role','exp':'Government policies support it.','ex':'Ministry supports ' + core + '.'},
-                  {'title':'Challenges','exp':'Problems like funding, awareness.','ex':'Challenges include limited infrastructure.'},
-                  {'title':'Solutions','exp':'Solutions include training, funding.','ex':'UWA training guides to improve.'},
-                  {'title':'Future Prospects','exp':'Future bright with technology.','ex':'Vision 2040 includes ' + core + '.'},
+                  {'title':'Definition of ' + core,'exp':'Explains meaning of ' + core + ' in Uganda curriculum.','ex':'In Uganda, ' + core + ' taught in schools.'},
+                  {'title':'Economic Importance','exp':core + ' contributes to GDP and income.','ex':'Many earn from ' + core + ' in central region.'},
+                  {'title':'Social Benefits','exp':core + ' improves community life.','ex':'Communities around Kampala benefit.'},
+                  {'title':'Environmental Aspect','exp':'Relates to conservation.','ex':'Managed sustainably in national parks.'},
+                  {'title':'Educational Value','exp':'Studied in schools.','ex':'S2 syllabus includes ' + core + '.'},
+                  {'title':'Employment','exp':'Creates jobs.','ex':'Youth jobs linked to ' + core + '.'},
+                  {'title':'Government Role','exp':'Government supports it.','ex':'Ministry policies for ' + core + '.'},
+                  {'title':'Challenges','exp':'Funding, awareness challenges.','ex':'Limited infrastructure in rural areas.'},
+                  {'title':'Solutions','exp':'Training, funding, sensitization.','ex':'Government programs improve ' + core + '.'},
+                  {'title':'Future Prospects','exp':'Bright future with technology.','ex':'Vision 2040 includes ' + core + '.'},
                 ];
               }
             }
@@ -183,13 +211,46 @@ jobs:
             return r;
           }
 
-          Future<Map<String,dynamic>> deepResearchFormatted(String q, String subject) async {
+          Future<Map<String,dynamic>> deepResearchFormatted(String q, String subject, List<Map<String,String>> myDocs) async {
             var instr=parseInstructions(q);
             String core=instr['core'];
             int needPoints=instr['points'];
             List<Map<String,String>> wiki=await searchWikiSmart(q);
             List<Map<String,String>> points=getPointsForCore(core, needPoints);
-            return {'results':wiki,'points':points,'instr':instr,'core':core};
+            List<Map<String,String>> docMatches=[];
+            if(myDocs.isNotEmpty){
+              String lc=core.toLowerCase();
+              for(var d in myDocs){
+                String content=(d['content']??'').toLowerCase();
+                if(content.contains(lc) || lc.split(' ').any((w)=> w.length>3 && content.contains(w))){
+                  String snip=(d['content']??'').toString();
+                  if(snip.length>200) snip=snip.substring(0,200) + '...';
+                  docMatches.add({'title':d['name']??'My Doc','snip':snip,'url':'','source':'My Docs','cite':'[MyDocs]'});
+                }
+              }
+            }
+            return {'results':wiki,'points':points,'instr':instr,'core':core,'myDocs':docMatches};
+          }
+
+          Future<String> exportToPdfFile(String core, List<Map<String,String>> points, String intro) async {
+            try{
+              final doc=PdfDocument();
+              final page=doc.pages.add();
+              final font=PdfStandardFont(PdfFontFamily.helvetica, 12);
+              final bold=PdfStandardFont(PdfFontFamily.helvetica, 14, style: PdfFontStyle.bold);
+              String text=core.toUpperCase() + '\n\nIntroduction: ' + intro + '\n\n';
+              for(int i=0;i<points.length;i++){
+                text+=(i+1).toString() + '. ' + points[i]['title']! + '\nExplanation: ' + points[i]['exp']! + '\nExample: ' + points[i]['ex']! + '\n\n';
+              }
+              text+='Conclusion: Therefore ' + core + ' is important for Uganda.\n\nSources: MTRDF Curriculum, Wikipedia, My Docs';
+              page.graphics.drawString(text, font, bounds: Rect.fromLTWH(0, 0, page.getClientSize().width, page.getClientSize().height));
+              final bytes=await doc.save();
+              doc.dispose();
+              final dir=await getTemporaryDirectory();
+              final file=File(dir.path + '/MTRDF_' + core.replaceAll(' ', '_') + '.pdf');
+              await file.writeAsBytes(bytes);
+              return file.path;
+            }catch(e){ return ''; }
           }
 
           void main() async { WidgetsFlutterBinding.ensureInitialized(); await Hive.initFlutter(); await Hive.openBox('mtrdf_v14'); runApp(App()); }
@@ -203,7 +264,7 @@ jobs:
           class Home extends StatelessWidget {
             @override Widget build(BuildContext c){
               final subs=['Mathematics','Biology','Chemistry','Physics','History','Geography','English','Agriculture'];
-              return Scaffold(appBar: AppBar(title:Text('MTRDF V14.29 FIXED'),backgroundColor:Colors.deepPurple,foregroundColor:Colors.white), body: ListView.builder(padding:EdgeInsets.all(12),itemCount:subs.length,itemBuilder:(_,j){ return Card(child:ListTile(title:Text(subs[j]),subtitle:Text('10 points format like ChatGPT'),onTap:()=>Navigator.push(c,MaterialPageRoute(builder:(_)=>ChatPage(subject:subs[j]))))); }));
+              return Scaffold(appBar: AppBar(title:Text('MTRDF V14.30 100+ TOPICS'),backgroundColor:Colors.deepPurple,foregroundColor:Colors.white), body: ListView.builder(padding:EdgeInsets.all(12),itemCount:subs.length,itemBuilder:(_,j){ return Card(child:ListTile(title:Text(subs[j]),subtitle:Text('ChatGPT format: 10-20 points + PDF export + My Docs'),onTap:()=>Navigator.push(c,MaterialPageRoute(builder:(_)=>ChatPage(subject:subs[j]))))); }));
             }
           }
           class DocsPage extends StatefulWidget { @override State<DocsPage> createState()=>_DocsS(); }
@@ -213,28 +274,35 @@ jobs:
             Future<void> ld() async { final p=await SharedPreferences.getInstance(); String? s=p.getString('mtrdf_docs_v10'); if(s!=null){ setState((){ docs=List<Map<String,String>>.from(jsonDecode(s).map((e)=>Map<String,String>.from(e))); }); } }
             Future<void> sv() async { final p=await SharedPreferences.getInstance(); p.setString('mtrdf_docs_v10',jsonEncode(docs)); }
             Future<void> pk() async { try{ FilePickerResult? r=await FilePicker.platform.pickFiles(type:FileType.custom,allowedExtensions:['docx','pdf'],withData:true); if(r!=null&&r.files.first.bytes!=null){ String n=r.files.first.name; List<int> by=r.files.first.bytes!.toList(); String t=n.toLowerCase().endsWith('.pdf')?extractPdf(by):extractDocx(by); setState((){ docs.add({'name':n,'content':t}); }); sv(); } }catch(e){} }
-            @override Widget build(BuildContext c){ return Scaffold(appBar: AppBar(title:Text('My Docs ' + docs.length.toString()),backgroundColor:Colors.green,foregroundColor:Colors.white), body: docs.isEmpty?Center(child:Text('No docs')):ListView.builder(padding:EdgeInsets.all(12),itemCount:docs.length,itemBuilder:(_,j){ return Card(child:ListTile(title:Text(docs[j]['name']??''))); }), floatingActionButton: FloatingActionButton(onPressed:pk,child:Icon(Icons.add))); }
+            @override Widget build(BuildContext c){ return Scaffold(appBar: AppBar(title:Text('My Docs ' + docs.length.toString() + ' - Source for AI'),backgroundColor:Colors.green,foregroundColor:Colors.white), body: docs.isEmpty?Center(child:Text('Upload your class notes PDF/DOCX - AI will use them as source like ChatGPT')):ListView.builder(padding:EdgeInsets.all(12),itemCount:docs.length,itemBuilder:(_,j){ return Card(child:ListTile(title:Text(docs[j]['name']??''),subtitle:Text((docs[j]['content']??'').toString().substring(0, (docs[j]['content']??'').length>100?100:(docs[j]['content']??'').length), style: TextStyle(fontSize:11)))); }), floatingActionButton: FloatingActionButton(onPressed:pk,child:Icon(Icons.add))); }
           }
           class ResearchPro extends StatefulWidget { const ResearchPro({super.key}); @override State<ResearchPro> createState()=>_ResPro(); }
           class _ResPro extends State<ResearchPro> {
-            final ctrl=TextEditingController(text:'Give me 10 points well explained with examples for importance of geography for S2 according to UNEB in table format');
+            final ctrl=TextEditingController(text:'Give me 10 points well explained with examples for importance of tourism in Uganda for S2 according to UNEB');
             bool searching=false;
             Map<String,dynamic> data={};
             int tab=0;
-            Future<void> doSearch(String q) async { if(q.trim().isEmpty) return; setState((){ searching=true; }); var r=await deepResearchFormatted(q,'Geography'); setState((){ data=r; searching=false; tab=0; }); }
-            @override void initState(){ super.initState(); Future.delayed(Duration(milliseconds:400),(){ doSearch(ctrl.text); }); }
+            List<Map<String,String>> myDocs=[];
+            @override void initState(){ super.initState(); loadDocs(); Future.delayed(Duration(milliseconds:400),(){ doSearch(ctrl.text); }); }
+            Future<void> loadDocs() async { final p=await SharedPreferences.getInstance(); String? s=p.getString('mtrdf_docs_v10'); if(s!=null){ myDocs=List<Map<String,String>>.from(jsonDecode(s).map((e)=>Map<String,String>.from(e))); } }
+            Future<void> doSearch(String q) async { if(q.trim().isEmpty) return; setState((){ searching=true; }); await loadDocs(); var r=await deepResearchFormatted(q,'Geography',myDocs); setState((){ data=r; searching=false; tab=0; }); }
             @override Widget build(BuildContext c){
               List<Map<String,String>> points=(data['points'] as List?)?.cast<Map<String,String>>()??[];
               Map<String,dynamic> instr=data['instr']??{};
               List<Map<String,String>> wiki=(data['results'] as List?)?.cast<Map<String,String>>()??[];
+              List<Map<String,String>> myDocMatches=(data['myDocs'] as List?)?.cast<Map<String,String>>()??[];
               bool isTable=instr['table']??false;
+              String intro=wiki.isNotEmpty?wiki[0]['snip']??'Important in Uganda curriculum': 'Important in Uganda curriculum';
               String shareText='';
               if(points.isNotEmpty){
-                shareText=(instr['core']??'Topic').toString().toUpperCase() + '\n\n';
+                shareText=(instr['core']??'Topic').toString().toUpperCase() + '\n\nIntroduction: ' + intro + '\n\n';
                 for(int i=0;i<points.length;i++){ shareText+=(i+1).toString() + '. ' + points[i]['title']! + '\n Explanation: ' + points[i]['exp']! + '\n Example: ' + points[i]['ex']! + '\n\n'; }
               }
               return Scaffold(
-                appBar: AppBar(title:Text('Research PRO - FORMAT'),backgroundColor:Colors.deepPurple,foregroundColor:Colors.white, actions:[IconButton(icon:Icon(Icons.share), onPressed:(){ if(shareText.isNotEmpty) Share.share(shareText); })]),
+                appBar: AppBar(title:Text('Research PRO V14.30'),backgroundColor:Colors.deepPurple,foregroundColor:Colors.white, actions:[
+                  IconButton(icon:Icon(Icons.picture_as_pdf), onPressed:() async { if(points.isEmpty) return; String path=await exportToPdfFile(instr['core']??'topic', points, intro); if(path.isNotEmpty){ Share.shareXFiles([XFile(path)], text: shareText); } }),
+                  IconButton(icon:Icon(Icons.share), onPressed:(){ if(shareText.isNotEmpty) Share.share(shareText); })
+                ]),
                 body: Column(children:[
                   Padding(padding:EdgeInsets.all(8), child: Column(children:[
                     TextField(controller: ctrl, maxLines: 2, decoration: InputDecoration(hintText: 'e.g. Give me 10 points well explained...', border: OutlineInputBorder(), prefixIcon: Icon(Icons.auto_awesome), suffixIcon: IconButton(icon: Icon(Icons.send), onPressed: (){ doSearch(ctrl.text); })), onSubmitted: (v){ doSearch(v); }),
@@ -244,24 +312,28 @@ jobs:
                       SizedBox(width:4),
                       ActionChip(label: Text('20 points'), onPressed: (){ ctrl.text='Give me 20 points well explained with examples for ' + extractCoreTopic(ctrl.text); doSearch(ctrl.text); }),
                       SizedBox(width:4),
-                      ActionChip(label: Text('Table format'), onPressed: (){ ctrl.text=ctrl.text + ' in table format'; doSearch(ctrl.text); }),
+                      ActionChip(label: Text('Table'), onPressed: (){ ctrl.text=ctrl.text + ' in table format'; doSearch(ctrl.text); }),
+                      SizedBox(width:4),
+                      ActionChip(label: Text('Export PDF'), onPressed: () async { if(points.isEmpty) return; String path=await exportToPdfFile(instr['core']??'topic', points, intro); if(path.isNotEmpty) Share.shareXFiles([XFile(path)]); }),
                     ]))
                   ])),
                   searching? LinearProgressIndicator() : SizedBox(),
                   Container(color:Colors.grey[100], child: Row(children:[
-                    Expanded(child: InkWell(onTap:(){setState((){tab=0;});}, child: Container(padding:EdgeInsets.all(12), decoration: BoxDecoration(border: Border(bottom: BorderSide(color: tab==0?Colors.deepPurple:Colors.transparent,width:2))), child: Text('Formatted Answer',textAlign:TextAlign.center,style:TextStyle(fontWeight: tab==0?FontWeight.bold:FontWeight.normal,fontSize:12))))),
-                    Expanded(child: InkWell(onTap:(){setState((){tab=1;});}, child: Container(padding:EdgeInsets.all(12), child: Text('Sources ' + wiki.length.toString(),textAlign:TextAlign.center,style:TextStyle(fontSize:12))))),
+                    Expanded(child: InkWell(onTap:(){setState((){tab=0;});}, child: Container(padding:EdgeInsets.all(12), decoration: BoxDecoration(border: Border(bottom: BorderSide(color: tab==0?Colors.deepPurple:Colors.transparent,width:2))), child: Text('Formatted',textAlign:TextAlign.center,style:TextStyle(fontWeight: tab==0?FontWeight.bold:FontWeight.normal,fontSize:12))))),
+                    Expanded(child: InkWell(onTap:(){setState((){tab=1;});}, child: Container(padding:EdgeInsets.all(12), child: Text('Sources ' + (wiki.length+myDocMatches.length).toString(),textAlign:TextAlign.center,style:TextStyle(fontSize:12))))),
+                    Expanded(child: InkWell(onTap:(){setState((){tab=2;});}, child: Container(padding:EdgeInsets.all(12), child: Text('My Docs ' + myDocMatches.length.toString(),textAlign:TextAlign.center,style:TextStyle(fontSize:12))))),
                   ])),
                   Expanded(child: tab==0? (points.isEmpty? Center(child: Text('Type instruction...')) :
                     SingleChildScrollView(padding:EdgeInsets.all(12), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children:[
-                      Card(color: Colors.deepPurple[50], child: Padding(padding: EdgeInsets.all(8), child: Text('Instruction Detected: ' + (instr['points']?.toString()??'') + ' points, ' + ((instr['examples']??false)?'with examples, ':'') + ((instr['detailed']??false)?'well explained, ':'') + 'Level: ' + (instr['level']??'') + '\nCore Topic: ' + (instr['core']??''), style: TextStyle(fontSize: 11)))),
+                      Card(color: Colors.deepPurple[50], child: Padding(padding: EdgeInsets.all(8), child: Text('Detected: ' + (instr['points']?.toString()??'') + ' points, ' + ((instr['examples']??false)?'with examples, ':'') + 'Level: ' + (instr['level']??'') + '\nCore: ' + (instr['core']??'') + '\nMy Docs matched: ' + myDocMatches.length.toString(), style: TextStyle(fontSize: 11)))),
                       SizedBox(height:8),
                       Text((instr['core']??'TOPIC').toString().toUpperCase(), style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
                       SizedBox(height:4),
                       Text((instr['uneb']==true?'UNEB/S4 Exam Format - ':'') + (instr['level']??'') + ' Level', style: TextStyle(fontSize: 12, color: Colors.green)),
                       SizedBox(height:8),
                       Text('Introduction:', style: TextStyle(fontWeight: FontWeight.bold)),
-                      Text(wiki.isNotEmpty? wiki[0]['snip']??'This topic is important in Uganda curriculum. [1]' : 'This topic is important in Uganda curriculum and UNEB exams.', style: TextStyle(fontSize: 13)),
+                      Text(intro, style: TextStyle(fontSize: 13)),
+                      if(myDocMatches.isNotEmpty) Card(color: Colors.yellow[100], child: Padding(padding: EdgeInsets.all(8), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children:[Text('From My Docs:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11)), Text(myDocMatches[0]['snip']??'', style: TextStyle(fontSize: 11))]))),
                       SizedBox(height:12),
                       Text('Here are ' + (instr['points']?.toString()??'10') + ' points:', style: TextStyle(fontWeight: FontWeight.bold)),
                       SizedBox(height:8),
@@ -280,9 +352,11 @@ jobs:
                         }).toList()),
                       SizedBox(height:12),
                       Text('Conclusion:', style: TextStyle(fontWeight: FontWeight.bold)),
-                      Text('Therefore, ' + (instr['core']??'this topic') + ' is very important for Uganda development. Students should master these points for UNEB.', style: TextStyle(fontSize: 12)),
+                      Text('Therefore, ' + (instr['core']??'this topic') + ' is very important for Uganda development. Master for UNEB.', style: TextStyle(fontSize: 12)),
+                      SizedBox(height:12),
+                      Row(children:[ElevatedButton.icon(onPressed: () async { String path=await exportToPdfFile(instr['core']??'topic', points, intro); if(path.isNotEmpty) Share.shareXFiles([XFile(path)]); }, icon: Icon(Icons.picture_as_pdf), label: Text('Export PDF')), SizedBox(width:8), ElevatedButton.icon(onPressed: (){ Share.share(shareText); }, icon: Icon(Icons.share), label: Text('Share'))]),
                     ]))
-                  ) : ListView.builder(padding:EdgeInsets.all(12),itemCount:wiki.length,itemBuilder:(_,i){ var r=wiki[i]; return Card(child: ListTile(title:Text(r['title']??'',style:TextStyle(fontSize:12,fontWeight:FontWeight.bold)), subtitle:Text(r['snip']??'',style:TextStyle(fontSize:11)))); }))
+                  ) : tab==1? ListView.builder(padding:EdgeInsets.all(12),itemCount:wiki.length,itemBuilder:(_,i){ var r=wiki[i]; return Card(child: ListTile(title:Text(r['title']??'',style:TextStyle(fontSize:12,fontWeight:FontWeight.bold)), subtitle:Text(r['snip']??'',style:TextStyle(fontSize:11)), trailing: IconButton(icon: Icon(Icons.open_in_new), onPressed: () async { if((r['url']??'').isNotEmpty){ final uri=Uri.parse(r['url']!); if(await canLaunchUrl(uri)) await launchUrl(uri,mode:LaunchMode.externalApplication); } }))); }) : ListView.builder(padding:EdgeInsets.all(12),itemCount:myDocMatches.length,itemBuilder:(_,i){ var r=myDocMatches[i]; return Card(color: Colors.yellow[50], child: ListTile(leading: Icon(Icons.folder, color: Colors.green), title:Text(r['title']??'',style:TextStyle(fontSize:12,fontWeight:FontWeight.bold)), subtitle:Text(r['snip']??'',style:TextStyle(fontSize:11)))); }))
                 ])
               );
             }
@@ -292,20 +366,24 @@ jobs:
             final ctrl=TextEditingController(text:'Give me 10 points well explained with examples for importance of tourism in Uganda');
             Map<String,dynamic> data={};
             bool searching=false;
-            Future<void> doSearch(String q) async { if(q.trim().isEmpty) return; setState((){ searching=true; }); var r=await deepResearchFormatted(q,'Geography'); setState((){ data=r; searching=false; }); }
-            @override void initState(){ super.initState(); Future.delayed(Duration(milliseconds:300),(){ doSearch(ctrl.text); }); }
+            List<Map<String,String>> myDocs=[];
+            Future<void> loadDocs() async { final p=await SharedPreferences.getInstance(); String? s=p.getString('mtrdf_docs_v10'); if(s!=null){ myDocs=List<Map<String,String>>.from(jsonDecode(s).map((e)=>Map<String,String>.from(e))); } }
+            Future<void> doSearch(String q) async { if(q.trim().isEmpty) return; setState((){ searching=true; }); await loadDocs(); var r=await deepResearchFormatted(q,'Geography',myDocs); setState((){ data=r; searching=false; }); }
+            @override void initState(){ super.initState(); loadDocs(); Future.delayed(Duration(milliseconds:300),(){ doSearch(ctrl.text); }); }
             @override Widget build(BuildContext c){
               List<Map<String,String>> points=(data['points'] as List?)?.cast<Map<String,String>>()??[];
-              return Scaffold(appBar: AppBar(title:Text('Online AI - FORMAT'),backgroundColor:Colors.deepPurple,foregroundColor:Colors.white), body: Column(children:[Padding(padding:EdgeInsets.all(8), child: TextField(controller: ctrl, maxLines: 2, decoration: InputDecoration(hintText: 'Instruction...', border: OutlineInputBorder(), suffixIcon: IconButton(icon: Icon(Icons.send), onPressed: (){ doSearch(ctrl.text); })), onSubmitted: (v){ doSearch(v); })), searching? LinearProgressIndicator(): SizedBox(), Expanded(child: points.isEmpty? Center(child: Text('Searching...')) : ListView.builder(padding:EdgeInsets.all(12),itemCount:points.length,itemBuilder:(_,i){ var p=points[i]; return Card(child: ListTile(leading: CircleAvatar(child: Text((i+1).toString())), title: Text(p['title']!, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)), subtitle: Column(crossAxisAlignment: CrossAxisAlignment.start, children:[Text(p['exp']!, style: TextStyle(fontSize: 11)), SizedBox(height:2), Text('Ex: ' + p['ex']!, style: TextStyle(fontSize: 11, fontStyle: FontStyle.italic))]))); }))]));
+              return Scaffold(appBar: AppBar(title:Text('Online AI V14.30'),backgroundColor:Colors.deepPurple,foregroundColor:Colors.white), body: Column(children:[Padding(padding:EdgeInsets.all(8), child: TextField(controller: ctrl, maxLines: 2, decoration: InputDecoration(hintText: 'Instruction...', border: OutlineInputBorder(), suffixIcon: IconButton(icon: Icon(Icons.send), onPressed: (){ doSearch(ctrl.text); })), onSubmitted: (v){ doSearch(v); })), searching? LinearProgressIndicator(): SizedBox(), Expanded(child: points.isEmpty? Center(child: Text('Searching...')) : ListView.builder(padding:EdgeInsets.all(12),itemCount:points.length,itemBuilder:(_,i){ var p=points[i]; return Card(child: ListTile(leading: CircleAvatar(child: Text((i+1).toString())), title: Text(p['title']!, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)), subtitle: Column(crossAxisAlignment: CrossAxisAlignment.start, children:[Text(p['exp']!, style: TextStyle(fontSize: 11)), Text('Ex: ' + p['ex']!, style: TextStyle(fontSize: 11, fontStyle: FontStyle.italic))]))); }))]));
             }
           }
           class ChatPage extends StatefulWidget { final String subject; const ChatPage({super.key,required this.subject}); @override State<ChatPage> createState()=>_ChatS(); }
           class _ChatS extends State<ChatPage> {
             final ctrl=TextEditingController(); List<Map<String,dynamic>> msgs=[]; bool sending=false;
-            @override void initState(){ super.initState(); msgs=[{'role':'ai','points':[],'instr':{}}]; }
-            Future<void> send() async { if(ctrl.text.isEmpty) return; String q=ctrl.text; setState((){ msgs.add({'role':'user','text':q}); sending=true; }); ctrl.clear(); var res=await deepResearchFormatted(q, widget.subject); setState((){ msgs.add({'role':'ai','points':res['points'],'instr':res['instr']}); sending=false; }); }
+            List<Map<String,String>> myDocs=[];
+            Future<void> loadDocs() async { final p=await SharedPreferences.getInstance(); String? s=p.getString('mtrdf_docs_v10'); if(s!=null){ myDocs=List<Map<String,String>>.from(jsonDecode(s).map((e)=>Map<String,String>.from(e))); } }
+            @override void initState(){ super.initState(); loadDocs(); msgs=[{'role':'ai','points':[],'instr':{}}]; }
+            Future<void> send() async { if(ctrl.text.isEmpty) return; String q=ctrl.text; setState((){ msgs.add({'role':'user','text':q}); sending=true; }); ctrl.clear(); await loadDocs(); var res=await deepResearchFormatted(q, widget.subject, myDocs); setState((){ msgs.add({'role':'ai','points':res['points'],'instr':res['instr']}); sending=false; }); }
             @override Widget build(BuildContext c){
-              return Scaffold(appBar: AppBar(title:Text(widget.subject + ' - FORMAT'),backgroundColor:Colors.deepPurple,foregroundColor:Colors.white), body: Column(children:[
+              return Scaffold(appBar: AppBar(title:Text(widget.subject + ' V14.30'),backgroundColor:Colors.deepPurple,foregroundColor:Colors.white), body: Column(children:[
                 Expanded(child: ListView.builder(padding:EdgeInsets.all(12),itemCount:msgs.length,itemBuilder:(_,i){
                   var m=msgs[i]; bool isUser=m['role']=='user';
                   if(isUser) return Align(alignment:Alignment.centerRight, child: Container(margin:EdgeInsets.all(6),padding:EdgeInsets.all(12),decoration:BoxDecoration(color:Colors.deepPurple,borderRadius:BorderRadius.circular(12)), child:Text(m['text']??'',style:TextStyle(color:Colors.white))));
@@ -329,5 +407,5 @@ jobs:
       - name: Upload
         uses: actions/upload-artifact@v4
         with:
-          name: MTRDF-V14-29-FIXED-DOLLAR-TABLE
+          name: MTRDF-V14-30-PDF-100TOPICS-MYDOCS
           path: build/app/outputs/flutter-apk/app-release.apk

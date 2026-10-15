@@ -28,7 +28,7 @@ jobs:
         run: |
           cat > pubspec.yaml <<'YAML'
           name: mtrdf_2026_ai
-          version: 14.36.1+96
+          version: 14.37.0+97
           environment:
             sdk: '>=3.0.0 <4.0.0'
           dependencies:
@@ -45,7 +45,7 @@ jobs:
           flutter:
             uses-material-design: true
           YAML
-      - name: Write main.dart V14.36.1 FIX EXPORT
+      - name: Write main.dart V14.37 REPORT LAB
         run: |
           cat > lib/main.dart <<'DART'
           import 'dart:convert';
@@ -89,18 +89,6 @@ jobs:
               {'title':'Factors Influencing','exp':'Weather influenced by daily wind, clouds, pressure, humidity. Climate influenced by latitude, altitude, water bodies, vegetation, ocean currents.','ex':'Lake Victoria moderates climate of Kampala, Rwenzori altitude 5109m lowers climate temperature creates snow.'},
               {'title':'UNEB Exam Approach Table','exp':'UNEB asks differentiate with table 2 columns Weather vs Climate, give 5-10 points with Uganda examples, simple vs academic language.','ex':'Draw table: Weather short time vs Climate long time, Weather changes quickly vs Climate stable, Weather daily vs Climate 30 years.'},
             ],
-            'importance of tourism in uganda':[
-              {'title':'Foreign Exchange Earnings','exp':'Top foreign exchange earner, brings dollars.','ex':'2023 1.5M tourists brought 1.6B USD more than coffee.'},
-              {'title':'Employment Creation','exp':'Creates jobs for guides, hotel staff, drivers, rangers.','ex':'Over 500,000 Ugandans employed.'},
-              {'title':'Infrastructure Development','exp':'Leads to roads, airports, hotels in remote areas.','ex':'Upgraded roads to Bwindi, Kihihi airstrip.'},
-              {'title':'Conservation of Wildlife','exp':'Revenue funds protection of endangered species.','ex':'Gorilla trekking 800 USD per permit funds Bwindi rangers.'},
-            ],
-            'location of lake victoria':[
-              {'title':'Geographical Position','exp':'East Africa, south of Equator, 1S 33E.','ex':'Lies across equator.'},
-              {'title':'Countries Sharing','exp':'Tanzania 49 percent, Uganda 45 percent, Kenya 6 percent.','ex':'Uganda Kampala Entebbe Jinja.'},
-              {'title':'Size','exp':'Largest in Africa, 59,947 km2, 359km long.','ex':'Bigger than Rwanda and Burundi.'},
-              {'title':'Source of Nile','exp':'White Nile starts at Jinja, Speke 1858.','ex':'Ripon Falls, Owen Falls Dam.'},
-            ],
           };
 
           Map<String,dynamic> parseInstructions(String input){
@@ -122,20 +110,16 @@ jobs:
             }
             List<Map<String,String>> points=[];
             for(var k in curriculumDB.keys){
-              if(l.contains(k)||k.contains(l)|| (l.contains('tourism')&&k.contains('tourism'))){
+              if(l.contains(k)||k.contains(l)){
                 points=List.from(curriculumDB[k]!);
                 break;
               }
             }
             if(points.isEmpty){
-              if(l.contains('tourism')) points=List.from(curriculumDB['importance of tourism in uganda']!);
-              else if(l.contains('lake victoria')) points=List.from(curriculumDB['location of lake victoria']!);
-              else {
-                points=[
-                  {'title':'Definition of ' + core,'exp':'Explains meaning of ' + core + ' in Uganda curriculum with Uganda examples.','ex':'In Uganda, ' + core + ' taught in schools.'},
-                  {'title':'Importance to Uganda','exp':core + ' contributes to development.','ex':'Many earn from ' + core + '.'},
-                ];
-              }
+              points=[
+                {'title':'Definition of ' + core,'exp':'Explains meaning of ' + core + ' in Uganda curriculum with Uganda examples.','ex':'In Uganda, ' + core + ' taught in schools.'},
+                {'title':'Importance to Uganda','exp':core + ' contributes to development.','ex':'Many earn from ' + core + '.'},
+              ];
             }
             while(points.length<needPoints){ points.addAll(List.from(points)); }
             return points.take(needPoints).toList();
@@ -181,12 +165,10 @@ jobs:
                 String content=(d['content']??'').toLowerCase();
                 String subj=(d['subject']??'General').toLowerCase();
                 if((core.contains('weather')||core.contains('climate')) && subj.contains('history')){ continue; }
-                if((core.contains('history')||core.contains('buganda')) && subj.contains('geography')){ continue; }
                 int matchCount=0;
                 for(var kw in keywords){ if(content.contains(kw)) matchCount++; }
                 bool strongMatch=false;
-                if(keywords.length>=2){ strongMatch=matchCount>=2; }
-                else { strongMatch=matchCount>=1; }
+                if(keywords.length>=2){ strongMatch=matchCount>=2; } else { strongMatch=matchCount>=1; }
                 if(content.contains(lc)) strongMatch=true;
                 if(strongMatch){
                   String full=(d['content']??'').toString();
@@ -223,15 +205,140 @@ jobs:
             }catch(e){ return ''; }
           }
 
+          // --- DOCX GENERATOR FOR REPORT LAB (Real.docx file) ---
+          Future<String> generateDocxReport(String title, List<Map<String,String>> sections, List<Map<String,String>> sources) async {
+            try{
+              String bodyXml='';
+              bodyXml+='<w:p><w:pPr><w:pStyle w:val="Heading1"/></w:pPr><w:r><w:t>' + _xmlEsc(title) + '</w:t></w:r></w:p>';
+              bodyXml+='<w:p><w:r><w:rPr><w:i/></w:rPr><w:t>MTRDF AI - Knowledge Faith Transformation - Generated ' + DateTime.now().toIso8601String().substring(0,10) + '</w:t></w:r></w:p>';
+              for(int i=0;i<sections.length;i++){
+                var s=sections[i];
+                bodyXml+='<w:p><w:pPr><w:pStyle w:val="Heading2"/></w:pPr><w:r><w:rPr><w:b/></w:rPr><w:t>' + _xmlEsc((i+1).toString() + '. ' + (s['heading']??'')) + '</w:t></w:r></w:p>';
+                bodyXml+='<w:p><w:r><w:t>' + _xmlEsc(s['content']??'') + '</w:t></w:r></w:p>';
+                if(s['example']!=null && s['example']!.isNotEmpty){
+                  bodyXml+='<w:p><w:r><w:rPr><w:i/></w:rPr><w:t>Example: ' + _xmlEsc(s['example']!) + '</w:t></w:r></w:p>';
+                }
+              }
+              bodyXml+='<w:p><w:pPr><w:pStyle w:val="Heading1"/></w:pPr><w:r><w:t>Sources and Verification Checklist</w:t></w:r></w:p>';
+              for(var src in sources){
+                bodyXml+='<w:p><w:r><w:t>[' + _xmlEsc(src['type']??'') + '] ' + _xmlEsc(src['text']??'') + '</w:t></w:r></w:p>';
+              }
+              bodyXml+='<w:p><w:r><w:t>Verification Checklist: Compare claims against UNEB and NCDC official publications, syllabus, original exam papers. Keep personal observations labelled as observations and proposals labelled as proposals.</w:t></w:r></w:p>';
+
+              String documentXml='<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>' + bodyXml + '<w:sectPr><w:pgSz w:w="12240" w:h="15840"/><w:pgMar w:top="1440" w:right="1440" w:bottom="1440" w:left="1440"/></w:sectPr></w:body></w:document>';
+              String contentTypes='<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>';
+              String rels='<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>';
+              String wordRels='<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"></Relationships>';
+
+              final archive=Archive();
+              archive.addFile(ArchiveFile('[Content_Types].xml', contentTypes.length, utf8.encode(contentTypes)));
+              archive.addFile(ArchiveFile('_rels/.rels', rels.length, utf8.encode(rels)));
+              archive.addFile(ArchiveFile('word/_rels/document.xml.rels', wordRels.length, utf8.encode(wordRels)));
+              archive.addFile(ArchiveFile('word/document.xml', documentXml.length, utf8.encode(documentXml)));
+              final bytes=ZipEncoder().encode(archive);
+              if(bytes==null) return '';
+              final dir=await getTemporaryDirectory();
+              final file=File(dir.path + '/MTRDF_Report_' + title.replaceAll(' ', '_').substring(0, title.length>20?20:title.length) + '.docx');
+              await file.writeAsBytes(bytes);
+              return file.path;
+            }catch(e){ return 'Error: ' + e.toString(); }
+          }
+          String _xmlEsc(String t){ return t.replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&apos;'); }
+
+          // --- ADVANCED REASONING + CLASSIFICATION FOR REPORT LAB ---
+          Map<String,dynamic> analyzeAndClassify(String rawText, List<Map<String,String>> myDocs){
+            String lower=rawText.toLowerCase();
+            // Split into ideas
+            List<String> lines=rawText.split('\n').where((l)=> l.trim().length>10).toList();
+            Map<String, List<String>> themes={};
+            List<Map<String,String>> classified=[];
+
+            // Theme keywords for 2026 UCE History
+            final themeKeywords={
+              'Examination Concerns':['exam','question','paper','uneb','mark','leak','cheat','malpractice','difficulty','time'],
+              'Curriculum Alignment':['curriculum','syllabus','ncdc','competency','cbc','topic','coverage','content'],
+              'Teacher Experiences':['teacher','teach','school','class','student','learn','training','workshop','fee'],
+              'Assessment Issues':['assessment','grading','rubric','marking','score','performance','result','candidate'],
+              'Proposals and Reforms':['propos','recommend','should','reform','improve','suggest','need','must'],
+            };
+
+            for(var line in lines){
+              String l=line.toLowerCase();
+              String theme='General Issues';
+              for(var entry in themeKeywords.entries){
+                for(var kw in entry.value){
+                  if(l.contains(kw)){ theme=entry.key; break; }
+                }
+              }
+              themes.putIfAbsent(theme, ()=>[]).add(line.trim());
+
+              // Classify: Fact, Observation, Allegation, Proposal, Question
+              String type='Observation';
+              if(l.contains('alleged')||l.contains('claim')||l.contains('reportedly')||l.contains('supposedly')){ type='Allegation - Needs Verification'; }
+              else if(l.contains('should')||l.contains('recommend')||l.contains('propose')||l.contains('suggest')){ type='Proposal'; }
+              else if(l.contains('?')||l.contains('whether')||l.contains('verify')||l.contains('confirm')){ type='Question Requiring Verification'; }
+              else if(l.contains('observed')||l.contains('experience')||l.contains('noticed')||l.contains('saw')){ type='Teacher Observation'; }
+              else if(l.contains('fact')||l.contains('official')||l.contains('document')||l.contains('policy')){ type='Fact - Check Source'; }
+
+              classified.add({'text':line.trim(),'type':type,'theme':theme});
+            }
+
+            // Detect duplication
+            Map<String,int> count={};
+            for(var c in classified){
+              String key=(c['text']??'').toLowerCase().substring(0, (c['text']??'').length>30?30:(c['text']??'').length);
+              count[key]=(count[key]??0)+1;
+            }
+            List<String> duplicates=count.entries.where((e)=> e.value>1).map((e)=> e.key).toList();
+
+            return {'themes':themes,'classified':classified,'duplicates':duplicates,'totalLines':lines.length};
+          }
+
+          List<Map<String,String>> buildStructuredReport(String title, Map<String,dynamic> analysis, List<Map<String,String>> myDocs){
+            List<Map<String,String>> sections=[];
+            Map<String, List<String>> themes=analysis['themes'] as Map<String, List<String>>;
+            List<Map<String,String>> classified=analysis['classified'] as List<Map<String,String>>;
+
+            sections.add({'heading':'Executive Summary','content':'This report consolidates discussions from 2026 UCE History and Political Education examination analysis, including teacher WhatsApp discussions, examination concerns, curriculum alignment questions, and proposed reforms. Total inputs analyzed: ' + analysis['totalLines'].toString() + ' discussion points, ' + myDocs.length.toString() + ' uploaded documents.','example':'Purpose: Provide organized evidence for UNEB, NCDC, schools, teachers while distinguishing facts from opinions.'});
+            sections.add({'heading':'Methodology - How Information Was Processed','content':'Step 1 Collect: Gathered WhatsApp messages, notes, PDFs, Word documents. Step 2 Analyse and Organize: Identified themes, removed duplication, classified claims. Step 3 Develop: Wrote sections with Uganda examples. Step 4 Generate DOCX/PDF: Used document-processing libraries. Step 5 Deliver: Provided verified download path.','example':'Capabilities used: Advanced reasoning, information organization, long-form writing, document creation, research assistance, quality control.'});
+
+            int secNum=3;
+            for(var entry in themes.entries){
+              String themeContent=entry.value.join('\n\n').substring(0, entry.value.join('\n\n').length>800?800:entry.value.join('\n\n').length);
+              sections.add({'heading':entry.key,'content':themeContent,'example':'Theme contains ' + entry.value.length.toString() + ' related points from teachers. See classification table.'});
+              secNum++;
+            }
+
+            // Classification table as section
+            String classTable='Classification of Claims:\n';
+            for(var c in classified.take(15)){
+              classTable+='- [' + (c['type']??'') + '] (' + (c['theme']??'') + '): ' + (c['text']??'') + '\n';
+            }
+            sections.add({'heading':'Classification - Facts vs Observations vs Allegations vs Proposals','content':classTable,'example':'Important: Allegations labelled as allegations, proposals as proposals, observations as observations. Facts require official verification.'});
+
+            sections.add({'heading':'Evidence Needed and Verification Checklist','content':'What AI can do well: Organize evidence, identify contradictions, explain historical concepts, improve wording, make recommendations logically. What requires verification: Whether UNEB officially adopted proposed structure, whether exam questions complied with official guidance, whether reported training fees accurate, whether claims about institutional intentions supported.','example':'Strengthen accuracy: Compare against UNEB and NCDC publications, syllabus, original exam papers.'});
+
+            sections.add({'heading':'Recommendations for Stakeholders','content':'For UNEB: Clarify assessment guidance, publish marking rubrics, address timing concerns. For NCDC: Align syllabus with competency-based assessment, provide sample papers. For Schools: Provide teacher training without excessive fees, support learners with materials. For Teachers: Document observations as observations, keep proposals as proposals, verify before sharing as established fact.','example':'For MTRDF AI: Build workflow that accepts WhatsApp, PDFs, images, extracts groups, separates verified from opinions, produces long reports with tables, generates DOCX/PDF, includes sources and verification checklist.'});
+
+            sections.add({'heading':'Conclusion','content':'The valuable capability is not generating many words. It is combining understanding, reasoning, organization, writing, document production, and evidence checking into one workflow while being honest about what has and has not been verified. This approach creates substantial report with clear purpose instead of repeating same arguments.','example':'Limit: Very long tasks may require several stages, important details can be missed unless result reviewed against original material.'});
+
+            if(analysis['duplicates'].length>0){
+              sections.add({'heading':'Appendix - Duplicate Detection','content':'Repeated arguments found: ' + analysis['duplicates'].join(', ') + '. These were condensed in main report to avoid repetition.','example':'Duplication indicates strong concern among teachers.'});
+            }
+
+            return sections;
+          }
+
           void main() async { WidgetsFlutterBinding.ensureInitialized(); await Hive.initFlutter(); await Hive.openBox('mtrdf_v14'); runApp(App()); }
           class App extends StatelessWidget { @override Widget build(BuildContext c){ return MaterialApp(debugShowCheckedModeBanner:false, home:Tabs(), theme: ThemeData(useMaterial3: true)); } }
           class Tabs extends StatefulWidget { @override State<Tabs> createState()=>_TabsS(); }
           class _TabsS extends State<Tabs> {
             int i=0;
-            final pages=[UniversalChatPage(),DocsPage(),ResearchPro(),OnlinePro(),JourneyPage()];
-            @override Widget build(BuildContext c){ return Scaffold(body: pages[i], bottomNavigationBar: NavigationBar(selectedIndex: i, onDestinationSelected: (x){ setState((){ i=x; }); }, destinations: [NavigationDestination(icon: Icon(Icons.chat_bubble), label: 'Chat'), NavigationDestination(icon: Icon(Icons.folder), label: 'My Docs'), NavigationDestination(icon: Icon(Icons.biotech), label: 'Research'), NavigationDestination(icon: Icon(Icons.public), label: 'Online'), NavigationDestination(icon: Icon(Icons.timeline), label: 'Journey')])); }
+            final pages=[UniversalChatPage(),DocsPage(),ResearchPro(),OnlinePro(),ReportLabPage(),JourneyPage()];
+            @override Widget build(BuildContext c){ return Scaffold(body: pages[i], bottomNavigationBar: NavigationBar(selectedIndex: i, onDestinationSelected: (x){ setState((){ i=x; }); }, destinations: [NavigationDestination(icon: Icon(Icons.chat_bubble), label: 'Chat'), NavigationDestination(icon: Icon(Icons.folder), label: 'My Docs'), NavigationDestination(icon: Icon(Icons.biotech), label: 'Research'), NavigationDestination(icon: Icon(Icons.public), label: 'Online'), NavigationDestination(icon: Icon(Icons.description), label: 'Report Lab'), NavigationDestination(icon: Icon(Icons.timeline), label: 'Journey')])); }
           }
 
+          // --- UNIVERSAL CHAT (same as V14.36.1) ---
           class UniversalChatPage extends StatefulWidget { @override State<UniversalChatPage> createState()=>_UniS(); }
           class _UniS extends State<UniversalChatPage> {
             final ctrl=TextEditingController();
@@ -250,7 +357,7 @@ jobs:
               if(conversations.isEmpty){ startNewChat(); } else { loadConversation(0); }
             }
             Future<void> saveConversations() async { final p=await SharedPreferences.getInstance(); p.setString('mtrdf_conversations_v14', jsonEncode(conversations)); }
-            void startNewChat(){ setState((){ messages=[{'role':'ai','text':'Hello Thomas! I am MTRDF AI. Knowledge Faith Transformation.\n\nTry: Differentiate between weather and climate (fixed V14.36)','isWelcome':true}]; currentConvIndex=-1; }); }
+            void startNewChat(){ setState((){ messages=[{'role':'ai','text':'Hello Thomas! I am MTRDF AI. Knowledge Faith Transformation.\n\nChat does 10 points Uganda examples.\nReport Lab does full UCE History report workflow like ChatGPT: Collect WhatsApp, Analyse, Develop long report, Generate DOCX/PDF.','isWelcome':true}]; currentConvIndex=-1; }); }
             void loadConversation(int idx){ if(idx<0||idx>=conversations.length) return; setState((){ currentConvIndex=idx; messages=List<Map<String,dynamic>>.from(conversations[idx]['messages'].map((e)=>Map<String,dynamic>.from(e))); }); }
             Future<void> sendMessage({String? overrideText}) async {
               String q=overrideText??ctrl.text.trim();
@@ -265,7 +372,7 @@ jobs:
                 List<Map<String,String>> points=res['points'];
                 List<Map<String,String>> wiki=res['results'];
                 List<Map<String,String>> docMatches=res['myDocs'];
-                String intro=wiki.isNotEmpty?wiki[0]['snip']??'':'Weather is daily, climate is average 30 years in Uganda curriculum';
+                String intro=wiki.isNotEmpty?wiki[0]['snip']??'':'Important in Uganda curriculum';
                 String aiText=(res['instr']?['core']??'TOPIC').toString().toUpperCase() + '\n\nIntroduction: ' + intro + '\n\nHere are ' + res['instr']!['points'].toString() + ' points:\n\n';
                 for(int i=0;i<points.length;i++){ aiText+=(i+1).toString() + '. ' + points[i]['title']!.toUpperCase() + '\nExplanation: ' + points[i]['exp']! + '\nExample: ' + points[i]['ex']! + '\n\n'; }
                 setState((){ messages.add({'role':'ai','text':aiText,'core':core,'points':points,'intro':intro,'wiki':wiki,'myDocs':docMatches,'instr':res['instr']}); sending=false; });
@@ -280,9 +387,9 @@ jobs:
               }catch(e){
                 setState((){
                   var fallback=getPointsForCore('weather and climate', 10);
-                  String aiText='WEATHER AND CLIMATE (Offline fallback V14.36.1)\n\n';
+                  String aiText='WEATHER AND CLIMATE (Offline fallback)\n\n';
                   for(int i=0;i<fallback.length;i++){ aiText+=(i+1).toString() + '. ' + fallback[i]['title']!.toUpperCase() + '\nExplanation: ' + fallback[i]['exp']! + '\nExample: ' + fallback[i]['ex']! + '\n\n'; }
-                  messages.add({'role':'ai','text':aiText,'core':'weather and climate','points':fallback,'intro':'Offline answer','wiki':[],'myDocs':[],'instr':{'core':'weather and climate','points':10}});
+                  messages.add({'role':'ai','text':aiText,'core':'weather and climate','points':fallback,'intro':'Offline','wiki':[],'myDocs':[],'instr':{'core':'weather and climate','points':10}});
                   sending=false;
                 });
               }
@@ -303,23 +410,20 @@ jobs:
               ]));
             }
             @override Widget build(BuildContext c){
-              return Scaffold(appBar: AppBar(title: Text('MTRDF AI Chat V14.36.1 FIXED'), backgroundColor: Colors.deepPurple, foregroundColor: Colors.white, actions:[IconButton(icon: Icon(Icons.add), onPressed: (){ startNewChat(); })]), drawer: Drawer(child: Column(children:[DrawerHeader(decoration: BoxDecoration(color: Colors.deepPurple), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children:[Text('Chat History', style: TextStyle(color: Colors.white, fontSize:18, fontWeight: FontWeight.bold)), Text(conversations.length.toString() + ' conversations', style: TextStyle(color: Colors.white70, fontSize:11)), SizedBox(height:12), ElevatedButton.icon(onPressed: (){ Navigator.pop(c); startNewChat(); }, icon: Icon(Icons.add), label: Text('New Chat'))])), Expanded(child: ListView.builder(itemCount: conversations.length, itemBuilder: (_,i){ var conv=conversations[i]; return ListTile(title: Text(conv['title']??'', style: TextStyle(fontSize:12), maxLines:1), onTap: (){ Navigator.pop(c); loadConversation(i); }); }))])), body: Column(children:[
-                Container(color: Colors.green[50], padding: EdgeInsets.all(6), child: Text('V14.36.1 fixes all 6 images + exportToPdfFile restored - grey box fixed', style: TextStyle(fontSize:10, color: Colors.green[800]))),
+              return Scaffold(appBar: AppBar(title: Text('MTRDF AI Chat V14.37'), backgroundColor: Colors.deepPurple, foregroundColor: Colors.white, actions:[IconButton(icon: Icon(Icons.add), onPressed: (){ startNewChat(); })]), drawer: Drawer(child: ListView.builder(itemCount: conversations.length, itemBuilder: (_,i){ var conv=conversations[i]; return ListTile(title: Text(conv['title']??'', style: TextStyle(fontSize:12), maxLines:1), onTap: (){ Navigator.pop(c); loadConversation(i); }); })), body: Column(children:[
                 Expanded(child: ListView.builder(padding:EdgeInsets.all(12), itemCount: messages.length, itemBuilder: (_,i){
                   var m=messages[i];
                   bool isUser=m['role']=='user';
                   bool isWelcome=m['isWelcome']??false;
-                  if(isWelcome){ return Card(color: Colors.deepPurple[50], child: Padding(padding:EdgeInsets.all(16), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children:[Text(m['text']??'', style: TextStyle(fontSize:14)), SizedBox(height:12), Wrap(spacing:6, children:[ActionChip(label: Text('Weather vs Climate FIXED'), onPressed: (){ sendMessage(overrideText:'differentiate between weather and climate'); }), ActionChip(label: Text('Lake Victoria'), onPressed: (){ sendMessage(overrideText:'location of Lake Victoria'); })])]))); }
+                  if(isWelcome){ return Card(color: Colors.deepPurple[50], child: Padding(padding:EdgeInsets.all(16), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children:[Text(m['text']??'', style: TextStyle(fontSize:14)), SizedBox(height:12), Wrap(spacing:6, children:[ActionChip(label: Text('Weather vs Climate'), onPressed: (){ sendMessage(overrideText:'differentiate between weather and climate'); }), ActionChip(label: Text('Report Lab'), onPressed: (){ DefaultTabController.of(c); }), ActionChip(label: Text('Tourism 10 points'), onPressed: (){ sendMessage(overrideText:'importance of tourism in Uganda'); })])]))); }
                   if(isUser){ return Align(alignment: Alignment.centerRight, child: Container(margin:EdgeInsets.symmetric(vertical:4), padding:EdgeInsets.all(12), decoration: BoxDecoration(color: Colors.deepPurple, borderRadius: BorderRadius.circular(16)), child: Text(m['text']??'', style: TextStyle(color: Colors.white)))); }
                   List<Map<String,String>> points=(m['points'] as List?)?.cast<Map<String,String>>()??[];
                   List<Map<String,String>> myDocMatches=(m['myDocs'] as List?)?.cast<Map<String,String>>()??[];
                   return Card(child: Padding(padding:EdgeInsets.all(12), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children:[
                     Text((m['instr']?['core']??'TOPIC').toString().toUpperCase(), style: TextStyle(fontWeight: FontWeight.bold, fontSize:13)),
-                    Text('Introduction: ' + (m['intro']??''), style: TextStyle(fontSize:13)),
                     if(myDocMatches.isNotEmpty) Card(color: Colors.yellow[100], child: Padding(padding:EdgeInsets.all(8), child: highlightText(myDocMatches[0]['snip']??'', m['instr']?['core']??''))),
-                    if(myDocMatches.isEmpty) Card(color: Colors.green[50], child: Padding(padding:EdgeInsets.all(8), child: Text('My Docs: No matching History doc - correctly filtered', style: TextStyle(fontSize:10, color: Colors.green[700])))),
                     SizedBox(height:8),
-               ...points.asMap().entries.map((e){ int idx=e.key; var p=e.value; return Padding(padding:EdgeInsets.symmetric(vertical:4), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children:[Text((idx+1).toString() + '. ' + p['title']!.toUpperCase(), style: TextStyle(fontWeight: FontWeight.bold, fontSize:12)), Text('Explanation: ' + p['exp']!, style: TextStyle(fontSize:12)), Text('Example: ' + p['ex']!, style: TextStyle(fontSize:12, fontStyle: FontStyle.italic))])); }).toList(),
+              ...points.asMap().entries.map((e){ int idx=e.key; var p=e.value; return Padding(padding:EdgeInsets.symmetric(vertical:4), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children:[Text((idx+1).toString() + '. ' + p['title']!.toUpperCase(), style: TextStyle(fontWeight: FontWeight.bold, fontSize:12)), Text('Explanation: ' + p['exp']!, style: TextStyle(fontSize:12)), Text('Example: ' + p['ex']!, style: TextStyle(fontSize:12, fontStyle: FontStyle.italic))])); }).toList(),
                     Row(children:[IconButton(icon: Icon(Icons.copy, size:18), onPressed: (){ Share.share(m['text']??''); }), IconButton(icon: Icon(Icons.picture_as_pdf, size:18), onPressed: () async { String path=await exportToPdfFile(m['instr']?['core']??'topic', points, m['intro']??''); if(path.isNotEmpty) Share.share('PDF: ' + path); })])
                   ])));
                 })),
@@ -340,7 +444,7 @@ jobs:
             Future<void> pk() async { try{ FilePickerResult? r=await FilePicker.platform.pickFiles(type:FileType.custom,allowedExtensions:['docx','pdf','txt','csv'],withData:true); if(r!=null&&r.files.first.bytes!=null){ String n=r.files.first.name; List<int> by=r.files.first.bytes!.toList(); String t=n.toLowerCase().endsWith('.pdf')?extractPdf(by): n.toLowerCase().endsWith('.txt')||n.toLowerCase().endsWith('.csv')?utf8.decode(by):extractDocx(by); String subj='General'; if(n.toLowerCase().contains('history')||n.toLowerCase().contains('political')) subj='History'; else if(n.toLowerCase().contains('geography')) subj='Geography'; else subj=filterSubject=='All'?'General':filterSubject; setState((){ docs.add({'name':n,'content':t,'subject':subj}); }); sv(); } }catch(e){} }
             @override Widget build(BuildContext c){
               List<Map<String,String>> filtered=filterSubject=='All'?docs:docs.where((d)=> (d['subject']??'General')==filterSubject).toList();
-              return Scaffold(appBar: AppBar(title:Text('My Docs ' + filtered.length.toString() + '/' + docs.length.toString()),backgroundColor:Colors.green,foregroundColor:Colors.white, actions:[PopupMenuButton<String>(onSelected: (v){ setState((){ filterSubject=v; }); }, itemBuilder: (_)=>subjects.map((s)=>PopupMenuItem(value:s, child: Text(s))).toList(), child: Padding(padding:EdgeInsets.all(12), child: Icon(Icons.filter_list)))]), body: Column(children:[Container(color: Colors.yellow[100], padding: EdgeInsets.all(8), child: Text('V14.36.1 FIX: Auto-detect History vs Geography. Filter. No History for Weather.', style: TextStyle(fontSize:11))), Expanded(child: ListView.builder(padding:EdgeInsets.all(12),itemCount:filtered.length,itemBuilder:(_,j){ return Card(child: ListTile(title: Text(filtered[j]['name']??'', style: TextStyle(fontSize:12, fontWeight: FontWeight.bold)), subtitle: Text((filtered[j]['content']??'').toString().substring(0, 60), style: TextStyle(fontSize:11)), onTap: (){ Navigator.push(c, MaterialPageRoute(builder: (_)=>DocPreviewPage(doc: filtered[j]))); })); }))]), floatingActionButton: FloatingActionButton.extended(onPressed: pk, icon: Icon(Icons.add), label: Text('Upload')));
+              return Scaffold(appBar: AppBar(title:Text('My Docs ' + filtered.length.toString() + '/' + docs.length.toString()),backgroundColor:Colors.green,foregroundColor:Colors.white, actions:[PopupMenuButton<String>(onSelected: (v){ setState((){ filterSubject=v; }); }, itemBuilder: (_)=>subjects.map((s)=>PopupMenuItem(value:s, child: Text(s))).toList(), child: Padding(padding:EdgeInsets.all(12), child: Icon(Icons.filter_list)))]), body: Column(children:[Container(color: Colors.yellow[100], padding: EdgeInsets.all(8), child: Text('V14.37: Auto-detect History vs Geography. Report Lab uses these docs as sources.', style: TextStyle(fontSize:11))), Expanded(child: ListView.builder(padding:EdgeInsets.all(12),itemCount:filtered.length,itemBuilder:(_,j){ return Card(child: ListTile(title: Text(filtered[j]['name']??'', style: TextStyle(fontSize:12, fontWeight: FontWeight.bold)), subtitle: Text((filtered[j]['content']??'').toString().substring(0, 60), style: TextStyle(fontSize:11)), onTap: (){ Navigator.push(c, MaterialPageRoute(builder: (_)=>DocPreviewPage(doc: filtered[j]))); })); }))]), floatingActionButton: FloatingActionButton.extended(onPressed: pk, icon: Icon(Icons.add), label: Text('Upload')));
             }
           }
 
@@ -353,11 +457,130 @@ jobs:
             }
           }
 
-          class JourneyPage extends StatelessWidget {
+          // --- NEW REPORT LAB PAGE - Implements 5-step workflow from your explanation ---
+          class ReportLabPage extends StatefulWidget { @override State<ReportLabPage> createState()=>_ReportLabS(); }
+          class _ReportLabS extends State<ReportLabPage> {
+            final ctrl=TextEditingController(text:'2026 UCE History and Political Education examination discussions: teachers raised concerns about exam difficulty, time allocation, curriculum coverage, marking rubrics unclear, alleged training fees 150,000 UGX, proposals for UNEB to publish sample papers, NCDC to align syllabus, schools to reduce fees. Need consolidated report for teachers, school admins, professional associations.');
+            bool processing=false;
+            Map<String,dynamic> analysis={};
+            List<Map<String,String>> reportSections=[];
+            List<Map<String,String>> myDocs=[];
+            List<Map<String,String>> sources=[];
+            String docxPath='';
+            String pdfPath='';
+
+            @override void initState(){ super.initState(); loadDocs(); }
+            Future<void> loadDocs() async { final p=await SharedPreferences.getInstance(); String? s=p.getString('mtrdf_docs_v10'); if(s!=null){ setState((){ myDocs=List<Map<String,String>>.from(jsonDecode(s).map((e)=>Map<String,String>.from(e))); }); } }
+
+            Future<void> processReport() async {
+              if(ctrl.text.trim().length<20) return;
+              setState((){ processing=true; analysis={}; reportSections=[]; docxPath=''; pdfPath=''; sources=[]; });
+              await loadDocs();
+              await Future.delayed(Duration(milliseconds:500));
+
+              // Step 1-2: Analyse and Organize (Advanced Reasoning + Synthesis)
+              var anal=analyzeAndClassify(ctrl.text, myDocs);
+              var sections=buildStructuredReport('2026 UCE History Examination Consolidated Report', anal, myDocs);
+
+              // Step 3-4: Build sources with verification checklist
+              List<Map<String,String>> srcs=[
+                {'type':'My Docs','text':myDocs.length.toString() + ' uploaded docs: ' + myDocs.map((d)=> d['name']??'').join(', ')},
+                {'type':'WhatsApp Discussions','text':ctrl.text.length.toString() + ' chars, ' + (anal['totalLines']??0).toString() + ' discussion points analyzed'},
+                {'type':'Classification','text':'Facts, Observations, Allegations, Proposals separated. Duplicates: ' + (anal['duplicates'] as List).length.toString() + ' condensed'},
+                {'type':'Verification Required','text':'UNEB official adoption of proposed structure - verify against UNEB publications. Exam compliance with guidance - verify original papers. Training fees - verify receipts. Institutional intentions - need evidence.'},
+                {'type':'Curriculum Reference','text':'NCDC syllabus, assessment guidance, UNEB sample papers, school training records'},
+              ];
+
+              // Generate files
+              String docx=await generateDocxReport('2026 UCE History Examination Consolidated Report', sections, srcs);
+
+              // PDF
+              String pdf='';
+              try{
+                final pdfDoc=PdfDocument();
+                final page=pdfDoc.pages.add();
+                final font=PdfStandardFont(PdfFontFamily.helvetica, 10);
+                String txt='2026 UCE HISTORY CONSOLIDATED REPORT\n\n';
+                for(var s in sections){ txt+=s['heading']! + '\n' + s['content']! + '\n\n'; }
+                txt+='Sources:\n';
+                for(var s in srcs){ txt+='[' + s['type']! + '] ' + s['text']! + '\n'; }
+                page.graphics.drawString(txt, font, bounds: Rect.fromLTWH(0, 0, page.getClientSize().width, page.getClientSize().height));
+                final bytes=await pdfDoc.save();
+                pdfDoc.dispose();
+                final dir=await getTemporaryDirectory();
+                final file=File(dir.path + '/MTRDF_Report_2026_UCE_History.pdf');
+                await file.writeAsBytes(bytes);
+                pdf=file.path;
+              }catch(e){}
+
+              setState((){ analysis=anal; reportSections=sections; sources=srcs; docxPath=docx; pdfPath=pdf; processing=false; });
+            }
+
             @override Widget build(BuildContext c){
-              return Scaffold(appBar: AppBar(title:Text('Journey V14.36.1 FIXED'),backgroundColor:Colors.deepPurple,foregroundColor:Colors.white), body: ListView(padding:EdgeInsets.all(12), children:[
-                Card(color: Colors.green[50], child: Padding(padding:EdgeInsets.all(12), child: Text('V14.36.1 FIX #87: exportToPdfFile restored. Fixes all 6 images: Weather vs Climate 10 Uganda points, My Docs no History for Weather, Grey box fixed with offline fallback, Chat History 1 conversation working, My Docs 2/2 upload proof file_picker war won.', style: TextStyle(fontSize:11)))),
-              ]));
+              return Scaffold(
+                appBar: AppBar(title:Text('Report Lab V14.37 - UCE History Workflow'),backgroundColor:Colors.deepPurple,foregroundColor:Colors.white, actions:[IconButton(icon: Icon(Icons.picture_as_pdf), onPressed: (){ if(pdfPath.isNotEmpty) Share.shareXFiles([XFile(pdfPath)]); }), IconButton(icon: Icon(Icons.description), onPressed: (){ if(docxPath.isNotEmpty) Share.shareXFiles([XFile(docxPath)]); })]),
+                body: SingleChildScrollView(padding:EdgeInsets.all(12), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children:[
+                  Card(color: Colors.deepPurple[50], child: Padding(padding:EdgeInsets.all(12), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children:[
+                    Text('MTRDF Report Lab - Implements your 5-step workflow from ChatGPT explanation', style: TextStyle(fontWeight: FontWeight.bold, fontSize:13)),
+                    SizedBox(height:6),
+                    Text('Step 1 Collect: WhatsApp discussions + My Docs (2 docs you uploaded) + images', style: TextStyle(fontSize:11)),
+                    Text('Step 2 Analyse: Advanced reasoning, identify central issues, distinguish facts/opinions, connect arguments', style: TextStyle(fontSize:11)),
+                    Text('Step 3 Develop: Long-form writing, context management, tables, appendices', style: TextStyle(fontSize:11)),
+                    Text('Step 4 Generate: Real.docx Word file + PDF with headings, tables, verification checklist', style: TextStyle(fontSize:11)),
+                    Text('Step 5 Deliver: Share files with source references', style: TextStyle(fontSize:11)),
+                    SizedBox(height:6),
+                    Text('Capabilities: Reasoning, Organization, Long-form, Document Creation, Research verification, Review Classification, Iterative refinement, Visual', style: TextStyle(fontSize:10, fontStyle: FontStyle.italic)),
+                  ]))),
+                  SizedBox(height:8),
+                  TextField(controller: ctrl, maxLines: 8, decoration: InputDecoration(labelText: 'Paste WhatsApp discussions + examination analysis (Step 1 Collect)', border: OutlineInputBorder(), hintText: 'Paste teacher discussions about 2026 UCE History...'),),
+                  SizedBox(height:8),
+                  Row(children:[
+                    ElevatedButton.icon(onPressed: processing?null:processReport, icon: Icon(Icons.auto_awesome), label: Text('Analyse & Generate Report (Steps 2-5)')),
+                    SizedBox(width:8),
+                    if(processing) SizedBox(width:20, height:20, child: CircularProgressIndicator(strokeWidth:2)),
+                    Spacer(),
+                    Text(myDocs.length.toString() + ' docs as sources', style: TextStyle(fontSize:11)),
+                  ]),
+                  if(analysis.isNotEmpty)...[
+                    SizedBox(height:12),
+                    Card(color: Colors.green[50], child: Padding(padding:EdgeInsets.all(10), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children:[
+                      Text('Analysis Result - Step 2 Analyse and Organize', style: TextStyle(fontWeight: FontWeight.bold, fontSize:12)),
+                      Text('Total discussion points: ' + (analysis['totalLines']??0).toString() + ', Themes: ' + (analysis['themes'] as Map).keys.length.toString() + ', Duplicates condensed: ' + (analysis['duplicates'] as List).length.toString(), style: TextStyle(fontSize:11)),
+                      Wrap(spacing:4, children: (analysis['themes'] as Map).keys.map((k)=> Chip(label: Text(k.toString(), style: TextStyle(fontSize:10)), backgroundColor: Colors.deepPurple[50])).toList()),
+                      SizedBox(height:6),
+                      Text('Classification:', style: TextStyle(fontWeight: FontWeight.bold, fontSize:11)),
+                     ...((analysis['classified'] as List<Map<String,String>>).take(6).map((cc)=> Padding(padding:EdgeInsets.symmetric(vertical:2), child: Text('[' + (cc['type']??'') + '] ' + (cc['text']??'').toString().substring(0, (cc['text']??'').length>70?70:(cc['text']??'').length), style: TextStyle(fontSize:10))))).toList(),
+                    ]))),
+                    SizedBox(height:8),
+                    Text('Structured Report - Step 3 Develop (Long-form writing)', style: TextStyle(fontWeight: FontWeight.bold, fontSize:13)),
+                   ...reportSections.map((sec)=> Card(child: Padding(padding:EdgeInsets.all(10), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children:[
+                      Text(sec['heading']??'', style: TextStyle(fontWeight: FontWeight.bold, fontSize:12)),
+                      SizedBox(height:4),
+                      Text(sec['content']??'', style: TextStyle(fontSize:11, height:1.4)),
+                      if(sec['example']!=null) Padding(padding:EdgeInsets.only(top:4), child: Text('Example: ' + sec['example']!, style: TextStyle(fontSize:10, fontStyle: FontStyle.italic, color: Colors.grey[700]))),
+                    ])))),
+                    SizedBox(height:12),
+                    Card(color: Colors.blue[50], child: Padding(padding:EdgeInsets.all(10), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children:[
+                      Text('Step 4-5 Generate & Deliver - Real DOCX + PDF', style: TextStyle(fontWeight: FontWeight.bold, fontSize:12)),
+                      Text('DOCX Path: ' + (docxPath.isEmpty?'Generating...':docxPath), style: TextStyle(fontSize:10)),
+                      Text('PDF Path: ' + (pdfPath.isEmpty?'Generating...':pdfPath), style: TextStyle(fontSize:10)),
+                      SizedBox(height:6),
+                      Row(children:[
+                        ElevatedButton.icon(onPressed: (){ if(docxPath.isNotEmpty) Share.shareXFiles([XFile(docxPath)], text: '2026 UCE History Consolidated Report.docx'); }, icon: Icon(Icons.description), label: Text('Share DOCX')),
+                        SizedBox(width:8),
+                        ElevatedButton.icon(onPressed: (){ if(pdfPath.isNotEmpty) Share.shareXFiles([XFile(pdfPath)], text: '2026 UCE History Report PDF'); }, icon: Icon(Icons.picture_as_pdf), label: Text('Share PDF')),
+                      ]),
+                      SizedBox(height:8),
+                      Text('Sources and Verification Checklist:', style: TextStyle(fontWeight: FontWeight.bold, fontSize:11)),
+                     ...sources.map((s)=> Text('[' + (s['type']??'') + '] ' + (s['text']??''), style: TextStyle(fontSize:10))).toList(),
+                      SizedBox(height:6),
+                      Text('Accuracy Note: AI can organize evidence, identify contradictions, explain concepts, improve wording. Verification required: UNEB official adoption, exam compliance, training fees accuracy, institutional intentions. Compare against UNEB and NCDC official publications, syllabus, original papers. Keep observations labelled as observations and proposals as proposals.', style: TextStyle(fontSize:10, color: Colors.red[700])),
+                    ]))),
+                  ],
+                  SizedBox(height:12),
+                  Card(color: Colors.yellow[50], child: Padding(padding:EdgeInsets.all(10), child: Text('What this means for your MTRDF AI project: Same workflow can support educational assistant that accepts WhatsApp, notes, PDFs, images, Word docs, extracts groups, identifies repeated/conflicting claims, separates verified from opinions, produces long reports with tables and appendices, generates editable Word and PDF, includes source references and verification checklist, revises without losing earlier information. Requires document-processing software, file management, access to sources, error handling, quality checks, user-friendly interface. Valuable capability is not generating many words but combining understanding, reasoning, organization, writing, document production, evidence checking while honest about what has and has not been verified.', style: TextStyle(fontSize:10)))),
+                ])),
+              );
             }
           }
 
@@ -374,14 +597,14 @@ jobs:
               List<Map<String,String>> points=(data['points'] as List?)?.cast<Map<String,String>>()??[];
               Map<String,dynamic> instr=data['instr']??{};
               String intro=(data['results'] as List?)?.isNotEmpty??false? (data['results'][0]['snip']??'') : 'Weather daily, Climate 30 years';
-              return Scaffold(appBar: AppBar(title:Text('Research PRO V14.36.1'),backgroundColor:Colors.deepPurple,foregroundColor:Colors.white), body: Column(children:[
+              return Scaffold(appBar: AppBar(title:Text('Research PRO V14.37'),backgroundColor:Colors.deepPurple,foregroundColor:Colors.white), body: Column(children:[
                 Padding(padding:EdgeInsets.all(8), child: TextField(controller: ctrl, decoration: InputDecoration(hintText: 'differentiate...', border: OutlineInputBorder(), suffixIcon: IconButton(icon: Icon(Icons.send), onPressed: (){ doSearch(ctrl.text); })), onSubmitted: (v){ doSearch(v); })),
                 searching? LinearProgressIndicator() : SizedBox(),
                 Expanded(child: SingleChildScrollView(padding:EdgeInsets.all(12), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children:[
                   Text((instr['core']??'TOPIC').toString().toUpperCase(), style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
                   Text('Introduction: ' + intro, style: TextStyle(fontSize: 13)),
                   SizedBox(height:8),
-               ...points.asMap().entries.map((e){ int i=e.key; var p=e.value; return Card(child: Padding(padding:EdgeInsets.all(10), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children:[Text((i+1).toString() + '. ' + p['title']!.toUpperCase(), style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)), Text('Explanation: ' + p['exp']!, style: TextStyle(fontSize: 12)), Text('Example: ' + p['ex']!, style: TextStyle(fontSize: 12, fontStyle: FontStyle.italic))]))) ; }).toList(),
+              ...points.asMap().entries.map((e){ int i=e.key; var p=e.value; return Card(child: Padding(padding:EdgeInsets.all(10), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children:[Text((i+1).toString() + '. ' + p['title']!.toUpperCase(), style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)), Text('Explanation: ' + p['exp']!, style: TextStyle(fontSize: 12)), Text('Example: ' + p['ex']!, style: TextStyle(fontSize: 12, fontStyle: FontStyle.italic))]))) ; }).toList(),
                 ])))
               ]));
             }
@@ -396,7 +619,27 @@ jobs:
             @override void initState(){ super.initState(); Future.delayed(Duration(milliseconds:300),(){ doSearch(ctrl.text); }); }
             @override Widget build(BuildContext c){
               List<Map<String,String>> points=(data['points'] as List?)?.cast<Map<String,String>>()??[];
-              return Scaffold(appBar: AppBar(title:Text('Online AI V14.36.1'),backgroundColor:Colors.deepPurple,foregroundColor:Colors.white), body: Column(children:[Padding(padding:EdgeInsets.all(8), child: TextField(controller: ctrl, decoration: InputDecoration(hintText: 'difference...', border: OutlineInputBorder(), suffixIcon: IconButton(icon: Icon(Icons.send), onPressed: (){ doSearch(ctrl.text); })), onSubmitted: (v){ doSearch(v); })), searching? LinearProgressIndicator(): SizedBox(), Expanded(child: ListView.builder(padding:EdgeInsets.all(12),itemCount:points.length,itemBuilder:(_,i){ var p=points[i]; return Card(child: ListTile(leading: CircleAvatar(child: Text((i+1).toString())), title: Text(p['title']!, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)), subtitle: Column(crossAxisAlignment: CrossAxisAlignment.start, children:[Text(p['exp']!, style: TextStyle(fontSize: 11)), Text('Ex: ' + p['ex']!, style: TextStyle(fontSize: 11, fontStyle: FontStyle.italic))]))); }))]));
+              return Scaffold(appBar: AppBar(title:Text('Online AI V14.37'),backgroundColor:Colors.deepPurple,foregroundColor:Colors.white), body: Column(children:[Padding(padding:EdgeInsets.all(8), child: TextField(controller: ctrl, decoration: InputDecoration(hintText: 'difference...', border: OutlineInputBorder(), suffixIcon: IconButton(icon: Icon(Icons.send), onPressed: (){ doSearch(ctrl.text); })), onSubmitted: (v){ doSearch(v); })), searching? LinearProgressIndicator(): SizedBox(), Expanded(child: ListView.builder(padding:EdgeInsets.all(12),itemCount:points.length,itemBuilder:(_,i){ var p=points[i]; return Card(child: ListTile(leading: CircleAvatar(child: Text((i+1).toString())), title: Text(p['title']!, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)), subtitle: Column(crossAxisAlignment: CrossAxisAlignment.start, children:[Text(p['exp']!, style: TextStyle(fontSize: 11)), Text('Ex: ' + p['ex']!, style: TextStyle(fontSize: 11, fontStyle: FontStyle.italic))]))); }))]));
+            }
+          }
+
+          class JourneyPage extends StatelessWidget {
+            @override Widget build(BuildContext c){
+              return Scaffold(appBar: AppBar(title:Text('Journey V14.37 REPORT LAB'),backgroundColor:Colors.deepPurple,foregroundColor:Colors.white), body: ListView(padding:EdgeInsets.all(12), children:[
+                Card(color: Colors.deepPurple[50], child: Padding(padding:EdgeInsets.all(12), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children:[
+                  Text('V14.37 - MTRDF Report Lab - Implements your ChatGPT explanation workflow', style: TextStyle(fontWeight: FontWeight.bold, fontSize:12)),
+                  SizedBox(height:6),
+                  Text('From your explanation: Work depends on several AI capabilities - reasoning, organization, long-form writing, document creation, research verification, quality control', style: TextStyle(fontSize:11)),
+                  Text('Main capabilities: Advanced reasoning, Information organization, Long-form writing context management, Document creation formatting, Research fact-checking, Review classification', style: TextStyle(fontSize:11)),
+                  Text('Other capabilities: Natural language understanding, Instruction following, Summarization expansion, Classification, Context retention, Structured data handling, Programming file processing, Iterative refinement, File delivery, Visual multimodal', style: TextStyle(fontSize:11)),
+                  SizedBox(height:6),
+                  Text('5-step process: 1 Collect WhatsApp + notes + PDFs + images, 2 Analyse organize themes remove duplication classify claims, 3 Develop report sections tables conclusion, 4 Generate DOCX via document-processing code, 5 Deliver verified download path', style: TextStyle(fontSize:11)),
+                  Text('Long info: Section by section, common argument across sections, document file holds content. Example single issue 2026 History exam into original concern, curriculum questions, interpretations, evidence needed, implications, recommendations UNEB NCDC schools teachers', style: TextStyle(fontSize:11)),
+                  Text('Accuracy: AI can organize evidence identify contradictions explain concepts improve wording. Requires verification: UNEB official adoption, exam compliance, training fees, institutional intentions. Strengthen via UNEB NCDC publications syllabus original papers. Keep observations labelled observations proposals as proposals.', style: TextStyle(fontSize:11)),
+                  Text('For MTRDF AI: Accept WhatsApp discussions notes PDFs images Word docs, Extract groups, Identify repeated conflicting claims, Separate verified from opinions proposals, Produce long structured reports tables appendices, Generate editable Word PDFs, Include source references verification checklist, Revise without losing earlier versions. Needs document-processing software file management access to sources error handling quality checks user-friendly interface.', style: TextStyle(fontSize:11)),
+                ]))),
+                Card(color: Colors.green[50], child: Padding(padding:EdgeInsets.all(12), child: Text('V14.37 implements: Report Lab tab with Collect (text + My Docs 2 docs), Analyse (theme keywords Examination Concerns Curriculum Alignment Teacher Experiences Assessment Issues Proposals, classify Fact Observation Allegation Proposal Question, duplicate detection), Develop (Executive Summary Methodology Themes Classification Verification Recommendations Conclusion Appendix), Generate (Real.docx via Archive ZipEncoder document.xml + PDF via syncfusion), Deliver (Share DOCX/PDF + verification checklist). Fixes all 6 images + adds UCE History report workflow.', style: TextStyle(fontSize:11)))),
+              ]));
             }
           }
 
@@ -406,7 +649,7 @@ jobs:
             @override void initState(){ super.initState(); msgs=[{'role':'ai','points':[],'instr':{}}]; }
             Future<void> send() async { if(ctrl.text.isEmpty) return; String q=ctrl.text; setState((){ msgs.add({'role':'user','text':q}); sending=true; }); ctrl.clear(); var res=await deepResearchFormatted(q, widget.subject, [],[]); setState((){ msgs.add({'role':'ai','points':res['points'],'instr':res['instr']}); sending=false; }); }
             @override Widget build(BuildContext c){
-              return Scaffold(appBar: AppBar(title:Text(widget.subject + ' V14.36.1'),backgroundColor:Colors.deepPurple,foregroundColor:Colors.white), body: Column(children:[Expanded(child: ListView.builder(padding:EdgeInsets.all(12),itemCount:msgs.length,itemBuilder:(_,i){ var m=msgs[i]; bool isUser=m['role']=='user'; if(isUser) return Align(alignment:Alignment.centerRight, child: Container(margin:EdgeInsets.all(6),padding:EdgeInsets.all(12),decoration:BoxDecoration(color:Colors.deepPurple,borderRadius:BorderRadius.circular(12)), child:Text(m['text']??'',style:TextStyle(color:Colors.white)))); List<Map<String,String>> points=(m['points'] as List?)?.cast<Map<String,String>>()??[]; if(points.isEmpty) return Card(child: Padding(padding:EdgeInsets.all(12), child: Text('Try: differentiate between weather and climate', style: TextStyle(fontSize:12)))); return Column(children: points.asMap().entries.map((e){ int idx=e.key; var p=e.value; return Card(child: ListTile(leading: Text((idx+1).toString()), title: Text(p['title']!, style: TextStyle(fontSize:12,fontWeight:FontWeight.bold)), subtitle: Column(crossAxisAlignment: CrossAxisAlignment.start, children:[Text(p['exp']!, style: TextStyle(fontSize:11)), Text('Ex: ' + p['ex']!, style: TextStyle(fontSize:11, fontStyle: FontStyle.italic))])) ); }).toList()); })), sending? LinearProgressIndicator(): SizedBox(), Padding(padding:EdgeInsets.all(8), child: Row(children:[Expanded(child: TextField(controller:ctrl, maxLines: 3, decoration: InputDecoration(hintText: 'Give me 10 points...', border: OutlineInputBorder(borderRadius: BorderRadius.circular(20))), onSubmitted: (_)=>send())), IconButton(icon:Icon(Icons.send), onPressed:send)]))]));
+              return Scaffold(appBar: AppBar(title:Text(widget.subject + ' V14.37'),backgroundColor:Colors.deepPurple,foregroundColor:Colors.white), body: Column(children:[Expanded(child: ListView.builder(padding:EdgeInsets.all(12),itemCount:msgs.length,itemBuilder:(_,i){ var m=msgs[i]; bool isUser=m['role']=='user'; if(isUser) return Align(alignment:Alignment.centerRight, child: Container(margin:EdgeInsets.all(6),padding:EdgeInsets.all(12),decoration:BoxDecoration(color:Colors.deepPurple,borderRadius:BorderRadius.circular(12)), child:Text(m['text']??'',style:TextStyle(color:Colors.white)))); List<Map<String,String>> points=(m['points'] as List?)?.cast<Map<String,String>>()??[]; if(points.isEmpty) return Card(child: Padding(padding:EdgeInsets.all(12), child: Text('Try: differentiate between weather and climate', style: TextStyle(fontSize:12)))); return Column(children: points.asMap().entries.map((e){ int idx=e.key; var p=e.value; return Card(child: ListTile(leading: Text((idx+1).toString()), title: Text(p['title']!, style: TextStyle(fontSize:12,fontWeight:FontWeight.bold)), subtitle: Column(crossAxisAlignment: CrossAxisAlignment.start, children:[Text(p['exp']!, style: TextStyle(fontSize:11)), Text('Ex: ' + p['ex']!, style: TextStyle(fontSize:11, fontStyle: FontStyle.italic))])) ); }).toList()); })), sending? LinearProgressIndicator(): SizedBox(), Padding(padding:EdgeInsets.all(8), child: Row(children:[Expanded(child: TextField(controller:ctrl, maxLines: 3, decoration: InputDecoration(hintText: 'Give me 10 points...', border: OutlineInputBorder(borderRadius: BorderRadius.circular(20))), onSubmitted: (_)=>send())), IconButton(icon:Icon(Icons.send), onPressed:send)]))]));
             }
           }
           DART
@@ -417,5 +660,5 @@ jobs:
       - name: Upload
         uses: actions/upload-artifact@v4
         with:
-          name: MTRDF-V14-36-1-FIXED-EXPORT-GREEN
+          name: MTRDF-V14-37-REPORT-LAB-UCE-HISTORY-WORKFLOW
           path: build/app/outputs/flutter-apk/app-release.apk

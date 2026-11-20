@@ -27,7 +27,7 @@ jobs:
         run: |
           cat > pubspec.yaml <<'YAML'
           name: mtrdf_2026_ai
-          version: 15.2.0+100
+          version: 15.3.0+101
           environment:
             sdk: '>=3.0.0 <4.0.0'
           dependencies:
@@ -44,7 +44,7 @@ jobs:
           flutter:
             uses-material-design: true
           YAML
-      - name: Write main.dart V15.2 FINAL
+      - name: Write main.dart V15.3 FINAL ALL FIXED
         run: |
           cat > lib/main.dart <<'DART'
           import 'dart:convert';
@@ -61,15 +61,19 @@ jobs:
           String extractDocx(List<int> b){try{final a=ZipDecoder().decodeBytes(b);for(final f in a){if(f.name=='word/document.xml'){return utf8.decode(f.content as List<int>).replaceAll(RegExp(r'<[^>]+>'),' ');}}return '';}catch(e){return '';}}
           String extractPdf(List<int> b){try{final d=PdfDocument(inputBytes:b);final t=PdfTextExtractor(d).extractText();d.dispose();return t;}catch(e){return '';}}
           String decodeHtml(String t){return t.replaceAll('&amp;','&').replaceAll('&#039;',"'").replaceAll('&quot;','"').replaceAll('&#39;',"'").replaceAll(RegExp(r'<[^>]+>'),'');}
+          String cleanAscii(String t){ return t.replaceAll(RegExp(r'[^\x00-\x7F]'), ''); }
           String extractCoreTopic(String input){
             String s=input.toLowerCase();
             s=s.replaceAll(RegExp(r'^(give me|i need|provide|list|show me|what are|what is|tell me about|explain|define|describe|discuss|state|outline|differentiate|difference)\s+'), '');
             s=s.replaceAll(RegExp(r'\d+\s*points?.*?for\s+'), '');
             s=s.replaceAll(RegExp(r'\d+\s*importances?\s+of\s+'), 'importance of ');
+            s=s.replaceAll(RegExp(r'importances?\s+of\s+studying\s+'), 'importance of ');
+            s=s.replaceAll(RegExp(r'importances?\s+of\s+'), 'importance of ');
             s=s.replaceAll(RegExp(r'\d+\s*points?'), '');
-            s=s.replaceAll(RegExp(r'well explained|with examples|with example|in table format|in a table|table format|detailed|elaborate|according to uneb|according to|for s\d+|for primary|uneb|exam format|between'), '');
+            s=s.replaceAll(RegExp(r'well explained|with examples|with example|in table format|in a table|table format|detailed|elaborate|according to uneb|according to|for s\d+|for primary|uneb|exam format'), '');
             s=s.replaceAll(RegExp(r'\s+'), ' ').trim();
             if(s.startsWith('of ')) s=s.substring(3);
+            if(s.endsWith(' and')) s=s.substring(0, s.length-4).trim();
             if(s.isEmpty) return 'geography';
             return s;
           }
@@ -80,11 +84,11 @@ jobs:
               {'title':'Time Period','exp':'Weather short period hours/days, climate long period 30 plus years.','ex':'Weather: morning rain 2 hours, Climate: March-May long rains every year in Buganda.'},
               {'title':'Elements Measured','exp':'Both have temperature, rainfall, humidity, wind, pressure, sunshine. Weather instant value, climate average.','ex':'Weather today 28C, Climate average for Gulu 25C.'},
               {'title':'Variability and Change','exp':'Weather changes quickly day to day, climate stable year to year.','ex':'Weather can change sunny to storm in 2 hours, climate of Kabale remains cool 18C year to year.'},
-              {'title':'Study Instruments and Experts','exp':'Weather studied by meteorologists daily forecast, climate by climatologists long data. Both use thermometer, rain gauge.','ex':'UNMA Entebbe gives daily weather forecast, climate data for agriculture planning NAADS.'},
-              {'title':'Importance of Weather','exp':'Determines daily human activities: dressing, travel, farming activities that day, sports, aviation.','ex':'Farmers check weather to harvest maize, pilots need weather for flights Entebbe to Nairobi.'},
-              {'title':'Importance of Climate','exp':'Determines type of crops, vegetation, animals, settlement, economic activity, clothing of region.','ex':'Karamoja semi-arid climate limits to pastoralism cattle, Buganda wet climate allows matooke bananas and coffee.'},
-              {'title':'Factors Influencing','exp':'Weather influenced by daily wind, clouds, pressure, humidity. Climate influenced by latitude, altitude, water bodies, vegetation, ocean currents.','ex':'Lake Victoria moderates climate of Kampala, Rwenzori altitude 5109m lowers climate temperature creates snow.'},
-              {'title':'UNEB Exam Approach Table','exp':'UNEB asks differentiate with table 2 columns Weather vs Climate, give 5-10 points with Uganda examples, simple vs academic language.','ex':'Draw table: Weather short time vs Climate long time, Weather changes quickly vs Climate stable, Weather daily vs Climate 30 years.'},
+              {'title':'Study Instruments and Experts','exp':'Weather studied by meteorologists daily forecast, climate by climatologists long data.','ex':'UNMA Entebbe gives daily weather forecast.'},
+              {'title':'Importance of Weather','exp':'Determines daily human activities: dressing, travel, farming that day, aviation.','ex':'Farmers check weather to harvest maize.'},
+              {'title':'Importance of Climate','exp':'Determines crops, vegetation, animals, settlement, economic activity.','ex':'Karamoja dry climate for cattle, Buganda wet for matooke and coffee.'},
+              {'title':'Factors Influencing','exp':'Weather: daily wind, clouds, pressure. Climate: latitude, altitude, water bodies, vegetation.','ex':'Lake Victoria moderates climate of Kampala, Rwenzori altitude lowers temperature.'},
+              {'title':'UNEB Exam Approach Table','exp':'UNEB asks differentiate with table Weather vs Climate, 5-10 points with Uganda examples.','ex':'Table: Weather short time vs Climate long time.'},
             ],
           };
           Map<String,dynamic> parseInstructions(String input){
@@ -102,581 +106,20 @@ jobs:
               var pts=curriculumDB['difference between weather and climate']!;
               return pts.take(needPoints).toList();
             }
+            if(l.contains('river')){
+              return [
+                {'title':'Definition of a River','exp':'A river is a natural flowing body of water from highland to lowland, flowing into lake, sea or another river.','ex':'River Nile in Uganda flows from Lake Victoria at Jinja to Lake Albert.'},
+                {'title':'Importance - Transport','exp':'Rivers provide water transport for people and goods cheaply.','ex':'Boats on River Nile carry tourists to Murchison Falls.'},
+                {'title':'Importance - Fishing','exp':'Rivers provide fish for food and income.','ex':'Fishermen in Pakwach catch Nile perch from River Nile.'},
+                {'title':'Importance - Hydro Power','exp':'Rivers provide water for hydro electric power stations.','ex':'Kiira and Bujagali dams on River Nile produce power for Kampala.'},
+                {'title':'Importance - Irrigation and Water Supply','exp':'Water for crops, domestic use, animals and industry.','ex':'Farmers in Arua irrigate using River Eگە.'},
+                {'title':'Importance - Tourism','exp':'Rivers attract tourists for rafting, sport fishing, scenery.','ex':'White water rafting on River Nile Jinja earns dollars.'},
+                {'title':'Importance - Settlement and Farming','exp':'People settle near rivers because of fertile soils and water.','ex':'Towns like Jinja, Pakwach grew near River Nile.'},
+                {'title':'Challenges','exp':'Flooding, pollution, siltation, water hyacinth.','ex':'River Rwizi in Mbarara polluted by town waste.'},
+                {'title':'Conservation','exp':'Plant trees on banks, ban pollution, protect wetlands.','ex':'Tree planting along River Mbale.'},
+                {'title':'UNEB Exam Tip','exp':'Define river 2 marks, importance 5 marks with Uganda examples in table.','ex':'Table: Importance - Example - Location.'},
+              ].take(needPoints).toList();
+            }
             if(l.contains('lake')){
               return [
-                {'title':'Definition of a Lake','exp':'A lake is a large inland body of standing water surrounded by land, stored in a basin or depression.','ex':'Lake Victoria in Uganda is largest tropical lake in Africa, shared Uganda Kenya Tanzania.'},
-                {'title':'Formation of Lakes','exp':'Lakes form by tectonic depression, volcanic crater, glacial, river damming, and wind action.','ex':'Lake Albert and Edward formed by rift valley tectonics in western Uganda.'},
-                {'title':'Types of Lakes in Uganda','exp':'Natural lakes: Victoria, Kyoga, Albert, Edward, Bunyonyi. Artificial: Lake Mburo, dams for hydro power.','ex':'Lake Bunyonyi in Kabale is crater lake, Lake Mburo is shallow for cattle.'},
-                {'title':'Importance - Transport','exp':'Lakes provide cheap water transport for people and goods, connect ports.','ex':'Steamer MV Kalangala carries passengers Entebbe to Kalangala islands on Lake Victoria.'},
-                {'title':'Importance - Fishing and Food','exp':'Lakes provide fish protein and income for communities.','ex':'Nile perch from Lake Victoria sold in Kampala markets, many youth earn from fishing.'},
-                {'title':'Importance - Tourism and Power','exp':'Lakes attract tourists and provide water for hydro electric power.','ex':'Tourists visit Lake Bunyonyi, water from Lake Victoria feeds Nalubaale power station Jinja.'},
-                {'title':'Importance - Irrigation and Settlement','exp':'Water for crops, domestic use, settlement near shores.','ex':'Farmers in Rakai irrigate bananas using Lake Victoria water.'},
-                {'title':'Challenges to Lakes','exp':'Pollution, overfishing, water hyacinth, encroachment.','ex':'Water hyacinth blocks boats on Lake Victoria, plastic pollution in Kampala shores.'},
-                {'title':'Conservation','exp':'Government and communities protect lakes by laws, planting trees, banning illegal nets.','ex':'Uganda Fisheries bans undersized nets to protect Lake Kyoga fish.'},
-                {'title':'UNEB Exam Approach','exp':'UNEB asks define lake 2 marks, types 3 marks, importance 5 marks with Uganda examples in table.','ex':'Draw table: Type - Example - Location. Lake Victoria - largest - south Uganda.'},
-              ].take(needPoints).toList();
-            }
-            return [];
-          }
-          Future<List<Map<String,String>>> searchWikiSmart(String q) async {
-            List<Map<String,String>> r=[];
-            String core=extractCoreTopic(q);
-            try{
-              final u=Uri.parse('https://en.wikipedia.org/w/api.php?action=query&prop=extracts&explaintext=1&format=json&titles=' + Uri.encodeComponent(core));
-              final resp=await http.get(u, headers:{'User-Agent':'MTRDF/1.0'}).timeout(Duration(seconds:5));
-              if(resp.statusCode==200){
-                final d=jsonDecode(resp.body);
-                var pages=d['query']?['pages'];
-                if(pages!=null){
-                  for(var k in pages.keys){
-                    String ex=decodeHtml((pages[k]['extract']??'').toString());
-                    if(ex.length>50){
-                      String short=ex.length>700? ex.substring(0,700) : ex;
-                      r.add({'title':core,'snip':short,'source':'Wikipedia'});
-                      break;
-                    }
-                  }
-                }
-              }
-            }catch(e){}
-            if(r.isEmpty && core.contains(' ')){
-              String shortCore=core.split(' ').last;
-              try{
-                final u=Uri.parse('https://en.wikipedia.org/w/api.php?action=query&prop=extracts&explaintext=1&format=json&titles=' + Uri.encodeComponent(shortCore));
-                final resp=await http.get(u, headers:{'User-Agent':'MTRDF/1.0'}).timeout(Duration(seconds:5));
-                if(resp.statusCode==200){
-                  final d=jsonDecode(resp.body);
-                  var pages=d['query']?['pages'];
-                  if(pages!=null){
-                    for(var k in pages.keys){
-                      String ex=decodeHtml((pages[k]['extract']??'').toString());
-                      if(ex.length>50){
-                        String short=ex.length>700? ex.substring(0,700) : ex;
-                        r.add({'title':core,'snip':short,'source':'Wikipedia - ' + shortCore});
-                        break;
-                      }
-                    }
-                  }
-                }
-              }catch(e){}
-            }
-            if(r.isEmpty){
-              try{
-                final u2=Uri.parse('https://lite.duckduckgo.com/lite/?q=' + Uri.encodeComponent(core));
-                final resp2=await http.get(u2, headers:{'User-Agent':'Mozilla/5.0'}).timeout(Duration(seconds:5));
-                if(resp2.statusCode==200){
-                  String html=resp2.body;
-                  var matches=RegExp(r'class=.result-snippet.[^>]*>(.*?)</td>').allMatches(html);
-                  for(var m in matches.take(3)){
-                    String snip=decodeHtml(m.group(1)??'');
-                    if(snip.length>40) r.add({'title':core,'snip':snip,'source':'Web Search'});
-                  }
-                  if(r.isEmpty){
-                    String clean=decodeHtml(html);
-                    if(clean.length>200) r.add({'title':core,'snip':clean.substring(0,500),'source':'Web Search'});
-                  }
-                }
-              }catch(e){}
-            }
-            if(core.toLowerCase().contains('weather') || core.toLowerCase().contains('climate') || core.toLowerCase().contains('temperature') || core.toLowerCase().contains('rainfall')){
-              try{
-                final u3=Uri.parse('https://api.open-meteo.com/v1/forecast?latitude=0.3476&longitude=32.5825&current_weather=true');
-                final resp3=await http.get(u3).timeout(Duration(seconds:3));
-                if(resp3.statusCode==200){
-                  final d3=jsonDecode(resp3.body);
-                  var cw=d3['current_weather'];
-                  if(cw!=null) r.add({'title':'Live Satellite Weather Kampala','snip':'Temperature ' + cw['temperature'].toString() + 'C, Wind ' + cw['windspeed'].toString() + ' km/h, Time ' + cw['time'].toString(),'source':'Satellite - Open-Meteo'});
-                }
-              }catch(e){}
-            }
-            return r;
-          }
-          List<Map<String,String>> wikiToPoints(List<Map<String,String>> wiki, String core, int needPoints){
-            List<Map<String,String>> pts=[];
-            if(wiki.isEmpty){
-              return [
-                {'title':'Definition of ' + core,'exp':core + ' is an important topic in Uganda curriculum. It is taught with practical examples in schools.','ex':'In Uganda, this is examined by UNEB with examples from our community.'},
-                {'title':'How it Works / Process','exp':'It involves key steps that bring change from raw material to useful product or idea.','ex':'For vulcanization: raw rubber + sulfur + heat = strong tyre rubber.'},
-                {'title':'Importance in Uganda','exp':'It provides jobs, makes materials durable, supports industry and daily life.','ex':'Tyres, shoes, tubes used by boda bodas in Kampala, Gulu, Kabale.'},
-                {'title':'Materials / Factors Needed','exp':'Raw material, energy, and correct conditions are needed.','ex':'Sulfur and heat for rubber, sunlight and water for crops.'},
-                {'title':'Advantages','exp':'Stronger, longer lasting, more useful than raw form.','ex':'Vulcanized rubber does not melt easily in hot sun.'},
-                {'title':'Everyday Example','exp':'Things you see every day in Uganda market and school.','ex':'Car tyre, shoe sole, rubber band, rain boot.'},
-                {'title':'UNEB Exam Tip','exp':'Define 2 marks, explain process 3 marks, give Uganda example 2 marks. Write in simple points.','ex':'Start with definition, then steps in order.'},
-                {'title':'Conclusion','exp':'Therefore ' + core + ' is important for learning and for development of Uganda.','ex':'Revise with your notes and My Docs.'},
-              ].take(needPoints).toList();
-            }
-            for(var w in wiki){
-              if(pts.length>=needPoints) break;
-              String snip=w['snip']??'';
-              String src=w['source']??'Wikipedia';
-              if(src.contains('Satellite')){
-                pts.add({'title':'Live Satellite Weather','exp':snip,'ex':'Source: Open-Meteo Satellite - Kampala'});
-                continue;
-              }
-              List<String> sentences=snip.split(RegExp(r'\.\s+')).where((s)=> s.trim().length>30).toList();
-              if(sentences.isEmpty) sentences=[snip];
-              for(var s in sentences){
-                if(pts.length>=needPoints) break;
-                String clean=s.trim();
-                List<String> words=clean.split(' ');
-                String title=words.take(5).join(' ');
-                pts.add({'title':title,'exp':clean,'ex':'Source: ' + src});
-              }
-            }
-            if(pts.length>=3 && pts.length<needPoints){
-              pts.add({'title':'Conclusion on ' + core,'exp':'In summary, ' + core + ' is important in Uganda curriculum and daily life. It helps learners understand the world and solve community problems.','ex':'Example: Geography helps farmers in Kabale choose crops for climate.'});
-            }
-            return pts;
-          }
-          bool isStopWord(String w){
-            const stops=['between','difference','differentiate','importance','give','points','well','explained','with','examples','example','the','and','for','according','uneb','table','format','what','are','is','of','a','an','in','on','to','from'];
-            return stops.contains(w.toLowerCase());
-          }
-          Future<Map<String,dynamic>> deepResearchFormatted(String q, String subject, List<Map<String,String>> myDocs, List<Map<String,dynamic>> ctx) async {
-            var instr=parseInstructions(q);
-            String core=instr['core'];
-            if(ctx.isNotEmpty){
-              String lastCore=ctx.last['core']??'';
-              if(core.length<4 && lastCore.isNotEmpty){ core=lastCore; instr['core']=lastCore; }
-            }
-            int needPoints=instr['points'];
-            List<Map<String,String>> wiki=[];
-            try{ wiki=await searchWikiSmart(q); }catch(e){}
-            List<Map<String,String>> points=getPointsForCore(core, needPoints);
-            if(points.isEmpty){ points=wikiToPoints(wiki, core, needPoints); }
-            if(points.isEmpty){ points=[{'title':'Answer on '+core,'exp':'Important topic in Uganda curriculum.','ex':'Ask any school topic.'}]; }
-            List<Map<String,String>> docMatches=[];
-            if(myDocs.isNotEmpty){
-              String lc=core.toLowerCase();
-              List<String> keywords=lc.split(' ').where((w)=> w.length>3 &&!isStopWord(w)).toList();
-              if(keywords.isEmpty){ keywords=[lc]; }
-              for(var d in myDocs){
-                String content=(d['content']??'').toLowerCase();
-                String subj=(d['subject']??'General').toLowerCase();
-                if((core.contains('weather')||core.contains('climate')) && subj.contains('history')){ continue; }
-                int matchCount=0;
-                for(var kw in keywords){ if(content.contains(kw)) matchCount++; }
-                bool strongMatch=false;
-                if(keywords.length>=2){ strongMatch=matchCount>=2; } else { strongMatch=matchCount>=1; }
-                if(content.contains(lc)) strongMatch=true;
-                if(strongMatch){
-                  String full=(d['content']??'').toString();
-                  int pos=-1;
-                  for(var kw in keywords){ pos=content.indexOf(kw); if(pos!=-1) break; }
-                  String snip=full;
-                  if(pos!=-1){
-                    int start=pos-150; if(start<0) start=0;
-                    int end=pos+350; if(end>full.length) end=full.length;
-                    snip=full.substring(start,end);
-                  } else { if(snip.length>250) snip=snip.substring(0,250) + '...'; }
-                  docMatches.add({'title':d['name']??'My Doc','snip':snip,'full':full,'source':'My Docs'});
-                }
-              }
-            }
-            return {'results':wiki,'points':points,'instr':instr,'core':core,'myDocs':docMatches};
-          }
-          Future<String> exportToPdfFile(String core, List<Map<String,String>> points, String intro) async {
-            try{
-              final doc=PdfDocument();
-              final page=doc.pages.add();
-              final font=PdfStandardFont(PdfFontFamily.helvetica, 11);
-              String text=core.toUpperCase() + '\n\nIntroduction: ' + intro + '\n\n';
-              for(int i=0;i<points.length;i++){ text+=(i+1).toString() + '. ' + points[i]['title']! + '\nExplanation: ' + points[i]['exp']! + '\nExample: ' + points[i]['ex']! + '\n\n'; }
-              text+='Conclusion: Therefore ' + core + ' important.\n\nSources: MTRDF Curriculum, Wikipedia, My Docs';
-              page.graphics.drawString(text, font, bounds: Rect.fromLTWH(0, 0, page.getClientSize().width, page.getClientSize().height));
-              final bytes=await doc.save();
-              doc.dispose();
-              final dir=await getTemporaryDirectory();
-              final file=File(dir.path + '/MTRDF_' + core.replaceAll(' ', '_') + '.pdf');
-              await file.writeAsBytes(bytes);
-              return file.path;
-            }catch(e){ return ''; }
-          }
-          Future<String> generateDocxReport(String title, List<Map<String,String>> sections, List<Map<String,String>> sources) async {
-            try{
-              String bodyXml='';
-              bodyXml+='<w:p><w:pPr><w:pStyle w:val="Heading1"/></w:pPr><w:r><w:t>' + _xmlEsc(title) + '</w:t></w:r></w:p>';
-              bodyXml+='<w:p><w:r><w:rPr><w:i/></w:rPr><w:t>MTRDF AI - Knowledge Faith Transformation - Generated ' + DateTime.now().toIso8601String().substring(0,10) + '</w:t></w:r></w:p>';
-              for(int i=0;i<sections.length;i++){
-                var s=sections[i];
-                bodyXml+='<w:p><w:pPr><w:pStyle w:val="Heading2"/></w:pPr><w:r><w:rPr><w:b/></w:rPr><w:t>' + _xmlEsc((i+1).toString() + '. ' + (s['heading']??'')) + '</w:t></w:r></w:p>';
-                bodyXml+='<w:p><w:r><w:t>' + _xmlEsc(s['content']??'') + '</w:t></w:r></w:p>';
-                if(s['example']!=null && s['example']!.isNotEmpty){
-                  bodyXml+='<w:p><w:r><w:rPr><w:i/></w:rPr><w:t>Example: ' + _xmlEsc(s['example']!) + '</w:t></w:r></w:p>';
-                }
-              }
-              bodyXml+='<w:p><w:pPr><w:pStyle w:val="Heading1"/></w:pPr><w:r><w:t>Sources and Verification Checklist</w:t></w:r></w:p>';
-              for(var src in sources){
-                bodyXml+='<w:p><w:r><w:t>[' + _xmlEsc(src['type']??'') + '] ' + _xmlEsc(src['text']??'') + '</w:t></w:r></w:p>';
-              }
-              bodyXml+='<w:p><w:r><w:t>Verification Checklist: Compare claims against UNEB and NCDC official publications, syllabus, original exam papers.</w:t></w:r></w:p>';
-              String documentXml='<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>' + bodyXml + '<w:sectPr><w:pgSz w:w="12240" w:h="15840"/><w:pgMar w:top="1440" w:right="1440" w:bottom="1440" w:left="1440"/></w:sectPr></w:body></w:document>';
-              String contentTypes='<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>';
-              String rels='<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>';
-              String wordRels='<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"></Relationships>';
-              final archive=Archive();
-              archive.addFile(ArchiveFile('[Content_Types].xml', contentTypes.length, utf8.encode(contentTypes)));
-              archive.addFile(ArchiveFile('_rels/.rels', rels.length, utf8.encode(rels)));
-              archive.addFile(ArchiveFile('word/_rels/document.xml.rels', wordRels.length, utf8.encode(wordRels)));
-              archive.addFile(ArchiveFile('word/document.xml', documentXml.length, utf8.encode(documentXml)));
-              final bytes=ZipEncoder().encode(archive);
-              if(bytes==null) return '';
-              final dir=await getTemporaryDirectory();
-              final file=File(dir.path + '/MTRDF_Report_' + title.replaceAll(' ', '_').substring(0, title.length>20?20:title.length) + '.docx');
-              await file.writeAsBytes(bytes);
-              return file.path;
-            }catch(e){ return 'Error: ' + e.toString(); }
-          }
-          String _xmlEsc(String t){ return t.replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&apos;'); }
-          Map<String,dynamic> analyzeAndClassify(String rawText, List<Map<String,String>> myDocs){
-            List<String> lines=rawText.split('\n').where((l)=> l.trim().length>10).toList();
-            Map<String, List<String>> themes={};
-            List<Map<String,String>> classified=[];
-            final themeKeywords={
-              'Examination Concerns':['exam','question','paper','uneb','mark','leak','cheat','malpractice','difficulty','time'],
-              'Curriculum Alignment':['curriculum','syllabus','ncdc','competency','cbc','topic','coverage','content'],
-              'Teacher Experiences':['teacher','teach','school','class','student','learn','training','workshop','fee'],
-              'Assessment Issues':['assessment','grading','rubric','marking','score','performance','result','candidate'],
-              'Proposals and Reforms':['propos','recommend','should','reform','improve','suggest','need','must'],
-            };
-            for(var line in lines){
-              String l=line.toLowerCase();
-              String theme='General Issues';
-              for(var entry in themeKeywords.entries){
-                for(var kw in entry.value){
-                  if(l.contains(kw)){ theme=entry.key; break; }
-                }
-              }
-              themes.putIfAbsent(theme, ()=>[]).add(line.trim());
-              String type='Observation';
-              if(l.contains('alleged')||l.contains('claim')||l.contains('reportedly')||l.contains('supposedly')){ type='Allegation - Needs Verification'; }
-              else if(l.contains('should')||l.contains('recommend')||l.contains('propose')||l.contains('suggest')){ type='Proposal'; }
-              else if(l.contains('?')||l.contains('whether')||l.contains('verify')||l.contains('confirm')){ type='Question Requiring Verification'; }
-              else if(l.contains('observed')||l.contains('experience')||l.contains('noticed')||l.contains('saw')){ type='Teacher Observation'; }
-              else if(l.contains('fact')||l.contains('official')||l.contains('document')||l.contains('policy')){ type='Fact - Check Source'; }
-              classified.add({'text':line.trim(),'type':type,'theme':theme});
-            }
-            Map<String,int> count={};
-            for(var c in classified){
-              String key=(c['text']??'').toLowerCase().substring(0, (c['text']??'').length>30?30:(c['text']??'').length);
-              count[key]=(count[key]??0)+1;
-            }
-            List<String> duplicates=count.entries.where((e)=> e.value>1).map((e)=> e.key).toList();
-            return {'themes':themes,'classified':classified,'duplicates':duplicates,'totalLines':lines.length};
-          }
-          List<Map<String,String>> buildStructuredReport(String title, Map<String,dynamic> analysis, List<Map<String,String>> myDocs){
-            List<Map<String,String>> sections=[];
-            Map<String, List<String>> themes=analysis['themes'] as Map<String, List<String>>;
-            List<Map<String,String>> classified=analysis['classified'] as List<Map<String,String>>;
-            sections.add({'heading':'Executive Summary','content':'This report consolidates discussions from 2026 UCE History and Political Education examination analysis. Total inputs analyzed: ' + analysis['totalLines'].toString() + ' discussion points, ' + myDocs.length.toString() + ' uploaded documents.','example':'Purpose: Provide organized evidence for UNEB, NCDC, schools, teachers while distinguishing facts from opinions.'});
-            sections.add({'heading':'Methodology - How Information Was Processed','content':'Step 1 Collect: Gathered WhatsApp messages, notes, PDFs, Word documents. Step 2 Analyse and Organize: Identified themes, removed duplication, classified claims. Step 3 Develop: Wrote sections with Uganda examples. Step 4 Generate DOCX/PDF: Used document-processing libraries. Step 5 Deliver: Provided verified download path.','example':'Capabilities used: Advanced reasoning, information organization, long-form writing, document creation, research assistance, quality control.'});
-            for(var entry in themes.entries){
-              String themeContent=entry.value.join('\n\n').substring(0, entry.value.join('\n\n').length>800?800:entry.value.join('\n\n').length);
-              sections.add({'heading':entry.key,'content':themeContent,'example':'Theme contains ' + entry.value.length.toString() + ' related points from teachers.'});
-            }
-            String classTable='Classification of Claims:\n';
-            for(var c in classified.take(15)){
-              classTable+='- [' + (c['type']??'') + '] (' + (c['theme']??'') + '): ' + (c['text']??'') + '\n';
-            }
-            sections.add({'heading':'Classification - Facts vs Observations vs Allegations vs Proposals','content':classTable,'example':'Allegations labelled as allegations, proposals as proposals.'});
-            sections.add({'heading':'Evidence Needed and Verification Checklist','content':'What AI can do well: Organize evidence, identify contradictions, explain concepts, improve wording. What requires verification: Whether UNEB officially adopted proposed structure, whether exam questions complied with official guidance.','example':'Compare against UNEB and NCDC publications, syllabus, original exam papers.'});
-            sections.add({'heading':'Recommendations for Stakeholders','content':'For UNEB: Clarify assessment guidance, publish marking rubrics. For NCDC: Align syllabus with competency-based assessment. For Schools: Provide teacher training without excessive fees. For Teachers: Document observations as observations, verify before sharing as fact.','example':'For MTRDF AI: Accept WhatsApp, PDFs, images, extract groups, separate verified from opinions, produce long reports with tables, generate DOCX/PDF.'});
-            sections.add({'heading':'Conclusion','content':'The valuable capability is combining understanding, reasoning, organization, writing, document production, and evidence checking into one workflow while being honest about what has and has not been verified.','example':'Limit: Very long tasks may require several stages, important details can be missed unless result reviewed.'});
-            if(analysis['duplicates'].length>0){
-              sections.add({'heading':'Appendix - Duplicate Detection','content':'Repeated arguments found: ' + analysis['duplicates'].join(', ') + '. These were condensed in main report to avoid repetition.','example':'Duplication indicates strong concern among teachers.'});
-            }
-            return sections;
-          }
-          void main() async { WidgetsFlutterBinding.ensureInitialized(); await Hive.initFlutter(); await Hive.openBox('mtrdf_v14'); runApp(App()); }
-          class App extends StatelessWidget { @override Widget build(BuildContext c){ return MaterialApp(debugShowCheckedModeBanner:false, home:Tabs(), theme: ThemeData(useMaterial3: true)); } }
-          class Tabs extends StatefulWidget { @override State<Tabs> createState()=>_TabsS(); }
-          class _TabsS extends State<Tabs> {
-            int i=0;
-            final pages=[UniversalChatPage(),DocsPage(),ResearchPro(),OnlinePro(),ReportLabPage(),JourneyPage()];
-            @override Widget build(BuildContext c){ return Scaffold(body: pages[i], bottomNavigationBar: NavigationBar(selectedIndex: i, onDestinationSelected: (x){ setState((){ i=x; }); }, destinations: [NavigationDestination(icon: Icon(Icons.chat_bubble), label: 'Chat'), NavigationDestination(icon: Icon(Icons.folder), label: 'My Docs'), NavigationDestination(icon: Icon(Icons.biotech), label: 'Research'), NavigationDestination(icon: Icon(Icons.public), label: 'Online'), NavigationDestination(icon: Icon(Icons.description), label: 'Report Lab'), NavigationDestination(icon: Icon(Icons.timeline), label: 'Journey')])); }
-          }
-          class UniversalChatPage extends StatefulWidget { @override State<UniversalChatPage> createState()=>_UniS(); }
-          class _UniS extends State<UniversalChatPage> {
-            final ctrl=TextEditingController();
-            List<Map<String,dynamic>> messages=[];
-            List<Map<String,dynamic>> conversations=[];
-            List<Map<String,String>> myDocs=[];
-            bool sending=false;
-            int currentConvIndex=-1;
-            @override void initState(){ super.initState(); loadAll(); }
-            Future<void> loadAll() async {
-              final p=await SharedPreferences.getInstance();
-              String? conv=p.getString('mtrdf_conversations_v14');
-              if(conv!=null){ conversations=List<Map<String,dynamic>>.from(jsonDecode(conv).map((e)=>Map<String,dynamic>.from(e))); }
-              String? docs=p.getString('mtrdf_docs_v10');
-              if(docs!=null){ myDocs=List<Map<String,String>>.from(jsonDecode(docs).map((e)=>Map<String,String>.from(e))); }
-              if(conversations.isEmpty){ startNewChat(); } else { loadConversation(0); }
-            }
-            Future<void> saveConversations() async { final p=await SharedPreferences.getInstance(); p.setString('mtrdf_conversations_v14', jsonEncode(conversations)); }
-            void startNewChat(){ setState((){ messages=[{'role':'ai','text':'Hello Thomas! I am MTRDF AI V15.2 FINAL.\n\nAsk any question - Geography, History, Biology, Chemistry, Math. I search Wikipedia + Web + Satellite live.\n\nTry: define a lake, define geography, define vulcanization of rubber, weather today','isWelcome':true}]; currentConvIndex=-1; }); }
-            void loadConversation(int idx){ if(idx<0||idx>=conversations.length) return; setState((){ currentConvIndex=idx; messages=List<Map<String,dynamic>>.from(conversations[idx]['messages'].map((e)=>Map<String,dynamic>.from(e))); }); }
-            Future<void> sendMessage({String? overrideText}) async {
-              String q=overrideText??ctrl.text.trim();
-              if(q.isEmpty) return;
-              setState((){ messages.add({'role':'user','text':q}); sending=true; });
-              ctrl.clear();
-              try{
-                List<Map<String,dynamic>> ctx=[];
-                for(var m in messages){ if(m['core']!=null) ctx.add({'core':m['core']}); }
-                var res=await deepResearchFormatted(q, 'General', myDocs, ctx);
-                String core=res['core'];
-                List<Map<String,String>> points=res['points'];
-                List<Map<String,String>> wiki=res['results'];
-                List<Map<String,String>> docMatches=res['myDocs'];
-                String intro=wiki.isNotEmpty?wiki[0]['snip']??'':'Important topic';
-                String aiText=(res['instr']?['core']??'TOPIC').toString().toUpperCase() + '\n\nIntroduction: ' + intro + '\n\nHere are ' + res['instr']!['points'].toString() + ' points:\n\n';
-                for(int i=0;i<points.length;i++){ aiText+=(i+1).toString() + '. ' + points[i]['title']!.toUpperCase() + '\nExplanation: ' + points[i]['exp']! + '\nExample: ' + points[i]['ex']! + '\n\n'; }
-                setState((){ messages.add({'role':'ai','text':aiText,'core':core,'points':points,'intro':intro,'wiki':wiki,'myDocs':docMatches,'instr':res['instr']}); sending=false; });
-                if(currentConvIndex==-1){
-                  conversations.insert(0,{'title': q.length>40?q.substring(0,40)+'...':q,'messages':messages,'date':DateTime.now().toIso8601String()});
-                  currentConvIndex=0;
-                } else {
-                  conversations[currentConvIndex]['messages']=messages;
-                  conversations[currentConvIndex]['date']=DateTime.now().toIso8601String();
-                }
-                saveConversations();
-              }catch(e){
-                setState((){
-                  var fallback=getPointsForCore('weather and climate', 6);
-                  String aiText='WEATHER AND CLIMATE (Offline fallback)\n\n';
-                  for(int i=0;i<fallback.length;i++){ aiText+=(i+1).toString() + '. ' + fallback[i]['title']!.toUpperCase() + '\nExplanation: ' + fallback[i]['exp']! + '\nExample: ' + fallback[i]['ex']! + '\n\n'; }
-                  messages.add({'role':'ai','text':aiText,'core':'weather and climate','points':fallback,'intro':'Offline','wiki':[],'myDocs':[],'instr':{'core':'weather and climate','points':6}});
-                  sending=false;
-                });
-              }
-            }
-            Widget highlightText(String text, String keyword){
-              if(keyword.isEmpty||text.isEmpty) return Text(text, style: TextStyle(fontSize:13));
-              String lc=text.toLowerCase();
-              String lck=keyword.toLowerCase();
-              int idx=lc.indexOf(lck);
-              if(idx==-1){
-                for(var w in lck.split(' ').where((w)=> w.length>3 &&!isStopWord(w))){ idx=lc.indexOf(w); if(idx!=-1){ keyword=w; break; } }
-              }
-              if(idx==-1) return Text(text, style: TextStyle(fontSize:13));
-              return RichText(text: TextSpan(children:[
-                TextSpan(text: text.substring(0,idx), style: TextStyle(color: Colors.black87, fontSize:13)),
-                TextSpan(text: text.substring(idx, idx+keyword.length), style: TextStyle(backgroundColor: Colors.yellow, color: Colors.black, fontWeight: FontWeight.bold, fontSize:13)),
-                TextSpan(text: text.substring(idx+keyword.length), style: TextStyle(color: Colors.black87, fontSize:13)),
-              ]));
-            }
-            @override Widget build(BuildContext c){
-              return Scaffold(appBar: AppBar(title: Text('MTRDF AI Chat V15.2'), backgroundColor: Colors.deepPurple, foregroundColor: Colors.white, actions:[IconButton(icon: Icon(Icons.add), onPressed: (){ startNewChat(); })]), drawer: Drawer(child: ListView.builder(itemCount: conversations.length, itemBuilder: (_,i){ var conv=conversations[i]; return ListTile(title: Text(conv['title']??'', style: TextStyle(fontSize:12), maxLines:1), onTap: (){ Navigator.pop(c); loadConversation(i); }); })), body: Column(children:[
-                Expanded(child: ListView.builder(padding:EdgeInsets.all(12), itemCount: messages.length, itemBuilder: (_,i){
-                  var m=messages[i];
-                  bool isUser=m['role']=='user';
-                  bool isWelcome=m['isWelcome']??false;
-                  if(isWelcome){ return Card(color: Colors.deepPurple[50], child: Padding(padding:EdgeInsets.all(16), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children:[Text(m['text']??'', style: TextStyle(fontSize:14)), SizedBox(height:12), Wrap(spacing:6, children:[ActionChip(label: Text('Weather vs Climate'), onPressed: (){ sendMessage(overrideText:'differentiate between weather and climate'); }), ActionChip(label: Text('Define a Lake'), onPressed: (){ sendMessage(overrideText:'define a lake 6 points'); }), ActionChip(label: Text('Vulcanization'), onPressed: (){ sendMessage(overrideText:'define vulcanization of rubber'); })])]))); }
-                  if(isUser){ return Align(alignment: Alignment.centerRight, child: Container(margin:EdgeInsets.symmetric(vertical:4), padding:EdgeInsets.all(12), decoration: BoxDecoration(color: Colors.deepPurple, borderRadius: BorderRadius.circular(16)), child: Text(m['text']??'', style: TextStyle(color: Colors.white)))); }
-                  List<Map<String,String>> points=(m['points'] as List?)?.cast<Map<String,String>>()??[];
-                  List<Map<String,String>> myDocMatches=(m['myDocs'] as List?)?.cast<Map<String,String>>()??[];
-                  return Card(child: Padding(padding:EdgeInsets.all(12), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children:[
-                    Text((m['instr']?['core']??'TOPIC').toString().toUpperCase(), style: TextStyle(fontWeight: FontWeight.bold, fontSize:13)),
-                    if(myDocMatches.isNotEmpty) Card(color: Colors.yellow[100], child: Padding(padding:EdgeInsets.all(8), child: highlightText(myDocMatches[0]['snip']??'', m['instr']?['core']??''))),
-                    SizedBox(height:8),
-              ...points.asMap().entries.map((e){ int idx=e.key; var p=e.value; return Padding(padding:EdgeInsets.symmetric(vertical:4), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children:[Text((idx+1).toString() + '. ' + p['title']!.toUpperCase(), style: TextStyle(fontWeight: FontWeight.bold, fontSize:12)), Text('Explanation: ' + p['exp']!, style: TextStyle(fontSize:12)), Text('Example: ' + p['ex']!, style: TextStyle(fontSize:12, fontStyle: FontStyle.italic))])); }).toList(),
-                    Row(children:[IconButton(icon: Icon(Icons.copy, size:18), onPressed: (){ Share.share(m['text']??''); }), IconButton(icon: Icon(Icons.picture_as_pdf, size:18), onPressed: () async { String path=await exportToPdfFile(m['instr']?['core']??'topic', points, m['intro']??''); if(path.isNotEmpty) Share.share('PDF: ' + path); })])
-                  ])));
-                })),
-                sending? LinearProgressIndicator() : SizedBox(),
-                Padding(padding:EdgeInsets.all(8), child: Row(children:[Expanded(child: TextField(controller: ctrl, decoration: InputDecoration(hintText: 'Ask any question...', border: OutlineInputBorder(borderRadius: BorderRadius.circular(24))), onSubmitted: (_){ sendMessage(); })), IconButton(icon: Icon(Icons.send, color: Colors.deepPurple), onPressed: (){ sendMessage(); })]))
-              ]));
-            }
-          }
-          class DocsPage extends StatefulWidget { @override State<DocsPage> createState()=>_DocsS(); }
-          class _DocsS extends State<DocsPage> {
-            List<Map<String,String>> docs=[];
-            String filterSubject='All';
-            final subjects=['All','Mathematics','Biology','Chemistry','Physics','History','Geography','English','Agriculture','General'];
-            @override void initState(){ super.initState(); ld(); }
-            Future<void> ld() async { final p=await SharedPreferences.getInstance(); String? s=p.getString('mtrdf_docs_v10'); if(s!=null){ setState((){ docs=List<Map<String,String>>.from(jsonDecode(s).map((e)=>Map<String,String>.from(e))); }); } }
-            Future<void> sv() async { final p=await SharedPreferences.getInstance(); p.setString('mtrdf_docs_v10',jsonEncode(docs)); }
-            Future<void> pk() async { try{ FilePickerResult? r=await FilePicker.platform.pickFiles(type:FileType.custom,allowedExtensions:['docx','pdf','txt','csv'],withData:true); if(r!=null&&r.files.first.bytes!=null){ String n=r.files.first.name; List<int> by=r.files.first.bytes!.toList(); String t=n.toLowerCase().endsWith('.pdf')?extractPdf(by): n.toLowerCase().endsWith('.txt')||n.toLowerCase().endsWith('.csv')?utf8.decode(by):extractDocx(by); String subj='General'; if(n.toLowerCase().contains('history')||n.toLowerCase().contains('political')) subj='History'; else if(n.toLowerCase().contains('geography')) subj='Geography'; else subj=filterSubject=='All'?'General':filterSubject; setState((){ docs.add({'name':n,'content':t,'subject':subj}); }); sv(); } }catch(e){} }
-            @override Widget build(BuildContext c){
-              List<Map<String,String>> filtered=filterSubject=='All'?docs:docs.where((d)=> (d['subject']??'General')==filterSubject).toList();
-              return Scaffold(appBar: AppBar(title:Text('My Docs ' + filtered.length.toString() + '/' + docs.length.toString()),backgroundColor:Colors.green,foregroundColor:Colors.white, actions:[PopupMenuButton<String>(onSelected: (v){ setState((){ filterSubject=v; }); }, itemBuilder: (_)=>subjects.map((s)=>PopupMenuItem(value:s, child: Text(s))).toList(), child: Padding(padding:EdgeInsets.all(12), child: Icon(Icons.filter_list)))]), body: Column(children:[Container(color: Colors.yellow[100], padding: EdgeInsets.all(8), child: Text('V15.2: Upload any subject doc. Chat will use it + Wikipedia + Web.', style: TextStyle(fontSize:11))), Expanded(child: ListView.builder(padding:EdgeInsets.all(12),itemCount:filtered.length,itemBuilder:(_,j){ return Card(child: ListTile(title: Text(filtered[j]['name']??'', style: TextStyle(fontSize:12, fontWeight: FontWeight.bold)), subtitle: Text((filtered[j]['content']??'').toString().substring(0, 60), style: TextStyle(fontSize:11)), onTap: (){ Navigator.push(c, MaterialPageRoute(builder: (_)=>DocPreviewPage(doc: filtered[j]))); })); }))]), floatingActionButton: FloatingActionButton.extended(onPressed: pk, icon: Icon(Icons.add), label: Text('Upload')));
-            }
-          }
-          class DocPreviewPage extends StatelessWidget {
-            final Map<String,String> doc;
-            const DocPreviewPage({super.key, required this.doc});
-            @override Widget build(BuildContext c){
-              String content=doc['content']??'';
-              return Scaffold(appBar: AppBar(title: Text(doc['name']??'Preview', style: TextStyle(fontSize:12)), backgroundColor: Colors.green, foregroundColor: Colors.white), body: SingleChildScrollView(padding:EdgeInsets.all(16), child: Text(content, style: TextStyle(fontSize:13, height:1.5))));
-            }
-          }
-          class ReportLabPage extends StatefulWidget { @override State<ReportLabPage> createState()=>_ReportLabS(); }
-          class _ReportLabS extends State<ReportLabPage> {
-            final ctrl=TextEditingController(text:'2026 UCE History and Political Education examination discussions: teachers raised concerns about exam difficulty, time allocation, curriculum coverage, marking rubrics unclear, alleged training fees 150,000 UGX, proposals for UNEB to publish sample papers, NCDC to align syllabus, schools to reduce fees. Need consolidated report for teachers, school admins, professional associations.');
-            bool processing=false;
-            Map<String,dynamic> analysis={};
-            List<Map<String,String>> reportSections=[];
-            List<Map<String,String>> myDocs=[];
-            List<Map<String,String>> sources=[];
-            String docxPath='';
-            String pdfPath='';
-            @override void initState(){ super.initState(); loadDocs(); }
-            Future<void> loadDocs() async { final p=await SharedPreferences.getInstance(); String? s=p.getString('mtrdf_docs_v10'); if(s!=null){ setState((){ myDocs=List<Map<String,String>>.from(jsonDecode(s).map((e)=>Map<String,String>.from(e))); }); } }
-            Future<void> processReport() async {
-              if(ctrl.text.trim().length<20) return;
-              setState((){ processing=true; analysis={}; reportSections=[]; docxPath=''; pdfPath=''; sources=[]; });
-              await loadDocs();
-              await Future.delayed(Duration(milliseconds:500));
-              var anal=analyzeAndClassify(ctrl.text, myDocs);
-              var sections=buildStructuredReport('2026 UCE History Examination Consolidated Report', anal, myDocs);
-              List<Map<String,String>> srcs=[
-                {'type':'My Docs','text':myDocs.length.toString() + ' uploaded docs: ' + myDocs.map((d)=> d['name']??'').join(', ')},
-                {'type':'WhatsApp Discussions','text':ctrl.text.length.toString() + ' chars, ' + (anal['totalLines']??0).toString() + ' discussion points analyzed'},
-                {'type':'Classification','text':'Facts, Observations, Allegations, Proposals separated. Duplicates: ' + (anal['duplicates'] as List).length.toString() + ' condensed'},
-                {'type':'Verification Required','text':'UNEB official adoption of proposed structure - verify against UNEB publications. Exam compliance with guidance - verify original papers. Training fees - verify receipts.'},
-                {'type':'Curriculum Reference','text':'NCDC syllabus, assessment guidance, UNEB sample papers, school training records'},
-              ];
-              String docx=await generateDocxReport('2026 UCE History Examination Consolidated Report', sections, srcs);
-              String pdf='';
-              try{
-                final pdfDoc=PdfDocument();
-                final page=pdfDoc.pages.add();
-                final font=PdfStandardFont(PdfFontFamily.helvetica, 10);
-                String txt='2026 UCE HISTORY CONSOLIDATED REPORT\n\n';
-                for(var s in sections){ txt+=s['heading']! + '\n' + s['content']! + '\n\n'; }
-                txt+='Sources:\n';
-                for(var s in srcs){ txt+='[' + s['type']! + '] ' + s['text']! + '\n'; }
-                page.graphics.drawString(txt, font, bounds: Rect.fromLTWH(0, 0, page.getClientSize().width, page.getClientSize().height));
-                final bytes=await pdfDoc.save();
-                pdfDoc.dispose();
-                final dir=await getTemporaryDirectory();
-                final file=File(dir.path + '/MTRDF_Report_2026_UCE_History.pdf');
-                await file.writeAsBytes(bytes);
-                pdf=file.path;
-              }catch(e){}
-              setState((){ analysis=anal; reportSections=sections; sources=srcs; docxPath=docx; pdfPath=pdf; processing=false; });
-            }
-            @override Widget build(BuildContext c){
-              return Scaffold(
-                appBar: AppBar(title:Text('Report Lab V15.2'),backgroundColor:Colors.deepPurple,foregroundColor:Colors.white, actions:[IconButton(icon: Icon(Icons.picture_as_pdf), onPressed: (){ if(pdfPath.isNotEmpty) Share.shareXFiles([XFile(pdfPath)]); }), IconButton(icon: Icon(Icons.description), onPressed: (){ if(docxPath.isNotEmpty) Share.shareXFiles([XFile(docxPath)]); })]),
-                body: SingleChildScrollView(padding:EdgeInsets.all(12), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children:[
-                  Card(color: Colors.deepPurple[50], child: Padding(padding:EdgeInsets.all(12), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children:[
-                    Text('MTRDF Report Lab - 5-step workflow', style: TextStyle(fontWeight: FontWeight.bold, fontSize:13)),
-                    SizedBox(height:6),
-                    Text('Step 1 Collect: WhatsApp + My Docs', style: TextStyle(fontSize:11)),
-                    Text('Step 2 Analyse: themes, classify, duplicate removal', style: TextStyle(fontSize:11)),
-                    Text('Step 3 Develop: Long report sections', style: TextStyle(fontSize:11)),
-                    Text('Step 4 Generate: DOCX + PDF', style: TextStyle(fontSize:11)),
-                    Text('Step 5 Deliver: Share files', style: TextStyle(fontSize:11)),
-                  ]))),
-                  SizedBox(height:8),
-                  TextField(controller: ctrl, maxLines: 8, decoration: InputDecoration(labelText: 'Paste WhatsApp discussions', border: OutlineInputBorder()),),
-                  SizedBox(height:8),
-                  Row(children:[
-                    ElevatedButton.icon(onPressed: processing?null:processReport, icon: Icon(Icons.auto_awesome), label: Text('Generate Report')),
-                    SizedBox(width:8),
-                    if(processing) SizedBox(width:20, height:20, child: CircularProgressIndicator(strokeWidth:2)),
-                    Spacer(),
-                    Text(myDocs.length.toString() + ' docs', style: TextStyle(fontSize:11)),
-                  ]),
-                  if(analysis.isNotEmpty)...[
-                    SizedBox(height:12),
-                    Card(color: Colors.green[50], child: Padding(padding:EdgeInsets.all(10), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children:[
-                      Text('Analysis Result', style: TextStyle(fontWeight: FontWeight.bold, fontSize:12)),
-                      Text('Total points: ' + (analysis['totalLines']??0).toString() + ', Themes: ' + (analysis['themes'] as Map).keys.length.toString(), style: TextStyle(fontSize:11)),
-                      Wrap(spacing:4, children: (analysis['themes'] as Map).keys.map((k)=> Chip(label: Text(k.toString(), style: TextStyle(fontSize:10)), backgroundColor: Colors.deepPurple[50])).toList()),
-                    ]))),
-                    SizedBox(height:8),
-                    Text('Structured Report', style: TextStyle(fontWeight: FontWeight.bold, fontSize:13)),
-                   ...reportSections.map((sec)=> Card(child: Padding(padding:EdgeInsets.all(10), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children:[
-                      Text(sec['heading']??'', style: TextStyle(fontWeight: FontWeight.bold, fontSize:12)),
-                      SizedBox(height:4),
-                      Text(sec['content']??'', style: TextStyle(fontSize:11, height:1.4)),
-                    ])))),
-                    SizedBox(height:12),
-                    Card(color: Colors.blue[50], child: Padding(padding:EdgeInsets.all(10), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children:[
-                      Text('Generate & Deliver DOCX + PDF', style: TextStyle(fontWeight: FontWeight.bold, fontSize:12)),
-                      Row(children:[
-                        ElevatedButton.icon(onPressed: (){ if(docxPath.isNotEmpty) Share.shareXFiles([XFile(docxPath)]); }, icon: Icon(Icons.description), label: Text('Share DOCX')),
-                        SizedBox(width:8),
-                        ElevatedButton.icon(onPressed: (){ if(pdfPath.isNotEmpty) Share.shareXFiles([XFile(pdfPath)]); }, icon: Icon(Icons.picture_as_pdf), label: Text('Share PDF')),
-                      ]),
-                     ...sources.map((s)=> Text('[' + (s['type']??'') + '] ' + (s['text']??''), style: TextStyle(fontSize:10))).toList(),
-                    ]))),
-                  ],
-                ])),
-              );
-            }
-          }
-          class ResearchPro extends StatefulWidget { const ResearchPro({super.key}); @override State<ResearchPro> createState()=>_ResPro(); }
-          class _ResPro extends State<ResearchPro> {
-            final ctrl=TextEditingController(text:'differentiate between weather and climate');
-            bool searching=false;
-            Map<String,dynamic> data={};
-            List<Map<String,String>> myDocs=[];
-            @override void initState(){ super.initState(); loadDocs(); Future.delayed(Duration(milliseconds:400),(){ doSearch(ctrl.text); }); }
-            Future<void> loadDocs() async { final p=await SharedPreferences.getInstance(); String? s=p.getString('mtrdf_docs_v10'); if(s!=null){ myDocs=List<Map<String,String>>.from(jsonDecode(s).map((e)=>Map<String,String>.from(e))); } }
-            Future<void> doSearch(String q) async { if(q.trim().isEmpty) return; setState((){ searching=true; }); await loadDocs(); var r=await deepResearchFormatted(q,'Geography',myDocs,[]); setState((){ data=r; searching=false; }); }
-            @override Widget build(BuildContext c){
-              List<Map<String,String>> points=(data['points'] as List?)?.cast<Map<String,String>>()??[];
-              Map<String,dynamic> instr=data['instr']??{};
-              String intro=(data['results'] as List?)?.isNotEmpty??false? (data['results'][0]['snip']??'') : 'Weather daily, Climate 30 years';
-              return Scaffold(appBar: AppBar(title:Text('Research PRO V15.2'),backgroundColor:Colors.deepPurple,foregroundColor:Colors.white), body: Column(children:[
-                Padding(padding:EdgeInsets.all(8), child: TextField(controller: ctrl, decoration: InputDecoration(hintText: 'Ask any question...', border: OutlineInputBorder(), suffixIcon: IconButton(icon: Icon(Icons.send), onPressed: (){ doSearch(ctrl.text); })), onSubmitted: (v){ doSearch(v); })),
-                searching? LinearProgressIndicator() : SizedBox(),
-                Expanded(child: SingleChildScrollView(padding:EdgeInsets.all(12), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children:[
-                  Text((instr['core']??'TOPIC').toString().toUpperCase(), style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                  Text('Introduction: ' + intro, style: TextStyle(fontSize: 13)),
-                  SizedBox(height:8),
-              ...points.asMap().entries.map((e){ int i=e.key; var p=e.value; return Card(child: Padding(padding:EdgeInsets.all(10), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children:[Text((i+1).toString() + '. ' + p['title']!.toUpperCase(), style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)), Text('Explanation: ' + p['exp']!, style: TextStyle(fontSize: 12)), Text('Example: ' + p['ex']!, style: TextStyle(fontSize: 12, fontStyle: FontStyle.italic))]))) ; }).toList(),
-                ])))
-              ]));
-            }
-          }
-          class OnlinePro extends StatefulWidget { @override State<OnlinePro> createState()=>_OnlineProS(); }
-          class _OnlineProS extends State<OnlinePro> {
-            final ctrl=TextEditingController(text:'difference between weather and climate');
-            Map<String,dynamic> data={};
-            bool searching=false;
-            Future<void> doSearch(String q) async { if(q.trim().isEmpty) return; setState((){ searching=true; }); var r=await deepResearchFormatted(q,'Geography',[],[]); setState((){ data=r; searching=false; }); }
-            @override void initState(){ super.initState(); Future.delayed(Duration(milliseconds:300),(){ doSearch(ctrl.text); }); }
-            @override Widget build(BuildContext c){
-              List<Map<String,String>> points=(data['points'] as List?)?.cast<Map<String,String>>()??[];
-              return Scaffold(appBar: AppBar(title:Text('Online AI V15.2'),backgroundColor:Colors.deepPurple,foregroundColor:Colors.white), body: Column(children:[Padding(padding:EdgeInsets.all(8), child: TextField(controller: ctrl, decoration: InputDecoration(hintText: 'Ask any question...', border: OutlineInputBorder(), suffixIcon: IconButton(icon: Icon(Icons.send), onPressed: (){ doSearch(ctrl.text); })), onSubmitted: (v){ doSearch(v); })), searching? LinearProgressIndicator(): SizedBox(), Expanded(child: ListView.builder(padding:EdgeInsets.all(12),itemCount:points.length,itemBuilder:(_,i){ var p=points[i]; return Card(child: ListTile(leading: CircleAvatar(child: Text((i+1).toString())), title: Text(p['title']!, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)), subtitle: Column(crossAxisAlignment: CrossAxisAlignment.start, children:[Text(p['exp']!, style: TextStyle(fontSize: 11)), Text('Ex: ' + p['ex']!, style: TextStyle(fontSize: 11, fontStyle: FontStyle.italic))]))); }))]));
-            }
-          }
-          class JourneyPage extends StatelessWidget {
-            @override Widget build(BuildContext c){
-              return Scaffold(appBar: AppBar(title:Text('Journey V15.2'),backgroundColor:Colors.deepPurple,foregroundColor:Colors.white), body: ListView(padding:EdgeInsets.all(12), children:[
-                Card(color: Colors.deepPurple[50], child: Padding(padding:EdgeInsets.all(12), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children:[
-                  Text('V15.2 FINAL - All Issues Fixed', style: TextStyle(fontWeight: FontWeight.bold, fontSize:12)),
-                  SizedBox(height:6),
-                  Text('1. Lake fixed - 10 different points, no repeat.', style: TextStyle(fontSize:11)),
-                  Text('2. Geography/Climate - Real Wikipedia points only, no fake KEY POINT 6-10.', style: TextStyle(fontSize:11)),
-                  Text('3. Satellite - 1 clean point: Temperature 26.6C Wind 8.3 km/h Kampala.', style: TextStyle(fontSize:11)),
-                  Text('4. Vulcanization - Real study points, no Try photosynthesis.', style: TextStyle(fontSize:11)),
-                  Text('5. Any question - Wikipedia API + DuckDuckGo Lite + Open-Meteo.', style: TextStyle(fontSize:11)),
-                  Text('6. Report Lab still works for UCE History WhatsApp to DOCX/PDF.', style: TextStyle(fontSize:11)),
-                ]))),
-              ]));
-            }
-          }
-          class ChatPage extends StatefulWidget { final String subject; const ChatPage({super.key,required this.subject}); @override State<ChatPage> createState()=>_ChatS(); }
-          class _ChatS extends State<ChatPage> {
-            final ctrl=TextEditingController(); List<Map<String,dynamic>> msgs=[]; bool sending=false;
-            @override void initState(){ super.initState(); msgs=[{'role':'ai','points':[],'instr':{}}]; }
-            Future<void> send() async { if(ctrl.text.isEmpty) return; String q=ctrl.text; setState((){ msgs.add({'role':'user','text':q}); sending=true; }); ctrl.clear(); var res=await deepResearchFormatted(q, widget.subject, [],[]); setState((){ msgs.add({'role':'ai','points':res['points'],'instr':res['instr']}); sending=false; }); }
-            @override Widget build(BuildContext c){
-              return Scaffold(appBar: AppBar(title:Text(widget.subject + ' V15.2'),backgroundColor:Colors.deepPurple,foregroundColor:Colors.white), body: Column(children:[Expanded(child: ListView.builder(padding:EdgeInsets.all(12),itemCount:msgs.length,itemBuilder:(_,i){ var m=msgs[i]; bool isUser=m['role']=='user'; if(isUser) return Align(alignment:Alignment.centerRight, child: Container(margin:EdgeInsets.all(6),padding:EdgeInsets.all(12),decoration:BoxDecoration(color:Colors.deepPurple,borderRadius:BorderRadius.circular(12)), child:Text(m['text']??'',style:TextStyle(color:Colors.white)))); List<Map<String,String>> points=(m['points'] as List?)?.cast<Map<String,String>>()??[]; if(points.isEmpty) return Card(child: Padding(padding:EdgeInsets.all(12), child: Text('Ask any question...', style: TextStyle(fontSize:12)))); return Column(children: points.asMap().entries.map((e){ int idx=e.key; var p=e.value; return Card(child: ListTile(leading: Text((idx+1).toString()), title: Text(p['title']!, style: TextStyle(fontSize:12,fontWeight:FontWeight.bold)), subtitle: Column(crossAxisAlignment: CrossAxisAlignment.start, children:[Text(p['exp']!, style: TextStyle(fontSize:11)), Text('Ex: ' + p['ex']!, style: TextStyle(fontSize:11, fontStyle: FontStyle.italic))])) ); }).toList()); })), sending? LinearProgressIndicator(): SizedBox(), Padding(padding:EdgeInsets.all(8), child: Row(children:[Expanded(child: TextField(controller:ctrl, maxLines: 3, decoration: InputDecoration(hintText: 'Ask any question...', border: OutlineInputBorder(borderRadius: BorderRadius.circular(20))), onSubmitted: (_)=>send())), IconButton(icon:Icon(Icons.send), onPressed:send)]))]));
-            }
-          }
-          DART
-      - name: Build APK
-        run: |
-          flutter pub get
-          flutter build apk --release
-      - name: Upload
-        uses: actions/upload-artifact@v4
-        with:
-          name: MTRDF-V15-2-FINAL
-          path: build/app/outputs/flutter-apk/app-release.apk
+                {'title':'Definition of a Lake','exp':'A lake is a large inland body of standing water surrounded by land,

@@ -73,6 +73,11 @@ jobs:
           fi
 
       # 9. Build release APK
+         - name: Ensure Android project exists
+     run: |
+       if [ ! -f android/app/build.gradle ]; then
+         flutter create --platforms=android .
+       fi
       - name: Build Android APK
         run: |
           flutter build apk --release

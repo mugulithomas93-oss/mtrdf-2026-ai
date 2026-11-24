@@ -29,6 +29,7 @@ jobs:
 
       - name: Get Dependencies
         run: |
+          rm -f pubspec.lock
           flutter pub get
 
       - name: Analyze Application
@@ -53,8 +54,6 @@ jobs:
           import pathlib, re
           for p in list(pathlib.Path("android").rglob("build.gradle")) + list(pathlib.Path("android").rglob("build.gradle.kts")):
               t = p.read_text()
-              orig = t
-              # Any compileSdk / targetSdk / minSdk line -> force to 36 / 36 / 23
               t = re.sub(r'compileSdkVersion\s*=?\s*\d+', 'compileSdkVersion 36', t)
               t = re.sub(r'compileSdk\s*=?\s*\d+', 'compileSdk = 36', t)
               t = re.sub(r'flutter\.compileSdkVersion\s*=?\s*\d+', 'flutter.compileSdkVersion = 36', t)
@@ -64,17 +63,13 @@ jobs:
               t = re.sub(r'minSdkVersion\s*=?\s*\d+', 'minSdkVersion 23', t)
               t = re.sub(r'minSdk\s*=?\s*\d+', 'minSdk = 23', t)
               t = re.sub(r'flutter\.minSdkVersion\s*=?\s*\d+', 'flutter.minSdkVersion = 23', t)
-              if t != orig:
-                  p.write_text(t)
-                  print(f"Fixed {p}")
-              print("---", p)
-              print(p.read_text()[:2000])
+              p.write_text(t)
+              print(f"Fixed {p}")
           PY
 
       - name: Create dummy google-services.json if missing
         run: |
           if [ ! -f android/app/google-services.json ]; then
-            echo "google-services.json NOT FOUND - creating dummy file for build"
             cat > android/app/google-services.json <<'EOF'
           {
             "project_info": {
@@ -90,23 +85,14 @@ jobs:
                   }
                 },
                 "oauth_client": [],
-                "api_key": [
-                  {
-                    "current_key": "dummy_key_for_build_only"
-                  }
-                ],
-                "services": {
-                  "appinvite_service": {
-                    "other_platform_oauth_client": []
-                  }
-                }
+                "api_key": [{"current_key": "dummy_key_for_build_only"}],
+                "services": {"appinvite_service": {"other_platform_oauth_client": []}}
               }
             ],
             "configuration_version": "1"
           }
           EOF
           fi
-          ls -l android/app/google-services.json
 
       - name: Build Android APK
         run: |

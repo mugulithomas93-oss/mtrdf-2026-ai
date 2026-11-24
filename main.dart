@@ -1,0 +1,112 @@
+
+name: MTRDF AI V16.0 - Academic Intelligence System
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mtrdf-v16-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build and Verify MTRDF AI
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      # 1. Download project source
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      # 2. Install Java
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      # 3. Install Flutter
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      # 4. Display development versions
+      - name: Check Environment
+        run: |
+          flutter --version
+          dart --version
+          java -version
+          flutter doctor -v
+
+      # 5. Install project dependencies
+      - name: Install Dependencies
+        run: |
+          flutter pub get
+
+      # 6. Verify project dependencies
+      - name: Check Dependencies
+        run: |
+          flutter pub deps
+
+      # 7. Analyze Dart code
+      - name: Analyze Application
+        run: |
+          flutter analyze --no-pub
+
+      # 8. Run tests when available
+      - name: Run Application Tests
+        run: |
+          if [ -d test ] && find test -name '*_test.dart' -print -quit | grep -q .; then
+            flutter test --no-pub
+          else
+            echo "No automated tests added yet."
+          fi
+
+      # 9. Build release APK
+      - name: Build Android APK
+        run: |
+          flutter build apk --release
+
+      # 10. Build Android App Bundle
+      - name: Build Android App Bundle
+        run: |
+          flutter build appbundle --release
+
+      # 11. Upload APK
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: MTRDF-AI-V16-Android-APK
+          path: build/app/outputs/flutter-apk/app-release.apk
+          if-no-files-found: error
+          retention-days: 30
+
+      # 12. Upload App Bundle
+      - name: Upload App Bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: MTRDF-AI-V16-Android-AAB
+          path: build/app/outputs/bundle/release/app-release.aab
+          if-no-files-found: error
+          retention-days: 30
+
+      # 13. Save build information
+      - name: Build Summary
+        if: always()
+        run: |
+          echo "MTRDF AI V16.0 BUILD SUMMARY"
+          echo "---------------------------"
+          echo "Flutter: $(flutter --version | head -n 1)"
+          echo "Branch: $GITHUB_REF_NAME"
+          echo "Commit: $GITHUB_SHA"
+          echo "Build completed with status: ${{ job.status }}"

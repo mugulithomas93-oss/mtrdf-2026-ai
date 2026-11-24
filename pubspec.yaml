@@ -1,18 +1,21 @@
 name: mtrdf_2026_ai
-description: Uganda Teacher Companion Geography History S1-S6
+description: Uganda Teacher Companion
 publish_to: 'none'
 version: 1.0.0+1
+
 environment:
   sdk: '>=3.0.0 <4.0.0'
+
 dependencies:
   flutter:
     sdk: flutter
-  firebase_core: ^2.20.0
-  firebase_auth: ^4.12.0
-  cloud_firestore: ^4.13.0
-  firebase_storage: ^11.5.0
-  file_picker: ^8.0.0
-  http: ^1.1.2
-  google_fonts: ^6.1.0
+  firebase_core: ^3.8.0
+  firebase_auth: ^5.3.0
+  cloud_firestore: ^5.5.0
+  firebase_storage: ^12.3.0
+  file_picker: ^8.1.0
+  http: ^1.2.0
+  google_fonts: ^6.2.0
+
 flutter:
   uses-material-design: true

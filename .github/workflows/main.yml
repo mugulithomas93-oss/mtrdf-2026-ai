@@ -47,17 +47,29 @@ jobs:
         run: |
           flutter create --platforms=android . || true
 
-      - name: Fix Android SDK versions
+      - name: Fix Android SDK versions to 36
         run: |
-          sed -i 's/compileSdkVersion 34/compileSdkVersion 35/g' android/app/build.gradle || true
-          sed -i 's/compileSdk 34/compileSdk 35/g' android/app/build.gradle.kts || true
-          sed -i 's/compileSdk = 34/compileSdk = 35/g' android/app/build.gradle.kts || true
-          sed -i 's/targetSdkVersion 34/targetSdkVersion 35/g' android/app/build.gradle || true
-          sed -i 's/targetSdk 34/targetSdk 35/g' android/app/build.gradle.kts || true
-          sed -i 's/targetSdk = 34/targetSdk = 35/g' android/app/build.gradle.kts || true
-          sed -i 's/minSdkVersion 21/minSdkVersion 23/g' android/app/build.gradle || true
-          sed -i 's/minSdk 21/minSdk 23/g' android/app/build.gradle.kts || true
-          sed -i 's/minSdk = 21/minSdk = 23/g' android/app/build.gradle.kts || true
+          python3 << 'PY'
+          import pathlib, re
+          for p in list(pathlib.Path("android").rglob("build.gradle")) + list(pathlib.Path("android").rglob("build.gradle.kts")):
+              t = p.read_text()
+              orig = t
+              # Any compileSdk / targetSdk / minSdk line -> force to 36 / 36 / 23
+              t = re.sub(r'compileSdkVersion\s*=?\s*\d+', 'compileSdkVersion 36', t)
+              t = re.sub(r'compileSdk\s*=?\s*\d+', 'compileSdk = 36', t)
+              t = re.sub(r'flutter\.compileSdkVersion\s*=?\s*\d+', 'flutter.compileSdkVersion = 36', t)
+              t = re.sub(r'targetSdkVersion\s*=?\s*\d+', 'targetSdkVersion 36', t)
+              t = re.sub(r'targetSdk\s*=?\s*\d+', 'targetSdk = 36', t)
+              t = re.sub(r'flutter\.targetSdkVersion\s*=?\s*\d+', 'flutter.targetSdkVersion = 36', t)
+              t = re.sub(r'minSdkVersion\s*=?\s*\d+', 'minSdkVersion 23', t)
+              t = re.sub(r'minSdk\s*=?\s*\d+', 'minSdk = 23', t)
+              t = re.sub(r'flutter\.minSdkVersion\s*=?\s*\d+', 'flutter.minSdkVersion = 23', t)
+              if t != orig:
+                  p.write_text(t)
+                  print(f"Fixed {p}")
+              print("---", p)
+              print(p.read_text()[:2000])
+          PY
 
       - name: Create dummy google-services.json if missing
         run: |

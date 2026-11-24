@@ -49,9 +49,6 @@ jobs:
 
       - name: Fix Android SDK versions
         run: |
-          echo "=== Before fix ==="
-          cat android/app/build.gradle* || true
-          echo "=== Applying fix ==="
           sed -i 's/compileSdkVersion 34/compileSdkVersion 35/g' android/app/build.gradle || true
           sed -i 's/compileSdk 34/compileSdk 35/g' android/app/build.gradle.kts || true
           sed -i 's/compileSdk = 34/compileSdk = 35/g' android/app/build.gradle.kts || true
@@ -61,8 +58,43 @@ jobs:
           sed -i 's/minSdkVersion 21/minSdkVersion 23/g' android/app/build.gradle || true
           sed -i 's/minSdk 21/minSdk 23/g' android/app/build.gradle.kts || true
           sed -i 's/minSdk = 21/minSdk = 23/g' android/app/build.gradle.kts || true
-          echo "=== After fix ==="
-          cat android/app/build.gradle* || true
+
+      - name: Create dummy google-services.json if missing
+        run: |
+          if [ ! -f android/app/google-services.json ]; then
+            echo "google-services.json NOT FOUND - creating dummy file for build"
+            cat > android/app/google-services.json <<'EOF'
+          {
+            "project_info": {
+              "project_number": "1234567890",
+              "project_id": "mtrdf-2026-ai-dummy"
+            },
+            "client": [
+              {
+                "client_info": {
+                  "mobilesdk_app_id": "1:1234567890:android:0000000000000000",
+                  "android_client_info": {
+                    "package_name": "com.example.mtrdf_2026_ai"
+                  }
+                },
+                "oauth_client": [],
+                "api_key": [
+                  {
+                    "current_key": "dummy_key_for_build_only"
+                  }
+                ],
+                "services": {
+                  "appinvite_service": {
+                    "other_platform_oauth_client": []
+                  }
+                }
+              }
+            ],
+            "configuration_version": "1"
+          }
+          EOF
+          fi
+          ls -l android/app/google-services.json
 
       - name: Build Android APK
         run: |

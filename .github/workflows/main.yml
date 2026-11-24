@@ -47,6 +47,23 @@ jobs:
         run: |
           flutter create --platforms=android . || true
 
+      - name: Fix Android SDK versions
+        run: |
+          echo "=== Before fix ==="
+          cat android/app/build.gradle* || true
+          echo "=== Applying fix ==="
+          sed -i 's/compileSdkVersion 34/compileSdkVersion 35/g' android/app/build.gradle || true
+          sed -i 's/compileSdk 34/compileSdk 35/g' android/app/build.gradle.kts || true
+          sed -i 's/compileSdk = 34/compileSdk = 35/g' android/app/build.gradle.kts || true
+          sed -i 's/targetSdkVersion 34/targetSdkVersion 35/g' android/app/build.gradle || true
+          sed -i 's/targetSdk 34/targetSdk 35/g' android/app/build.gradle.kts || true
+          sed -i 's/targetSdk = 34/targetSdk = 35/g' android/app/build.gradle.kts || true
+          sed -i 's/minSdkVersion 21/minSdkVersion 23/g' android/app/build.gradle || true
+          sed -i 's/minSdk 21/minSdk 23/g' android/app/build.gradle.kts || true
+          sed -i 's/minSdk = 21/minSdk = 23/g' android/app/build.gradle.kts || true
+          echo "=== After fix ==="
+          cat android/app/build.gradle* || true
+
       - name: Build Android APK
         run: |
           flutter build apk --release

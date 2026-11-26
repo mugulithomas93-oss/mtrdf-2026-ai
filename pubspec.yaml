@@ -1,5 +1,5 @@
-name: mtrdf_2026_ai
-description: Uganda Teacher Companion
+name: mtrdf_ai
+description: MTRDF - 2026 AI Educational App
 publish_to: 'none'
 version: 1.0.0+1
 
@@ -9,13 +9,6 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  firebase_core: ^3.8.0
-  firebase_auth: ^5.3.0
-  cloud_firestore: ^5.5.0
-  firebase_storage: ^12.3.0
-  file_picker: ^8.1.0
-  http: ^1.2.0
-  google_fonts: ^6.2.0
 
 flutter:
   uses-material-design: true

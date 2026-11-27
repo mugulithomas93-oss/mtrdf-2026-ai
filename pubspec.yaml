@@ -1,5 +1,5 @@
 name: mtrdf_ai
-description: MTRDF - 2026 AI Educational App
+description: "MTRDF - 2026 AI Educational App for Ugandan Teachers"
 publish_to: 'none'
 version: 1.0.0+1
 
@@ -9,6 +9,9 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  file_picker: ^8.1.2
+  image_picker: ^1.1.2
+  cupertino_icons: ^1.0.2
 
 dev_dependencies:
   flutter_test:

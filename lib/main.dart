@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:image_picker/image_picker.dart';
+import 'brain_search.dart';
 
 void main() => runApp(const MTRDFAIApp());
 
@@ -39,7 +40,7 @@ class SplashScreen extends StatelessWidget {
           const Text('Ugandan Secondary School Teachers\nGeography & History', textAlign: TextAlign.center, style: TextStyle(color: Colors.grey)),
           const SizedBox(height: 16),
           Container(padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6), decoration: BoxDecoration(color: const Color(0xFFE3F2FD), borderRadius: BorderRadius.circular(20)),
-            child: const Text('Be Loved • Be Respected • Be Successful', style: TextStyle(color: Color(0xFF1A4D8F), fontWeight: FontWeight.bold))),
+            child: const Text('Be Loved • Be Respected • Be Successful', style: const TextStyle(color: Color(0xFF1A4D8F), fontWeight: FontWeight.bold))),
           const Spacer(),
           Container(padding: const EdgeInsets.all(16), decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20), boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 10)]),
             child: Column(children: [
@@ -195,6 +196,17 @@ class AITaskScreen extends StatefulWidget {
 class _AITaskScreenState extends State<AITaskScreen> {
   final inputController = TextEditingController();
   String output = ''; bool loading = false;
+  String brainStatus = 'Loading MTRDF Brain...';
+
+  @override
+  void initState() {
+    super.initState();
+    BrainSearch.load().then((_) {
+      setState(() {
+        brainStatus = 'Brain ready: ${BrainSearch.totalChunks} chunks from your books';
+      });
+    });
+  }
 
   String generate(String title, String input) {
     final low = input.toLowerCase();
@@ -238,10 +250,12 @@ class _AITaskScreenState extends State<AITaskScreen> {
     return Scaffold(appBar: AppBar(title: Text(widget.title), backgroundColor: widget.color, foregroundColor: Colors.white),
       body: Padding(padding: const EdgeInsets.all(16),
         child: Column(children: [
+          Text(brainStatus, style: const TextStyle(fontSize: 12, color: Colors.green, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 8),
           TextField(controller: inputController, maxLines: 4, decoration: InputDecoration(labelText: 'Paste topic / question here', hintText: 'e.g. Ways of studying geography', border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)))),
           const SizedBox(height: 12),
           SizedBox(width: double.infinity, child: ElevatedButton(style: ElevatedButton.styleFrom(backgroundColor: widget.color, padding: const EdgeInsets.symmetric(vertical: 14)),
-            onPressed: () { setState(() => loading = true); Future.delayed(const Duration(seconds: 1), () { setState(() { output = generate(widget.title, inputController.text); loading = false; }); }); },
+            onPressed: () { setState(() => loading = true); Future.delayed(const Duration(seconds: 1), () { setState(() { final brain = BrainSearch.buildContext(inputController.text); output = generate(widget.title, inputController.text) + '\n\n--- FROM YOUR MTRDF BOOKS ---\n' + brain; loading = false; }); }); },
             child: loading ? const CircularProgressIndicator(color: Colors.white) : const Text('Generate with MTRDF AI', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)))),
           const SizedBox(height: 16),
           Expanded(child: SingleChildScrollView(child: Container(width: double.infinity, padding: const EdgeInsets.all(16), decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)), child: Text(output.isEmpty ? 'Your result will appear here...' : output, style: const TextStyle(fontSize: 15, height: 1.5))))),
